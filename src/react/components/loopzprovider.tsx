@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react"
-import { Loopz } from "@src/loopz"
+import { Loopz } from "../../loopz"
 import { Auth } from "@src/auth"
 import { Trade } from "@src/trade"
 import { Oracle } from "@src/oracle"
@@ -10,7 +10,6 @@ import {
   ILoopzContext,
   LoopzDesktopProviderProps,
   LoopzProviderProps,
-  LoopzReactNativeProviderProps,
 } from "@src/interfaces"
 import { LoopzContext } from "../context"
 

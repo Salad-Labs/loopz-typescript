@@ -34,7 +34,13 @@ export class Loopz {
 
   private static _privyAdapter: Maybe<PrivyAdapter> = null
 
-  private constructor(config: LoopzConfig, runAdapter?: boolean) {
+  private static _devMode: boolean = false
+
+  private constructor(
+    config: LoopzConfig,
+    runAdapter?: boolean,
+    devMode?: boolean
+  ) {
     Loopz._apiKey = config.apiKey
     Loopz._privyAppId = config.privyAppId
     Loopz._privyClientConfig = config.privyClientConfig
@@ -42,8 +48,6 @@ export class Loopz {
     Loopz._randomLsname = `loopz_${uuid()}`
 
     if (runAdapter === true || typeof runAdapter === "undefined") {
-      if (typeof window === "undefined")
-        throw new Error("Adapter must be runned only in desktop environments.")
       if (typeof window !== "undefined")
         Loopz._privyAdapter = new PrivyAdapter({
           appId: config.privyAppId,
@@ -54,18 +58,25 @@ export class Loopz {
         })
     }
 
+    if (typeof devMode !== "undefined" && devMode === true)
+      Loopz._devMode = true
+
     Loopz._oracle = new Oracle({
       apiKey: config.apiKey,
+      devMode: Loopz._devMode,
     })
     Loopz._post = new Post({
       apiKey: config.apiKey,
+      devMode: Loopz._devMode,
     })
     Loopz._trade = new Trade({
       apiKey: config.apiKey,
+      devMode: Loopz._devMode,
     })
     Loopz._chat = new Chat({
       apiKey: Loopz._apiKey,
       storage: config.storage,
+      devMode: Loopz._devMode,
     })
     Loopz._auth = new Auth({
       apiKey: config.apiKey,
@@ -76,6 +87,7 @@ export class Loopz {
       trade: Loopz._trade,
       chat: Loopz._chat,
       storage: config.storage,
+      devMode: Loopz._devMode,
     })
 
     if (Loopz._privyAdapter)
@@ -97,14 +109,16 @@ export class Loopz {
       )
     }
 
-    const DB_VERSION = localStorage.getItem(
+    let DB_VERSION = localStorage.getItem(
       CLIENT_DB_VERSION_LOCALSTORAGE_PROPERTY_NAME
     )
+      ? localStorage.getItem(CLIENT_DB_VERSION_LOCALSTORAGE_PROPERTY_NAME)
+      : "1"
 
     try {
       return DexieStorage.createOrConnect({
         dbName: CLIENT_DB_NAME,
-        dbVersion: DB_VERSION ? Number(DB_VERSION) : 0,
+        dbVersion: Number(DB_VERSION),
       })
     } catch (error) {
       console.log(error)
@@ -116,15 +130,21 @@ export class Loopz {
 
   static async boot(
     config: Omit<LoopzConfig, "storage">,
-    options?: { runAdapter?: boolean; enableStorage?: boolean }
+    options?: {
+      devMode?: boolean
+      runAdapter?: boolean
+      enableStorage?: boolean
+    }
   ): Promise<Loopz> {
     if (!Loopz._instance) {
       let runAdapter = undefined
       let enableStorage = undefined
+      let devMode = undefined
 
       if (options && "runAdapter" in options) runAdapter = options.runAdapter
       if (options && "enableStorage" in options)
         enableStorage = options.enableStorage
+      if (options && "devMode" in options) devMode = options.devMode
 
       const storage = await Loopz.createOrConnectToStorage()
 
@@ -137,7 +157,8 @@ export class Loopz {
           ...config,
           storage,
         },
-        runAdapter
+        runAdapter,
+        devMode
       )
     }
 

@@ -3,7 +3,7 @@ import {
   usePrivyLogin,
   usePrivyLogout,
   usePrivyUnlinkAccount,
-} from "@src/react/hooks"
+} from "../../react/hooks"
 import { PrivyWrapperProps } from "@src/interfaces"
 import React from "react"
 import { usePrivyWallets } from "../hooks/usePrivyWallets"

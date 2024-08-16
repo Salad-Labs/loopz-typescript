@@ -11,4 +11,6 @@ export type EngineInitConfig = {
   apiKey: string
 
   storage: DexieStorage
+
+  devMode: boolean
 }

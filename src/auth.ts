@@ -46,7 +46,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
    * @returns None
    */
   constructor(config: AuthConfig & ApiKeyAuthorized) {
-    super()
+    super(config.devMode)
 
     this._storage = config.storage
     this._apiKey = config.apiKey
