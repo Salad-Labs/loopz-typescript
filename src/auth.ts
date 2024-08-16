@@ -8,7 +8,7 @@ import {
   LinkAccountInfo,
 } from "./types/auth"
 import { ApiResponse } from "./types/base/apiresponse"
-import { ApiKeyAuthorized } from "./types/base"
+import { ApiKeyAuthorized, Maybe } from "./types/base"
 import { Crypto } from "./core"
 import { Account, DexieStorage } from "./core/app"
 import { PrivyClientConfig } from "@privy-io/react-auth"
@@ -90,6 +90,30 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
     if (!keys) return false
 
     return keys
+  }
+
+  private async _getUserE2EPublicKey(
+    did: string,
+    organizationId: string
+  ): Promise<Maybe<string>> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const storage = this._storage as DexieStorage
+
+        await storage.transaction("rw", storage.user, async () => {
+          const existingUser = await storage.user
+            .where("[did+organizationId]")
+            .equals([did, organizationId])
+            .first()
+
+          if (!existingUser) resolve(null)
+
+          resolve(existingUser!.e2ePublicKey)
+        })
+      } catch (error) {
+        reject(error)
+      }
+    })
   }
 
   private async _handleDexie(account: Account) {
@@ -242,6 +266,10 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         method: "POST",
         body: {
           ...this._formatAuthParams(authInfo),
+          e2ePublicKey: await this._getUserE2EPublicKey(
+            authInfo.user.id,
+            this._apiKey!
+          ),
         },
         headers: {
           "x-api-key": `${this._apiKey}`,
@@ -311,6 +339,10 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         method: "POST",
         body: {
           ...this._formatAuthParams(authInfo),
+          e2ePublicKey: await this._getUserE2EPublicKey(
+            authInfo.user.id,
+            this._apiKey!
+          ),
         },
         headers: {
           "x-api-key": `${this._apiKey}`,
@@ -733,6 +765,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
           resolve(status)
         })
 
+        this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
         this._emit("__logout")
       } catch (error) {
         console.warn(error)
