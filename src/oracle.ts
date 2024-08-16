@@ -3,7 +3,7 @@ import { GetCollectionsArgs, GetNFTArgs, GetNFTsArgs } from "./types/oracle"
 import { Collectible } from "./interfaces/oracle"
 import { ApiKeyAuthorized, Maybe } from "./types/base"
 import { ApiResponse } from "./types/base/apiresponse"
-import { Collection } from "realm"
+import { Collection } from "./interfaces"
 
 /**
  * Represents an Oracle class that extends HTTPClient and provides methods to interact with an Oracle API.

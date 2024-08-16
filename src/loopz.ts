@@ -1,4 +1,4 @@
-import { DexieStorage, RealmStorage } from "./core/app"
+import { DexieStorage } from "./core/app"
 import {
   CLIENT_DB_NAME,
   CLIENT_DB_VERSION_LOCALSTORAGE_PROPERTY_NAME,
@@ -30,7 +30,7 @@ export class Loopz {
 
   private static _privyClientConfig: PrivyClientConfig
 
-  private static _storage: DexieStorage | RealmStorage
+  private static _storage: DexieStorage
 
   private static _privyAdapter: Maybe<PrivyAdapter> = null
 
@@ -82,44 +82,35 @@ export class Loopz {
       Loopz._privyAdapter.render(Loopz._auth, Loopz._trade)
   }
 
-  private static async createOrConnectToStorage(): Promise<
-    DexieStorage | RealmStorage
-  > {
-    if (
-      typeof window !== "undefined" &&
-      typeof window.indexedDB !== "undefined"
-    ) {
-      if (!window.localStorage)
-        throw new Error(
-          "localStorage is not supported. Use a browser that provides the window.localStorage feature."
-        )
-
-      try {
-        localStorage.setItem(Loopz._randomLsname, "")
-        localStorage.removeItem(Loopz._randomLsname)
-      } catch (error) {
-        throw new Error(
-          "localStorage is not supported. Use a browser that provides the window.localStorage feature."
-        )
-      }
-
-      const DB_VERSION = localStorage.getItem(
-        CLIENT_DB_VERSION_LOCALSTORAGE_PROPERTY_NAME
+  private static async createOrConnectToStorage(): Promise<DexieStorage> {
+    if (!window.localStorage)
+      throw new Error(
+        "localStorage is not supported. Use a browser that provides the window.localStorage feature."
       )
 
-      try {
-        return DexieStorage.createOrConnect({
-          dbName: CLIENT_DB_NAME,
-          dbVersion: DB_VERSION ? Number(DB_VERSION) : 0,
-        })
-      } catch (error) {
-        console.log(error)
-        throw new Error(
-          "Error during the creation of the local database. See the console for more info."
-        )
-      }
-    } else {
-      return RealmStorage.createOrConnect()
+    try {
+      localStorage.setItem(Loopz._randomLsname, "")
+      localStorage.removeItem(Loopz._randomLsname)
+    } catch (error) {
+      throw new Error(
+        "localStorage is not supported. Use a browser that provides the window.localStorage feature."
+      )
+    }
+
+    const DB_VERSION = localStorage.getItem(
+      CLIENT_DB_VERSION_LOCALSTORAGE_PROPERTY_NAME
+    )
+
+    try {
+      return DexieStorage.createOrConnect({
+        dbName: CLIENT_DB_NAME,
+        dbVersion: DB_VERSION ? Number(DB_VERSION) : 0,
+      })
+    } catch (error) {
+      console.log(error)
+      throw new Error(
+        "Error during the creation of the local database. See the console for more info."
+      )
     }
   }
 

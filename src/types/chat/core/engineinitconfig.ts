@@ -1,4 +1,4 @@
-import { DexieStorage, RealmStorage } from "@src/core/app"
+import { DexieStorage } from "@src/core/app"
 
 /**
  * Represents the configuration needed to initialize the engine.
@@ -10,5 +10,5 @@ export type EngineInitConfig = {
    */
   apiKey: string
 
-  storage: DexieStorage | RealmStorage
+  storage: DexieStorage
 }

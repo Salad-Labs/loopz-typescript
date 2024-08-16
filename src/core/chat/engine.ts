@@ -20,7 +20,7 @@ import { SubscriptionGarbage } from "../../types/chat/subscriptiongarbage"
 import forge from "node-forge"
 import { KeyPairItem } from "../../types/chat/keypairitem"
 import { EngineInitConfig } from "../../types"
-import { Account, DexieStorage, RealmStorage } from "../app"
+import { Account, DexieStorage } from "../app"
 
 /**
  * Represents an Engine class that extends HTTPClient and implements IEngine interface.
@@ -63,7 +63,7 @@ export class Engine extends HTTPClient implements IEngine {
    */
   protected _keyPairsMap: Maybe<Array<KeyPairItem>> = null
 
-  protected _storage: DexieStorage | RealmStorage
+  protected _storage: DexieStorage
 
   protected _account: Maybe<Account> = null
   /**

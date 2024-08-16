@@ -218,10 +218,7 @@ import { Converter, findAddedAndRemovedConversation } from "./core"
 import Dexie, { Table } from "dexie"
 import { Reaction } from "./core/chat/reaction"
 import { v4 as uuidv4 } from "uuid"
-import { DexieStorage, RealmStorage } from "./core/app"
-import { DefaultObject } from "realm/dist/public-types/schema"
-import Realm, { Results } from "realm"
-import { RealmObject } from "realm/dist/public-types/Object"
+import { DexieStorage } from "./core/app"
 
 export class Chat
   extends Engine
@@ -432,20 +429,10 @@ export class Chat
       //let's take all the information related to our keys into _userKeyPair object. These are the public and private key of the current user.
       //To do that, let's do a query on the local user table. If the _userKeyPair is already set, we skip this operation.
       if (!this._userKeyPair) {
-        let user
-
-        if (this._storage instanceof DexieStorage) {
-          user = (await this._storage.get("user", "[did+organizationId]", [
-            this._account!.did,
-            this._account!.organizationId,
-          ])) as LocalDBUser
-        } else if (this._storage instanceof RealmStorage) {
-          user = await this._storage.get(
-            "user",
-            "compositeKey",
-            `${this._account!.did}-${this._account!.organizationId}`
-          )
-        }
+        let user = (await this._storage.get("user", "[did+organizationId]", [
+          this._account!.did,
+          this._account!.organizationId,
+        ])) as LocalDBUser
 
         const { e2eEncryptedPrivateKey, e2ePublicKey: e2ePublicKeyPem } = user!
         const { e2eSecret } = this._account!
@@ -555,34 +542,22 @@ export class Chat
           else break
         }
 
-        let messageTable
-        let lastMessageStored
-
         //messages handling
-        if (this._storage instanceof DexieStorage) {
-          messageTable = this._storage.getTable("message") as Dexie.Table<
-            LocalDBMessage,
-            string,
-            LocalDBMessage
-          >
-          lastMessageStored = await messageTable
-            .orderBy("createdAt")
-            .filter(
-              (element) =>
-                element.origin === "USER" &&
-                element.userDid === this._account!.did
-            )
-            .reverse()
-            .first()
-        } else if (this._storage instanceof RealmStorage) {
-          messageTable =
-            this._storage.getTable<
-              Realm.Results<Realm.Object<DefaultObject, never> & DefaultObject>
-            >("message")
-          lastMessageStored = messageTable
-            .filtered(`origin == 'USER' AND userDid == ${this._account!.did}`)
-            .sorted("createdAt", true)[0]
-        }
+
+        let messageTable = this._storage.getTable("message") as Dexie.Table<
+          LocalDBMessage,
+          string,
+          LocalDBMessage
+        >
+        let lastMessageStored = await messageTable
+          .orderBy("createdAt")
+          .filter(
+            (element) =>
+              element.origin === "USER" &&
+              element.userDid === this._account!.did
+          )
+          .reverse()
+          .first()
 
         const canDownloadMessages =
           !lastMessageStored ||
@@ -958,40 +933,23 @@ export class Chat
 
         //let's update the conversation in the case it was deleted locally by the user.
         //the conversation if it is deleted, returns visible for the user.
-        if (this._storage instanceof DexieStorage) {
-          this._storage.query(
-            async (
-              db: Dexie,
-              table: Table<LocalDBConversation, string, LocalDBConversation>
-            ) => {
-              const conversation = await this._storage.get(
-                "conversation",
-                "[conversationId+userDid]",
-                [response.conversationId, this._account!.did]
-              )
-              table.update(conversation, {
-                deletedAt: null,
-              })
-            },
-            "conversation"
-          )
-        } else if (this._storage instanceof RealmStorage) {
-          this._storage.query(
-            (
-              db: Realm,
-              table: Results<RealmObject<DefaultObject, never> & DefaultObject>
-            ) => {
-              table
-                .filtered(
-                  `compositeKey == ${response.conversationId}-${
-                    this._account!.did
-                  }`
-                )
-                .update("deletedAt", null)
-            },
-            "conversation"
-          )
-        }
+
+        this._storage.query(
+          async (
+            db: Dexie,
+            table: Table<LocalDBConversation, string, LocalDBConversation>
+          ) => {
+            const conversation = await this._storage.get(
+              "conversation",
+              "[conversationId+userDid]",
+              [response.conversationId, this._account!.did]
+            )
+            table.update(conversation, {
+              deletedAt: null,
+            })
+          },
+          "conversation"
+        )
       }
     } catch (error) {
       console.log("[ERROR]: _onSendMessageSync() -> ", error)
@@ -6038,106 +5996,54 @@ export class Chat
     callbackError: (error: unknown) => void
   ) {
     try {
-      if (this._storage instanceof DexieStorage) {
-        this._storage.query(
-          (db, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
-            message.hook("creating", (primaryKey, record) => {
-              const _message = {
-                ...record,
-                content: Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(conversationId),
-                  record.content
-                ),
-                reactions: record.reactions
-                  ? record.reactions.map((reaction) => {
-                      return {
-                        ...reaction,
-                        content: Crypto.decryptStringOrFail(
-                          this.findPrivateKeyById(conversationId),
-                          reaction.content
-                        ),
-                      }
-                    })
-                  : null,
-              }
+      this._storage.query(
+        (db: Dexie, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
+          message.hook("creating", (primaryKey, record) => {
+            const _message = {
+              ...record,
+              content: Crypto.decryptStringOrFail(
+                this.findPrivateKeyById(conversationId),
+                record.content
+              ),
+              reactions: record.reactions
+                ? record.reactions.map((reaction) => {
+                    return {
+                      ...reaction,
+                      content: Crypto.decryptStringOrFail(
+                        this.findPrivateKeyById(conversationId),
+                        reaction.content
+                      ),
+                    }
+                  })
+                : null,
+            }
 
-              _message.messageRoot = record.messageRoot
-                ? {
-                    ...record.messageRoot,
-                    content: Crypto.decryptStringOrFail(
-                      this.findPrivateKeyById(conversationId),
-                      record.messageRoot.content
-                    ),
-                    reactions: record.messageRoot.reactions
-                      ? record.messageRoot.reactions.map((reaction) => {
-                          return {
-                            ...reaction,
-                            content: Crypto.decryptStringOrFail(
-                              this.findPrivateKeyById(conversationId),
-                              reaction.content
-                            ),
-                          }
-                        })
-                      : null,
-                  }
-                : null
+            _message.messageRoot = record.messageRoot
+              ? {
+                  ...record.messageRoot,
+                  content: Crypto.decryptStringOrFail(
+                    this.findPrivateKeyById(conversationId),
+                    record.messageRoot.content
+                  ),
+                  reactions: record.messageRoot.reactions
+                    ? record.messageRoot.reactions.map((reaction) => {
+                        return {
+                          ...reaction,
+                          content: Crypto.decryptStringOrFail(
+                            this.findPrivateKeyById(conversationId),
+                            reaction.content
+                          ),
+                        }
+                      })
+                    : null,
+                }
+              : null
 
-              callback(_message)
-            })
-          },
-          "message"
-        )
-      } else if (this._storage instanceof RealmStorage) {
-        this._storage.query((db, table) => {
-          table.addListener((collection, changes) => {
-            changes.insertions.forEach((index) => {
-              const record = collection[index] as unknown as LocalDBMessage
-
-              const _message = {
-                ...record,
-                content: Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(conversationId),
-                  record.content
-                ),
-                reactions: record.reactions
-                  ? record.reactions.map((reaction) => {
-                      return {
-                        ...reaction,
-                        content: Crypto.decryptStringOrFail(
-                          this.findPrivateKeyById(conversationId),
-                          reaction.content
-                        ),
-                      }
-                    })
-                  : null,
-              }
-
-              _message.messageRoot = record.messageRoot
-                ? {
-                    ...record.messageRoot,
-                    content: Crypto.decryptStringOrFail(
-                      this.findPrivateKeyById(conversationId),
-                      record.messageRoot.content
-                    ),
-                    reactions: record.messageRoot.reactions
-                      ? record.messageRoot.reactions.map((reaction) => {
-                          return {
-                            ...reaction,
-                            content: Crypto.decryptStringOrFail(
-                              this.findPrivateKeyById(conversationId),
-                              reaction.content
-                            ),
-                          }
-                        })
-                      : null,
-                  }
-                : null
-
-              callback(_message)
-            })
+            callback(_message)
           })
-        }, "message")
-      }
+        },
+        "message"
+      )
     } catch (error) {
       callbackError(error)
     }
@@ -6149,106 +6055,54 @@ export class Chat
     callbackError: (error: unknown) => void
   ) {
     try {
-      if (this._storage instanceof DexieStorage) {
-        this._storage.query(
-          (db, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
-            message.hook("deleting", (primaryKey, record) => {
-              const _message = {
-                ...record,
-                content: Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(conversationId),
-                  record.content
-                ),
-                reactions: record.reactions
-                  ? record.reactions.map((reaction) => {
-                      return {
-                        ...reaction,
-                        content: Crypto.decryptStringOrFail(
-                          this.findPrivateKeyById(conversationId),
-                          reaction.content
-                        ),
-                      }
-                    })
-                  : null,
-              }
+      this._storage.query(
+        (db: Dexie, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
+          message.hook("deleting", (primaryKey, record) => {
+            const _message = {
+              ...record,
+              content: Crypto.decryptStringOrFail(
+                this.findPrivateKeyById(conversationId),
+                record.content
+              ),
+              reactions: record.reactions
+                ? record.reactions.map((reaction) => {
+                    return {
+                      ...reaction,
+                      content: Crypto.decryptStringOrFail(
+                        this.findPrivateKeyById(conversationId),
+                        reaction.content
+                      ),
+                    }
+                  })
+                : null,
+            }
 
-              _message.messageRoot = record.messageRoot
-                ? {
-                    ...record.messageRoot,
-                    content: Crypto.decryptStringOrFail(
-                      this.findPrivateKeyById(conversationId),
-                      record.messageRoot.content
-                    ),
-                    reactions: record.messageRoot.reactions
-                      ? record.messageRoot.reactions.map((reaction) => {
-                          return {
-                            ...reaction,
-                            content: Crypto.decryptStringOrFail(
-                              this.findPrivateKeyById(conversationId),
-                              reaction.content
-                            ),
-                          }
-                        })
-                      : null,
-                  }
-                : null
+            _message.messageRoot = record.messageRoot
+              ? {
+                  ...record.messageRoot,
+                  content: Crypto.decryptStringOrFail(
+                    this.findPrivateKeyById(conversationId),
+                    record.messageRoot.content
+                  ),
+                  reactions: record.messageRoot.reactions
+                    ? record.messageRoot.reactions.map((reaction) => {
+                        return {
+                          ...reaction,
+                          content: Crypto.decryptStringOrFail(
+                            this.findPrivateKeyById(conversationId),
+                            reaction.content
+                          ),
+                        }
+                      })
+                    : null,
+                }
+              : null
 
-              callback(_message)
-            })
-          },
-          "message"
-        )
-      } else if (this._storage instanceof RealmStorage) {
-        this._storage.query((db, table) => {
-          table.addListener((collection, changes) => {
-            changes.deletions.forEach((index) => {
-              const record = collection[index] as unknown as LocalDBMessage
-
-              const _message = {
-                ...record,
-                content: Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(conversationId),
-                  record.content
-                ),
-                reactions: record.reactions
-                  ? record.reactions.map((reaction) => {
-                      return {
-                        ...reaction,
-                        content: Crypto.decryptStringOrFail(
-                          this.findPrivateKeyById(conversationId),
-                          reaction.content
-                        ),
-                      }
-                    })
-                  : null,
-              }
-
-              _message.messageRoot = record.messageRoot
-                ? {
-                    ...record.messageRoot,
-                    content: Crypto.decryptStringOrFail(
-                      this.findPrivateKeyById(conversationId),
-                      record.messageRoot.content
-                    ),
-                    reactions: record.messageRoot.reactions
-                      ? record.messageRoot.reactions.map((reaction) => {
-                          return {
-                            ...reaction,
-                            content: Crypto.decryptStringOrFail(
-                              this.findPrivateKeyById(conversationId),
-                              reaction.content
-                            ),
-                          }
-                        })
-                      : null,
-                  }
-                : null
-
-              callback(_message)
-            })
+            callback(_message)
           })
-        }, "message")
-      }
+        },
+        "message"
+      )
     } catch (error) {
       callbackError(error)
     }
@@ -6260,106 +6114,54 @@ export class Chat
     callbackError: (error: unknown) => void
   ) {
     try {
-      if (this._storage instanceof DexieStorage) {
-        this._storage.query(
-          (db, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
-            message.hook("updating", (modifications, primaryKey, record) => {
-              const _message = {
-                ...record,
-                content: Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(conversationId),
-                  record.content
-                ),
-                reactions: record.reactions
-                  ? record.reactions.map((reaction) => {
-                      return {
-                        ...reaction,
-                        content: Crypto.decryptStringOrFail(
-                          this.findPrivateKeyById(conversationId),
-                          reaction.content
-                        ),
-                      }
-                    })
-                  : null,
-              }
+      this._storage.query(
+        (db: Dexie, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
+          message.hook("updating", (modifications, primaryKey, record) => {
+            const _message = {
+              ...record,
+              content: Crypto.decryptStringOrFail(
+                this.findPrivateKeyById(conversationId),
+                record.content
+              ),
+              reactions: record.reactions
+                ? record.reactions.map((reaction) => {
+                    return {
+                      ...reaction,
+                      content: Crypto.decryptStringOrFail(
+                        this.findPrivateKeyById(conversationId),
+                        reaction.content
+                      ),
+                    }
+                  })
+                : null,
+            }
 
-              _message.messageRoot = record.messageRoot
-                ? {
-                    ...record.messageRoot,
-                    content: Crypto.decryptStringOrFail(
-                      this.findPrivateKeyById(conversationId),
-                      record.messageRoot.content
-                    ),
-                    reactions: record.messageRoot.reactions
-                      ? record.messageRoot.reactions.map((reaction) => {
-                          return {
-                            ...reaction,
-                            content: Crypto.decryptStringOrFail(
-                              this.findPrivateKeyById(conversationId),
-                              reaction.content
-                            ),
-                          }
-                        })
-                      : null,
-                  }
-                : null
+            _message.messageRoot = record.messageRoot
+              ? {
+                  ...record.messageRoot,
+                  content: Crypto.decryptStringOrFail(
+                    this.findPrivateKeyById(conversationId),
+                    record.messageRoot.content
+                  ),
+                  reactions: record.messageRoot.reactions
+                    ? record.messageRoot.reactions.map((reaction) => {
+                        return {
+                          ...reaction,
+                          content: Crypto.decryptStringOrFail(
+                            this.findPrivateKeyById(conversationId),
+                            reaction.content
+                          ),
+                        }
+                      })
+                    : null,
+                }
+              : null
 
-              callback(_message)
-            })
-          },
-          "message"
-        )
-      } else if (this._storage instanceof RealmStorage) {
-        this._storage.query((db, table) => {
-          table.addListener((collection, changes) => {
-            changes.newModifications.forEach((index) => {
-              const record = collection[index] as unknown as LocalDBMessage
-
-              const _message = {
-                ...record,
-                content: Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(conversationId),
-                  record.content
-                ),
-                reactions: record.reactions
-                  ? record.reactions.map((reaction) => {
-                      return {
-                        ...reaction,
-                        content: Crypto.decryptStringOrFail(
-                          this.findPrivateKeyById(conversationId),
-                          reaction.content
-                        ),
-                      }
-                    })
-                  : null,
-              }
-
-              _message.messageRoot = record.messageRoot
-                ? {
-                    ...record.messageRoot,
-                    content: Crypto.decryptStringOrFail(
-                      this.findPrivateKeyById(conversationId),
-                      record.messageRoot.content
-                    ),
-                    reactions: record.messageRoot.reactions
-                      ? record.messageRoot.reactions.map((reaction) => {
-                          return {
-                            ...reaction,
-                            content: Crypto.decryptStringOrFail(
-                              this.findPrivateKeyById(conversationId),
-                              reaction.content
-                            ),
-                          }
-                        })
-                      : null,
-                  }
-                : null
-
-              callback(_message)
-            })
+            callback(_message)
           })
-        }, "message")
-      }
+        },
+        "message"
+      )
     } catch (error) {
       callbackError(error)
     }
@@ -6370,84 +6172,43 @@ export class Chat
     callbackError: (error: unknown) => void
   ) {
     try {
-      if (this._storage instanceof DexieStorage) {
-        this._storage.query(
-          (
-            db,
-            conversation: Table<
-              LocalDBConversation,
-              string,
-              LocalDBConversation
-            >
-          ) => {
-            conversation.hook("creating", (primaryKey, record) => {
-              const _conversation = {
-                ...record,
-                name: Crypto.decryptStringOrFail(
+      this._storage.query(
+        (
+          db: Dexie,
+          conversation: Table<LocalDBConversation, string, LocalDBConversation>
+        ) => {
+          conversation.hook("creating", (primaryKey, record) => {
+            const _conversation = {
+              ...record,
+              name: Crypto.decryptStringOrFail(
+                this.findPrivateKeyById(record.id),
+                record.name
+              ),
+              description: Crypto.decryptStringOrFail(
+                this.findPrivateKeyById(record.id),
+                record.description
+              ),
+              imageURL: Crypto.decryptStringOrFail(
+                this.findPrivateKeyById(record.id),
+                record.imageURL
+              ),
+              bannerImageURL: Crypto.decryptStringOrFail(
+                this.findPrivateKeyById(record.id),
+                record.bannerImageURL
+              ),
+              settings: JSON.parse(
+                Crypto.decryptStringOrFail(
                   this.findPrivateKeyById(record.id),
-                  record.name
-                ),
-                description: Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(record.id),
-                  record.description
-                ),
-                imageURL: Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(record.id),
-                  record.imageURL
-                ),
-                bannerImageURL: Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(record.id),
-                  record.bannerImageURL
-                ),
-                settings: JSON.parse(
-                  Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(record.id),
-                    record.settings
-                  )
-                ),
-              }
+                  record.settings
+                )
+              ),
+            }
 
-              callback(_conversation)
-            })
-          },
-          "conversation"
-        )
-      } else if (this._storage instanceof RealmStorage) {
-        this._storage.query((db, conversation) => {
-          conversation.addListener((collection, changes) => {
-            changes.insertions.forEach((index) => {
-              const record = collection[index] as unknown as LocalDBConversation
-              const _conversation = {
-                ...record,
-                name: Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(record.id),
-                  record.name
-                ),
-                description: Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(record.id),
-                  record.description
-                ),
-                imageURL: Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(record.id),
-                  record.imageURL
-                ),
-                bannerImageURL: Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(record.id),
-                  record.bannerImageURL
-                ),
-                settings: JSON.parse(
-                  Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(record.id),
-                    record.settings
-                  )
-                ),
-              }
-
-              callback(_conversation)
-            })
+            callback(_conversation)
           })
-        }, "conversation")
-      }
+        },
+        "conversation"
+      )
     } catch (error) {
       callbackError(error)
     }
@@ -6458,87 +6219,43 @@ export class Chat
     callbackError: (error: unknown) => void
   ) {
     try {
-      if (this._storage instanceof DexieStorage) {
-        this._storage.query(
-          (
-            db,
-            conversation: Table<
-              LocalDBConversation,
-              string,
-              LocalDBConversation
-            >
-          ) => {
-            conversation.hook(
-              "updating",
-              (modifications, primaryKey, record) => {
-                const _conversation = {
-                  ...record,
-                  name: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(record.id),
-                    record.name
-                  ),
-                  description: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(record.id),
-                    record.description
-                  ),
-                  imageURL: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(record.id),
-                    record.imageURL
-                  ),
-                  bannerImageURL: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(record.id),
-                    record.bannerImageURL
-                  ),
-                  settings: JSON.parse(
-                    Crypto.decryptStringOrFail(
-                      this.findPrivateKeyById(record.id),
-                      record.settings
-                    )
-                  ),
-                }
+      this._storage.query(
+        (
+          db: Dexie,
+          conversation: Table<LocalDBConversation, string, LocalDBConversation>
+        ) => {
+          conversation.hook("updating", (modifications, primaryKey, record) => {
+            const _conversation = {
+              ...record,
+              name: Crypto.decryptStringOrFail(
+                this.findPrivateKeyById(record.id),
+                record.name
+              ),
+              description: Crypto.decryptStringOrFail(
+                this.findPrivateKeyById(record.id),
+                record.description
+              ),
+              imageURL: Crypto.decryptStringOrFail(
+                this.findPrivateKeyById(record.id),
+                record.imageURL
+              ),
+              bannerImageURL: Crypto.decryptStringOrFail(
+                this.findPrivateKeyById(record.id),
+                record.bannerImageURL
+              ),
+              settings: JSON.parse(
+                Crypto.decryptStringOrFail(
+                  this.findPrivateKeyById(record.id),
+                  record.settings
+                )
+              ),
+            }
 
-                callback(_conversation)
-              }
-            )
-          },
-          "conversation"
-        )
-      } else if (this._storage instanceof RealmStorage) {
-        this._storage.query((db, conversation) => {
-          conversation.addListener((collection, changes) => {
-            changes.newModifications.forEach((index) => {
-              const record = collection[index] as unknown as LocalDBConversation
-              const _conversation = {
-                ...record,
-                name: Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(record.id),
-                  record.name
-                ),
-                description: Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(record.id),
-                  record.description
-                ),
-                imageURL: Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(record.id),
-                  record.imageURL
-                ),
-                bannerImageURL: Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(record.id),
-                  record.bannerImageURL
-                ),
-                settings: JSON.parse(
-                  Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(record.id),
-                    record.settings
-                  )
-                ),
-              }
-
-              callback(_conversation)
-            })
+            callback(_conversation)
           })
-        }, "conversation")
-      }
+        },
+        "conversation"
+      )
     } catch (error) {
       callbackError(error)
     }
@@ -6559,130 +6276,57 @@ export class Chat
 
         const offset = (page - 1) * numberElements
 
-        if (this._storage instanceof DexieStorage) {
-          this._storage.query(
-            async (
-              db,
-              message: Table<LocalDBMessage, string, LocalDBMessage>
-            ) => {
-              const messages = await message
-                .orderBy("createdAt")
-                .reverse()
-                .offset(offset)
-                .limit(numberElements)
-                .filter(
-                  (element) =>
-                    element.conversationId === conversationId &&
-                    element.userDid === this._account!.did &&
-                    typeof element.deletedAt !== "undefined" &&
-                    !!element.deletedAt
-                )
-                .toArray()
-
-              if (!messages) reject([])
-
-              resolve(
-                messages.map((message) => {
-                  const _message = {
-                    ...message,
-                    content: Crypto.decryptStringOrFail(
-                      this.findPrivateKeyById(conversationId),
-                      message.content
-                    ),
-                    reactions: message.reactions
-                      ? message.reactions.map((reaction) => {
-                          return {
-                            ...reaction,
-                            content: Crypto.decryptStringOrFail(
-                              this.findPrivateKeyById(conversationId),
-                              reaction.content
-                            ),
-                          }
-                        })
-                      : null,
-                  }
-
-                  _message.messageRoot = message.messageRoot
-                    ? {
-                        ...message.messageRoot,
-                        content: Crypto.decryptStringOrFail(
-                          this.findPrivateKeyById(conversationId),
-                          message.messageRoot.content
-                        ),
-                        reactions: message.messageRoot.reactions
-                          ? message.messageRoot.reactions.map((reaction) => {
-                              return {
-                                ...reaction,
-                                content: Crypto.decryptStringOrFail(
-                                  this.findPrivateKeyById(conversationId),
-                                  reaction.content
-                                ),
-                              }
-                            })
-                          : null,
-                      }
-                    : null
-
-                  return _message
-                })
+        this._storage.query(
+          async (
+            db: Dexie,
+            message: Table<LocalDBMessage, string, LocalDBMessage>
+          ) => {
+            const messages = await message
+              .orderBy("createdAt")
+              .reverse()
+              .offset(offset)
+              .limit(numberElements)
+              .filter(
+                (element) =>
+                  element.conversationId === conversationId &&
+                  element.userDid === this._account!.did &&
+                  typeof element.deletedAt !== "undefined" &&
+                  !!element.deletedAt
               )
-            },
-            "message"
-          )
-        } else if (this._storage instanceof RealmStorage) {
-          const offset = (page - 1) * numberElements
-
-          this._storage.query((db, message) => {
-            const messages = message
-              .sorted("createdAt", true)
-              .filtered(
-                `conversationId = '${conversationId}' AND userDid = '${
-                  this._account!.did
-                }' AND deletedAt != null`
-              )
-              .slice(offset, numberElements)
+              .toArray()
 
             if (!messages) reject([])
 
             resolve(
               messages.map((message) => {
                 const _message = {
-                  ...(message as unknown as LocalDBMessage),
+                  ...message,
                   content: Crypto.decryptStringOrFail(
                     this.findPrivateKeyById(conversationId),
-                    (message as unknown as LocalDBMessage).content
+                    message.content
                   ),
                   reactions: message.reactions
-                    ? (message as unknown as LocalDBMessage).reactions
-                      ? (message as unknown as LocalDBMessage).reactions!.map(
-                          (reaction) => {
-                            return {
-                              ...reaction,
-                              content: Crypto.decryptStringOrFail(
-                                this.findPrivateKeyById(conversationId),
-                                reaction.content
-                              ),
-                            }
-                          }
-                        )
-                      : null
+                    ? message.reactions.map((reaction) => {
+                        return {
+                          ...reaction,
+                          content: Crypto.decryptStringOrFail(
+                            this.findPrivateKeyById(conversationId),
+                            reaction.content
+                          ),
+                        }
+                      })
                     : null,
                 }
 
-                _message.messageRoot = (message as unknown as LocalDBMessage)
-                  .messageRoot
+                _message.messageRoot = message.messageRoot
                   ? {
-                      ...(message as unknown as LocalDBMessage).messageRoot!,
+                      ...message.messageRoot,
                       content: Crypto.decryptStringOrFail(
                         this.findPrivateKeyById(conversationId),
-                        (message as unknown as LocalDBMessage).messageRoot!
-                          .content
+                        message.messageRoot.content
                       ),
-                      reactions: (message as unknown as LocalDBMessage)
-                        .messageRoot!.reactions
-                        ? (
-                            message as unknown as LocalDBMessage
-                          ).messageRoot!.reactions!.map((reaction) => {
+                      reactions: message.messageRoot.reactions
+                        ? message.messageRoot.reactions.map((reaction) => {
                             return {
                               ...reaction,
                               content: Crypto.decryptStringOrFail(
@@ -6698,8 +6342,9 @@ export class Chat
                 return _message
               })
             )
-          }, "message")
-        }
+          },
+          "message"
+        )
       } catch (error) {
         console.log("[ERROR]: fetchLocalDBMessages() -> ", error)
         reject([])
@@ -6719,102 +6364,56 @@ export class Chat
 
         const offset = (page - 1) * numberElements
 
-        if (this._storage instanceof DexieStorage) {
-          this._storage.query(
-            async (
-              db,
-              conversation: Table<
-                LocalDBConversation,
-                string,
-                LocalDBConversation
-              >
-            ) => {
-              const conversations = await conversation
-                .orderBy("createdAt")
-                .reverse()
-                .offset(offset)
-                .limit(numberElements)
-                .filter(
-                  (element) =>
-                    element.userDid === this._account!.did &&
-                    typeof element.deletedAt !== "undefined" &&
-                    !!element.deletedAt
-                )
-                .toArray()
-
-              if (!conversations) reject([])
-
-              resolve(
-                conversations.map((conversation) => {
-                  return {
-                    ...conversation,
-                    name: Crypto.decryptStringOrFail(
-                      this.findPrivateKeyById(conversation.id),
-                      conversation.name
-                    ),
-                    description: Crypto.decryptStringOrFail(
-                      this.findPrivateKeyById(conversation.id),
-                      conversation.description
-                    ),
-                    imageURL: Crypto.decryptStringOrFail(
-                      this.findPrivateKeyById(conversation.id),
-                      conversation.imageURL
-                    ),
-                    bannerImageURL: Crypto.decryptStringOrFail(
-                      this.findPrivateKeyById(conversation.id),
-                      conversation.bannerImageURL
-                    ),
-                  }
-                })
+        this._storage.query(
+          async (
+            db: Dexie,
+            conversation: Table<
+              LocalDBConversation,
+              string,
+              LocalDBConversation
+            >
+          ) => {
+            const conversations = await conversation
+              .orderBy("createdAt")
+              .reverse()
+              .offset(offset)
+              .limit(numberElements)
+              .filter(
+                (element) =>
+                  element.userDid === this._account!.did &&
+                  typeof element.deletedAt !== "undefined" &&
+                  !!element.deletedAt
               )
-            },
-            "conversation"
-          )
-        } else if (this._storage instanceof RealmStorage) {
-          this._storage.query((db, conversation) => {
-            const conversations = conversation
-              .sorted("createdAt", true)
-              .filtered(
-                `userDid = '${this._account!.did}' AND deletedAt != null`
-              )
-              .slice(offset, numberElements)
+              .toArray()
 
             if (!conversations) reject([])
 
             resolve(
               conversations.map((conversation) => {
                 return {
-                  ...(conversation as unknown as LocalDBConversation),
+                  ...conversation,
                   name: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(
-                      (conversation as unknown as LocalDBConversation).id
-                    ),
-                    (conversation as unknown as LocalDBConversation).name
+                    this.findPrivateKeyById(conversation.id),
+                    conversation.name
                   ),
                   description: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(
-                      (conversation as unknown as LocalDBConversation).id
-                    ),
-                    (conversation as unknown as LocalDBConversation).description
+                    this.findPrivateKeyById(conversation.id),
+                    conversation.description
                   ),
                   imageURL: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(
-                      (conversation as unknown as LocalDBConversation).id
-                    ),
-                    (conversation as unknown as LocalDBConversation).imageURL
+                    this.findPrivateKeyById(conversation.id),
+                    conversation.imageURL
                   ),
                   bannerImageURL: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(
-                      (conversation as unknown as LocalDBConversation).id
-                    ),
-                    (conversation as unknown as LocalDBConversation)
-                      .bannerImageURL
+                    this.findPrivateKeyById(conversation.id),
+                    conversation.bannerImageURL
                   ),
                 }
               })
             )
-          }, "conversation")
-        }
+          },
+          "conversation"
+        )
       } catch (error) {
         console.log("[ERROR]: fetchLocalDBMessages() -> ", error)
         reject([])
@@ -6828,62 +6427,42 @@ export class Chat
     if (!this._account) throw new Error("Account must be initialized.")
     return new Promise((resolve, reject) => {
       try {
-        if (this._storage instanceof DexieStorage) {
-          this._storage.query(
-            async (
-              db,
-              message: Table<LocalDBMessage, string, LocalDBMessage>
-            ) => {
-              const results = await Dexie.Promise.all(
-                terms.map((prefix) =>
-                  message
-                    .where("content")
-                    .startsWith(prefix)
-                    .and((m) => {
-                      return m.userDid === this._account!.did
-                    })
-                    .primaryKeys()
-                )
+        this._storage.query(
+          async (
+            db: Dexie,
+            message: Table<LocalDBMessage, string, LocalDBMessage>
+          ) => {
+            const results = await Dexie.Promise.all(
+              terms.map((prefix) =>
+                message
+                  .where("content")
+                  .startsWith(prefix)
+                  .and((m) => {
+                    return m.userDid === this._account!.did
+                  })
+                  .primaryKeys()
               )
+            )
 
-              // Intersect result set of primary keys
-              const reduced = results.reduce((a, b) => {
-                const set = new Set(b)
-                return a.filter((k) => set.has(k))
-              })
+            // Intersect result set of primary keys
+            const reduced = results.reduce((a, b) => {
+              const set = new Set(b)
+              return a.filter((k) => set.has(k))
+            })
 
-              const messages = (
-                await message.where(":id").anyOf(reduced).toArray()
-              ).map((message) => {
-                return {
-                  messageId: message.id,
-                  conversationId: message.conversationId,
-                }
-              })
-
-              resolve(messages)
-            },
-            "message"
-          )
-        } else if (this._storage instanceof RealmStorage) {
-          this._storage.query((db, message) => {
-            const query = terms
-              .map((term) => `content CONTAINS[c] "${term}"`)
-              .join(" OR ")
-
-            const messages = message.filtered(query).map((message) => {
+            const messages = (
+              await message.where(":id").anyOf(reduced).toArray()
+            ).map((message) => {
               return {
                 messageId: message.id,
                 conversationId: message.conversationId,
-              } as {
-                messageId: string
-                conversationId: string
               }
             })
 
             resolve(messages)
-          }, "message")
-        }
+          },
+          "message"
+        )
       } catch (error) {
         reject(error)
       }
@@ -6896,24 +6475,20 @@ export class Chat
     if (!this._account) throw new Error("Account must be initialized.")
     return new Promise((resolve, reject) => {
       try {
-        if (this._storage instanceof DexieStorage) {
-          this._storage.query(async (db, table) => {
+        this._storage.query(
+          async (
+            db: Dexie,
+            table: Table<LocalDBConversation, string, LocalDBConversation>
+          ) => {
             await table
               .where("[id+userDid]")
               .equals([conversationId, this._account!.did])
               .modify((conversation: LocalDBConversation) => {
                 conversation.deletedAt = new Date()
               })
-          }, "conversation")
-        } else if (this._storage instanceof RealmStorage) {
-          this._storage.query(async (db, table) => {
-            table
-              .filtered(
-                `compositeKey == ${conversationId}-${this._account!.did}`
-              )
-              .update("deletedAt", new Date())
-          }, "conversation")
-        }
+          },
+          "conversation"
+        )
 
         resolve()
       } catch (error) {
@@ -6924,10 +6499,8 @@ export class Chat
 
   async truncateTableOnLocalDB(tableName: "message" | "user" | "conversation") {
     if (!this._account) throw new Error("Account must be initialized.")
-    if (this._storage instanceof DexieStorage)
-      await this._storage.truncate(tableName)
-    else if (this._storage instanceof RealmStorage)
-      this._storage.truncate(tableName)
+
+    await this._storage.truncate(tableName)
   }
 
   /** update operations local database */
@@ -6937,24 +6510,20 @@ export class Chat
 
     return new Promise((resolve, reject) => {
       try {
-        if (this._storage instanceof DexieStorage) {
-          this._storage.query(async (db, table) => {
+        this._storage.query(
+          async (
+            db: Dexie,
+            table: Table<LocalDBConversation, string, LocalDBConversation>
+          ) => {
             await table
               .where("[id+userDid]")
               .equals([conversationId, this._account!.did])
               .modify((conversation: LocalDBConversation) => {
                 conversation.lastMessageRead = new Date()
               })
-          }, "conversation")
-        } else if (this._storage instanceof RealmStorage) {
-          this._storage.query((db, table) => {
-            table
-              .filtered(
-                `compositeKey == ${conversationId}-${this._account!.did}`
-              )
-              .update("lastMessageRead", new Date())
-          }, "conversation")
-        }
+          },
+          "conversation"
+        )
 
         resolve()
       } catch (error) {

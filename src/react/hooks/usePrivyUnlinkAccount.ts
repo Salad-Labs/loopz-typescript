@@ -2,10 +2,7 @@ import { usePrivy } from "@privy-io/react-auth"
 import { Auth } from "@src/auth"
 import { useEffect, useRef } from "react"
 
-export const usePrivyUnlinkAccount = (
-  auth: Auth,
-  device: "desktop" | "mobile"
-) => {
+export const usePrivyUnlinkAccount = (auth: Auth) => {
   const initialized = useRef<boolean>(false)
   const {
     user,
@@ -27,7 +24,7 @@ export const usePrivyUnlinkAccount = (
   } = usePrivy()
 
   useEffect(() => {
-    if (!initialized.current && ready && user && device === "desktop") {
+    if (!initialized.current && ready && user) {
       initialized.current = true
 
       auth.on(

@@ -1,9 +1,3 @@
-import "fast-text-encoding"
-import "react-native-get-random-values"
-import "@ethersproject/shims"
-import "node-libs-react-native/globals"
-import "react-native-url-polyfill/auto"
-import "react-native-get-random-values"
 import React, { useEffect, useRef, useState } from "react"
 import { Loopz } from "@src/loopz"
 import { Auth } from "@src/auth"
@@ -11,7 +5,6 @@ import { Trade } from "@src/trade"
 import { Oracle } from "@src/oracle"
 import { Post } from "@src/post"
 import { PrivyProvider as PrivyProviderDesktop } from "@privy-io/react-auth"
-import { PrivyProvider as PrivyProviderReactNative } from "@privy-io/expo"
 import { PrivyWrapper } from "./privywrapper"
 import {
   ILoopzContext,
@@ -62,31 +55,17 @@ export const LoopzProvider: React.FC<LoopzProviderProps> = ({
 
   return loopzInitialized ? (
     <LoopzContext.Provider value={loopzContext!}>
-      {typeof window !== "undefined" ? (
-        <>
-          {loopzInitialized && authRef.current && tradeRef.current && (
-            <LoopzDesktopProvider
-              config={config}
-              auth={authRef.current}
-              trade={tradeRef.current}
-            >
-              {children}
-            </LoopzDesktopProvider>
-          )}
-        </>
-      ) : (
-        <>
-          {loopzInitialized && authRef.current && tradeRef.current && (
-            <LoopzReactNativeProvider
-              config={config}
-              auth={authRef.current}
-              trade={tradeRef.current}
-            >
-              {children}
-            </LoopzReactNativeProvider>
-          )}
-        </>
-      )}
+      <>
+        {loopzInitialized && authRef.current && tradeRef.current && (
+          <LoopzDesktopProvider
+            config={config}
+            auth={authRef.current}
+            trade={tradeRef.current}
+          >
+            {children}
+          </LoopzDesktopProvider>
+        )}
+      </>
     </LoopzContext.Provider>
   ) : (
     <></>
@@ -109,32 +88,9 @@ const LoopzDesktopProvider: React.FC<LoopzDesktopProviderProps> = ({
         ...config.privyClientConfig,
       }}
     >
-      <PrivyWrapper auth={auth} trade={trade} device="desktop">
+      <PrivyWrapper auth={auth} trade={trade}>
         {children}
       </PrivyWrapper>
     </PrivyProviderDesktop>
-  )
-}
-
-const LoopzReactNativeProvider: React.FC<LoopzReactNativeProviderProps> = ({
-  config,
-  auth,
-  trade,
-  children,
-}) => {
-  return (
-    <PrivyProviderReactNative
-      appId={config.privyAppId}
-      config={{
-        embeddedWallets: {
-          createOnLogin: "users-without-wallets",
-        },
-        ...config.privyClientConfig,
-      }}
-    >
-      <PrivyWrapper auth={auth} trade={trade} device="mobile">
-        {children}
-      </PrivyWrapper>
-    </PrivyProviderReactNative>
   )
 }
