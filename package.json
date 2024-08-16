@@ -1,0 +1,30 @@
+{
+  "name": "loopz-typescript",
+  "version": "1.0.0",
+  "description": "The Official Loopz TypeScript SDK",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Salad-Labs/loopz-typescript.git"
+  },
+  "keywords": [
+    "Marketplace",
+    "web3",
+    "Salad",
+    "Labs",
+    "Chat",
+    "SDK",
+    "Trading",
+    "NFT",
+    "Crypto"
+  ],
+  "author": "Salad Labs Inc.",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Salad-Labs/loopz-typescript/issues"
+  },
+  "homepage": "https://github.com/Salad-Labs/loopz-typescript#readme"
+}
