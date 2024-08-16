@@ -398,6 +398,10 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         method: "POST",
         body: {
           ...this._formatAuthParams(authInfo),
+          e2ePublicKey: await this._getUserE2EPublicKey(
+            authInfo.user.id,
+            this._apiKey!
+          ),
         },
         headers: {
           "x-api-key": `${this._apiKey}`,
@@ -447,6 +451,10 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         method: "POST",
         body: {
           ...this._formatAuthParams(authInfo),
+          e2ePublicKey: await this._getUserE2EPublicKey(
+            authInfo.user.id,
+            this._apiKey!
+          ),
         },
         headers: {
           "x-api-key": `${this._apiKey}`,
