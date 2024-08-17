@@ -22,6 +22,8 @@ export class DexieStorage extends Dexie implements BaseStorage {
   private constructor(dbName: string, dbVersion: number) {
     super(dbName)
 
+    Dexie.debug = true
+
     this._dbName = dbName
     this._dbVersion = dbVersion
 
@@ -34,6 +36,7 @@ export class DexieStorage extends Dexie implements BaseStorage {
 
     //let's store the current version of the database
     this.on("ready", async () => {
+      console.log("aaaa")
       const dbVersion = (await this.migration.get("dbVersion"))?.value
       if (dbVersion !== this._dbVersion)
         await this.migration.put({ key: "dbVersion", value: this._dbVersion })

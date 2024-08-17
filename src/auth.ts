@@ -21,6 +21,7 @@ import { Oracle } from "./oracle"
 import forge from "node-forge"
 import { AccountInitConfig } from "./types/auth/account"
 import { Chat } from "./chat"
+import Dexie from "dexie"
 
 /**
  * Represents an authentication client that interacts with a backend server for user authentication.
@@ -96,24 +97,27 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
     did: string,
     organizationId: string
   ): Promise<Maybe<string>> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const storage = this._storage as DexieStorage
-
-        await storage.transaction("rw", storage.user, async () => {
+    try {
+      const storage = this._storage as DexieStorage
+      const existingUser = await storage.transaction(
+        "rw",
+        storage.user,
+        async () => {
           const existingUser = await storage.user
             .where("[did+organizationId]")
             .equals([did, organizationId])
             .first()
 
-          if (!existingUser) resolve(null)
+          if (!existingUser) return null
 
-          resolve(existingUser!.e2ePublicKey)
-        })
-      } catch (error) {
-        reject(error)
-      }
-    })
+          return existingUser!.e2ePublicKey
+        }
+      )
+
+      return existingUser
+    } catch (error) {
+      return null
+    }
   }
 
   private async _handleDexie(account: Account) {
@@ -126,8 +130,8 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       //let's encrypt first the private key. Private key will be always calculated runtime.
       const encryptedPrivateKey = Crypto.encryptAES_CBC(
         Crypto.convertRSAPrivateKeyToPem(keys.privateKey),
-        Buffer.from(account.e2eSecret).toString("base64"),
-        Buffer.from(account.e2eSecretIV).toString("base64")
+        Buffer.from(account.e2eSecret, "hex").toString("base64"),
+        Buffer.from(account.e2eSecretIV, "hex").toString("base64")
       )
       const publicKey = Crypto.convertRSAPublicKeyToPem(keys.publicKey)
 
@@ -300,14 +304,13 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       this._oracleRef.setCurrentAccount(account)
       this._postRef.setCurrentAccount(account)
 
-      //generation of the table and local keys for e2e encryption
-      await this._handleDexie(account)
-
       //clear all the internal callbacks connected to the authentication...
       let event: "__onOAuthAuthenticatedDesktop" =
         "__onOAuthAuthenticatedDesktop"
-
       this._clearEventsCallbacks([event, "__onLoginError"])
+
+      //generation of the table and local keys for e2e encryption
+      await this._handleDexie(account)
 
       this._emit("auth", {
         auth: {
@@ -317,6 +320,10 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         account,
       })
     } catch (error) {
+      //clear all the internal callbacks connected to the authentication...
+      let event: "__onOAuthAuthenticatedDesktop" =
+        "__onOAuthAuthenticatedDesktop"
+      this._clearEventsCallbacks([event, "__onLoginError"])
       this._emit("onAuthError", error)
     }
   }
@@ -368,11 +375,11 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       this._oracleRef.setCurrentAccount(account)
       this._postRef.setCurrentAccount(account)
 
-      //generation of the table and local keys for e2e encryption
-      await this._handleDexie(account)
-
       //clear all the internal callbacks connected to the authentication...
       this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
+
+      //generation of the table and local keys for e2e encryption
+      await this._handleDexie(account)
 
       resolve({
         auth: {
@@ -382,6 +389,8 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         account,
       })
     } catch (error) {
+      //clear all the internal callbacks connected to the authentication...
+      this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
       reject(error)
     }
   }
