@@ -86,6 +86,8 @@ export interface AccountSchema {
   createdAt: Date
   updatedAt: Maybe<Date>
   deletedAt: Maybe<Date>
+  destroyLastUserLoggedKey(): void
+  storeLastUserLoggedKey(): void
   getActiveWallets(): Array<ConnectedWallet>
   setActiveWallets(wallets: Array<ConnectedWallet>): void
   emptyActiveWallets(wallets: Array<ConnectedWallet>): void

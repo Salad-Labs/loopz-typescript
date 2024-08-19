@@ -2,6 +2,7 @@ import { AccountSchema } from "@src/interfaces/auth"
 import { Maybe, Network } from "../../types"
 import { AccountInitConfig } from "../../types/auth/account"
 import { ConnectedWallet } from "@privy-io/react-auth"
+import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "../../constants/app"
 
 export class Account implements AccountSchema {
   readonly did: string
@@ -176,6 +177,25 @@ export class Account implements AccountSchema {
     this.allowReceiveMessageFrom = config.allowReceiveMessageFrom
     this.allowAddToGroupsFrom = config.allowAddToGroupsFrom
     this.allowGroupsSuggestion = config.allowGroupsSuggestion
+  }
+
+  //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
+  //the user refresh the page
+  storeLastUserLoggedKey() {
+    if (!this.did || !this.organizationId || !this.token) return
+
+    window.localStorage.setItem(
+      CLIENT_DB_KEY_LAST_USER_LOGGED,
+      JSON.stringify({
+        did: this.did,
+        organizationId: this.organizationId,
+        token: this.token,
+      })
+    )
+  }
+
+  destroyLastUserLoggedKey() {
+    window.localStorage.removeItem(CLIENT_DB_KEY_LAST_USER_LOGGED)
   }
 
   getActiveWallets(): Array<ConnectedWallet> {

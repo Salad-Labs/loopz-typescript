@@ -12,6 +12,7 @@ import {
   LoopzProviderProps,
 } from "@src/interfaces"
 import { LoopzContext } from "../context"
+import { Chat } from "@src/chat"
 
 export const LoopzProvider: React.FC<LoopzProviderProps> = ({
   config,
@@ -22,6 +23,7 @@ export const LoopzProvider: React.FC<LoopzProviderProps> = ({
   const tradeRef = useRef<Trade>()
   const oracleRef = useRef<Oracle>()
   const postRef = useRef<Post>()
+  const chatRef = useRef<Chat>()
 
   const [loopzContext, setLoopzContext] = useState<ILoopzContext | null>(null)
   const [loopzInitialized, setLoopzInitialized] = useState<boolean>(false)
@@ -35,15 +37,16 @@ export const LoopzProvider: React.FC<LoopzProviderProps> = ({
       //in this way we are sure we will handle all the Privy interaction directly from the components defined in this file.
       Loopz.boot(config, {
         runAdapter: false,
-      }).then((loopz: Loopz) => {
-        const { auth, trade, oracle, post } = loopz.init()
+      }).then(async (loopz: Loopz) => {
+        const { auth, trade, oracle, post, chat } = await loopz.init()
 
         authRef.current = auth
         tradeRef.current = trade
         oracleRef.current = oracle
         postRef.current = post
+        chatRef.current = chat
 
-        setLoopzContext({ auth, trade, oracle, post, loopz })
+        setLoopzContext({ auth, trade, oracle, post, chat, loopz })
       })
     }
   }, [config])

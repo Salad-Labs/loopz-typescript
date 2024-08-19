@@ -12,6 +12,9 @@ export interface LocalDBUser {
   wallet: {
     address: string
     connectorType: string
+    imported: boolean
+    recoveryMethod: string
+    clientType: string
   }
   apple: Maybe<{
     subject: Maybe<string>
@@ -28,6 +31,7 @@ export interface LocalDBUser {
     ownerAddress: Maybe<string>
     pfp: Maybe<string>
     username: Maybe<string>
+    signerPublicKey: Maybe<string>
   }>
   github: Maybe<{
     subject: Maybe<string>

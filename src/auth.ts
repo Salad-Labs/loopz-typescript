@@ -21,6 +21,7 @@ import { Oracle } from "./oracle"
 import forge from "node-forge"
 import { AccountInitConfig } from "./types/auth/account"
 import { Chat } from "./chat"
+import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "./constants/app"
 
 /**
  * Represents an authentication client that interacts with a backend server for user authentication.
@@ -96,6 +97,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
     did: string,
     organizationId: string
   ): Promise<Maybe<string>> {
+    console.log(did, organizationId)
     try {
       const storage = this._storage as DexieStorage
       const existingUser = await storage.transaction(
@@ -113,8 +115,11 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         }
       )
 
+      console.log(existingUser)
+
       return existingUser
     } catch (error) {
+      console.log(error)
       return null
     }
   }
@@ -154,6 +159,9 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
             wallet: {
               address: account.walletAddress,
               connectorType: account.walletConnectorType,
+              imported: account.walletImported,
+              recoveryMethod: account.walletRecoveryMethod,
+              clientType: account.walletClientType,
             },
             apple: account.appleSubject
               ? {
@@ -175,6 +183,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
                   ownerAddress: account.farcasterOwnerAddress,
                   pfp: account.farcasterPfp,
                   username: account.farcasterUsername,
+                  signerPublicKey: account.farcasterSignerPublicKey,
                 }
               : null,
             github: account.githubSubject
@@ -298,10 +307,15 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       this._postRef.setAuthToken(authInfo.authToken)
       this._chatRef.setAuthToken(authInfo.authToken)
 
+      this.setCurrentAccount(account)
       this._chatRef.setCurrentAccount(account)
       this._tradeRef.setCurrentAccount(account)
       this._oracleRef.setCurrentAccount(account)
       this._postRef.setCurrentAccount(account)
+
+      //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
+      //the user refresh the page
+      account.storeLastUserLoggedKey()
 
       //clear all the internal callbacks connected to the authentication...
       let event: "__onOAuthAuthenticatedDesktop" =
@@ -320,9 +334,11 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       })
     } catch (error) {
       //clear all the internal callbacks connected to the authentication...
-      let event: "__onOAuthAuthenticatedDesktop" =
-        "__onOAuthAuthenticatedDesktop"
-      this._clearEventsCallbacks([event, "__onLoginError"])
+      this._clearEventsCallbacks([
+        "__onOAuthAuthenticatedDesktop",
+        "__onLoginError",
+      ])
+      await this.logout()
       this._emit("onAuthError", error)
     }
   }
@@ -369,16 +385,29 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       this._postRef.setAuthToken(authInfo.authToken)
       this._chatRef.setAuthToken(authInfo.authToken)
 
+      this.setCurrentAccount(account)
       this._chatRef.setCurrentAccount(account)
       this._tradeRef.setCurrentAccount(account)
       this._oracleRef.setCurrentAccount(account)
       this._postRef.setCurrentAccount(account)
+
+      //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
+      //the user refresh the page
+      account.storeLastUserLoggedKey()
 
       //clear all the internal callbacks connected to the authentication...
       this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
 
       //generation of the table and local keys for e2e encryption
       await this._handleDexie(account)
+
+      this._emit("auth", {
+        auth: {
+          isConnected: true,
+          ...authInfo,
+        },
+        account,
+      })
 
       resolve({
         auth: {
@@ -390,6 +419,9 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
     } catch (error) {
       //clear all the internal callbacks connected to the authentication...
       this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
+      await this.logout()
+      this._emit("onAuthError", error)
+
       reject(error)
     }
   }
@@ -762,6 +794,8 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
     })
   }
 
+  //call this if you want to auth the user automatically without the need of a button to authenticate
+  //e.g. auth.ready(() => { auth.authenticate() })
   ready() {
     return new Promise((resolve, reject) => {
       try {
@@ -783,6 +817,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
 
         this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
         this._account?.emptyActiveWallets()
+        this._account?.destroyLastUserLoggedKey()
         this._emit("__logout")
       } catch (error) {
         console.warn(error)
@@ -850,5 +885,136 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         reject(error)
       }
     })
+  }
+
+  async recoverAccountFromLocalDB(): Promise<void> {
+    if (!this._storage) return
+
+    const lastUserLoggedKey = window.localStorage.getItem(
+      CLIENT_DB_KEY_LAST_USER_LOGGED
+    )
+
+    if (!lastUserLoggedKey) return
+
+    try {
+      const { did, organizationId, token } = JSON.parse(lastUserLoggedKey)
+      const user = await this._storage.get("user", "[did+organizationId]", [
+        did,
+        organizationId,
+      ])
+
+      const { response } = await this._fetch<
+        ApiResponse<{
+          secrets: {
+            e2eSecret: string
+            e2eSecretIV: string
+          }
+        }>
+      >(`${this.backendUrl()}/user/secrets`, {
+        method: "GET",
+        headers: {
+          "x-api-key": `${this._apiKey}`,
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!response || !response.data) return
+
+      const { secrets } = response.data[0]
+
+      if (!secrets) return
+
+      const { e2eSecret, e2eSecretIV } = secrets
+
+      this._account = new Account({
+        did: user.did,
+        organizationId: user.organizationId,
+        token: user.token,
+        walletAddress: user.wallet.address,
+        walletConnectorType: user.wallet.connectorType,
+        walletImported: user.wallet.imported,
+        walletRecoveryMethod: user.wallet.recoveryMethod,
+        walletClientType: user.wallet.clientType,
+        appleSubject: user.apple.subject,
+        appleEmail: user.apple.email,
+        discordSubject: user.discord.subject,
+        discordEmail: user.discord.email,
+        discordUsername: user.discord.username,
+        farcasterFid: user.farcaster.fid,
+        farcasterDisplayName: user.farcaster.displayName,
+        farcasterOwnerAddress: user.farcaster.ownerAddress,
+        farcasterPfp: user.farcaster.pfp,
+        farcasterSignerPublicKey: user.farcaster.signerPublicKey,
+        farcasterUrl: user.farcaster.url,
+        farcasterUsername: user.farcaster.username,
+        githubSubject: user.github.subject,
+        githubEmail: user.github.email,
+        githubName: user.github.name,
+        githubUsername: user.github.username,
+        googleEmail: user.google.email,
+        googleName: user.google.name,
+        googleSubject: user.google.subject,
+        instagramSubject: user.instagram.subject,
+        instagramUsername: user.instagram.username,
+        linkedinEmail: user.linkedin.email,
+        linkedinName: user.linkedin.name,
+        linkedinSubject: user.linkedin.subject,
+        linkedinVanityName: user.linkedin.vanityName,
+        spotifyEmail: user.spotify.email,
+        spotifyName: user.spotify.name,
+        spotifySubject: user.spotifySubject,
+        telegramFirstName: user.telegram.firstName,
+        telegramLastName: user.telegram.lastName,
+        telegramPhotoUrl: user.telegram.photoUrl,
+        telegramUserId: user.telegram.userId,
+        telegramUsername: user.telegram.username,
+        tiktokName: user.tiktok.name,
+        tiktokSubject: user.tiktok.subject,
+        tiktokUsername: user.tiktok.username,
+        twitterName: user.twitter.name,
+        twitterSubject: user.twitter.subject,
+        twitterProfilePictureUrl: user.twitter.profilePictureUrl,
+        twitterUsername: user.twitter.username,
+        dynamoDBUserID: user.dynamoDBUserID,
+        username: user.username,
+        email: user.email,
+        bio: user.bio,
+        firstLogin: user.firstLogin,
+        avatarUrl: user.avatarUrl,
+        phone: user.phone,
+        isVerified: user.isVerified,
+        isNft: user.isNft,
+        collectionAddress: user.collectionAddress,
+        tokenId: user.tokenId,
+        postNotificationPush: user.postNotificationPush,
+        postNotificationSystem: user.postNotificationSystem,
+        dealNotificationPush: user.dealNotificationPush,
+        dealNotificationSystem: user.dealNotificationSystem,
+        followNotificationPush: user.followNotificationPush,
+        followNotificationSystem: user.followNotificationSystem,
+        collectionNotificationPush: user.collectionNotificationPush,
+        collectionNotificationSystem: user.collectionNotificationSystem,
+        generalNotificationPush: user.generalNotificationPush,
+        generalNotificationSystem: user.generalNotificationSystem,
+        accountSuspended: user.accountSuspended,
+        e2ePublicKey: user.e2ePublicKey,
+        e2eSecret, //this info should come from the backend. This data is never stored in the local DB, it exists only in memory to make harder the access to it
+        e2eSecretIV, //this info should come from the backend. This data is never stored in the local DB, it exists only in memory to make harder the access to it
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt ? user.updatedAt : null,
+        deletedAt: user.deletedAt ? user.deletedAt : null,
+        allowNotification: user.allowNotification,
+        allowNotificationSound: user.allowNotificationSound,
+        visibility: user.visibility,
+        onlineStatus: user.onlineStatus,
+        allowReadReceipt: user.allowReadReceipt,
+        allowReceiveMessageFrom: user.allowReceiveMessageFrom,
+        allowAddToGroupsFrom: user.allowAddToGroupsFrom,
+        allowGroupsSuggestion: user.allowGroupsSuggestion,
+      })
+    } catch (error) {
+      console.log("Error during rebuilding phase for account.")
+      console.log(error)
+    }
   }
 }
