@@ -28,6 +28,7 @@ export class Reaction extends Engine implements ReactionSchema {
     super({
       apiKey: config.apiKey,
       storage: config.storage,
+      devMode: config.devMode,
     })
     this.content = config.content
     this.createdAt = config.createdAt

@@ -21,7 +21,6 @@ import { Oracle } from "./oracle"
 import forge from "node-forge"
 import { AccountInitConfig } from "./types/auth/account"
 import { Chat } from "./chat"
-import Dexie from "dexie"
 
 /**
  * Represents an authentication client that interacts with a backend server for user authentication.
@@ -783,6 +782,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         })
 
         this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
+        this._account?.emptyActiveWallets()
         this._emit("__logout")
       } catch (error) {
         console.warn(error)

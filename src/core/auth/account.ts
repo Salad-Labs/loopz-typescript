@@ -1,5 +1,5 @@
 import { AccountSchema } from "@src/interfaces/auth"
-import { Maybe } from "../../types"
+import { Maybe, Network } from "../../types"
 import { AccountInitConfig } from "../../types/auth/account"
 import { ConnectedWallet } from "@privy-io/react-auth"
 
@@ -89,7 +89,7 @@ export class Account implements AccountSchema {
   readonly allowAddToGroupsFrom: "ONLY_FOLLOWED" | "EVERYONE"
   readonly allowGroupsSuggestion: boolean
 
-  private connectedWallets: Array<ConnectedWallet> = []
+  private activeWallets: Array<ConnectedWallet> = []
 
   constructor(config: AccountInitConfig) {
     this.did = config.did
@@ -178,11 +178,23 @@ export class Account implements AccountSchema {
     this.allowGroupsSuggestion = config.allowGroupsSuggestion
   }
 
-  wallets(): Array<ConnectedWallet> {
-    return this.connectedWallets
+  getActiveWallets(): Array<ConnectedWallet> {
+    return this.activeWallets
   }
 
-  setWallets(wallets: Array<ConnectedWallet>): void {
-    this.connectedWallets = wallets
+  setActiveWallets(wallets: Array<ConnectedWallet>): void {
+    this.activeWallets = wallets
+  }
+
+  emptyActiveWallets() {
+    this.activeWallets = []
+  }
+
+  getCurrentNetwork(): Network {
+    return this.activeWallets[0].chainId as Network
+  }
+
+  async changeNetwork(chainId: number | `0x${string}`): Promise<void> {
+    await this.activeWallets[0].switchChain(chainId)
   }
 }

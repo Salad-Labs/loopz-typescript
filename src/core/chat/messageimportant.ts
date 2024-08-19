@@ -47,6 +47,7 @@ export class MessageImportant extends Engine implements MessageImportantSchema {
     super({
       apiKey: config.apiKey,
       storage: config.storage,
+      devMode: config.devMode,
     })
 
     this.id = config.id

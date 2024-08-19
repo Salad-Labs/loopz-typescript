@@ -42,6 +42,7 @@ export class ConversationPin extends Engine implements ConversationPinSchema {
     super({
       apiKey: config.apiKey,
       storage: config.storage,
+      devMode: config.devMode,
     })
 
     this.id = config.id
