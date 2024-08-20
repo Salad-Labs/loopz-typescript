@@ -41,6 +41,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
   private _oracleRef: Oracle
   private _chatRef: Chat
   private _isLoggingOut: boolean = false
+  private _isAuthenticated: boolean = false
 
   /**
    * Constructs a new instance of Auth with the provided configuration.
@@ -98,10 +99,9 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
     did: string,
     organizationId: string
   ): Promise<Maybe<string>> {
-    console.log(did, organizationId)
     try {
       const storage = this._storage as DexieStorage
-      const existingUser = await storage.transaction(
+      const e2ePublicKey = await storage.transaction(
         "rw",
         storage.user,
         async () => {
@@ -116,9 +116,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         }
       )
 
-      console.log(existingUser)
-
-      return existingUser
+      return e2ePublicKey
     } catch (error) {
       console.log(error)
       return null
@@ -302,6 +300,9 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         return this._emit("onAuthError", new Error("Access not granted."))
 
       const account = new Account(user)
+      //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
+      //the user refresh the page
+      account.storeLastUserLoggedKey()
 
       this._tradeRef.setAuthToken(authInfo.authToken)
       this._oracleRef.setAuthToken(authInfo.authToken)
@@ -314,26 +315,21 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       this._oracleRef.setCurrentAccount(account)
       this._postRef.setCurrentAccount(account)
 
-      //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
-      //the user refresh the page
-      account.storeLastUserLoggedKey()
-
       //clear all the internal callbacks connected to the authentication...
-      let event: "__onOAuthAuthenticatedDesktop" =
-        "__onOAuthAuthenticatedDesktop"
-      this._clearEventsCallbacks([event, "__onLoginError"])
+      this._clearEventsCallbacks([
+        "__onOAuthAuthenticatedDesktop",
+        "__onLoginError",
+      ])
 
       //generation of the table and local keys for e2e encryption
       await this._handleDexie(account)
 
-      this._emit("auth", {
-        auth: {
-          isConnected: true,
-          ...authInfo,
-        },
-        account,
-      })
+      this._isAuthenticated = true
     } catch (error) {
+      //safety check, _account could be null and this method destroy the local storage values stored
+      if ("statusCode" in (error as any) && (error as any).statusCode === 401)
+        this.destroyLastUserLoggedKey()
+
       //clear all the internal callbacks connected to the authentication...
       this._clearEventsCallbacks([
         "__onOAuthAuthenticatedDesktop",
@@ -380,6 +376,9 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       if (!user) throw new Error("Access not granted.")
 
       const account = new Account(user)
+      //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
+      //the user refresh the page
+      account.storeLastUserLoggedKey()
 
       this._tradeRef.setAuthToken(authInfo.authToken)
       this._oracleRef.setAuthToken(authInfo.authToken)
@@ -392,23 +391,13 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       this._oracleRef.setCurrentAccount(account)
       this._postRef.setCurrentAccount(account)
 
-      //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
-      //the user refresh the page
-      account.storeLastUserLoggedKey()
-
       //clear all the internal callbacks connected to the authentication...
       this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
 
       //generation of the table and local keys for e2e encryption
       await this._handleDexie(account)
 
-      this._emit("auth", {
-        auth: {
-          isConnected: true,
-          ...authInfo,
-        },
-        account,
-      })
+      this._isAuthenticated = true
 
       resolve({
         auth: {
@@ -418,6 +407,10 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         account,
       })
     } catch (error) {
+      //safety check, _account could be null and this method destroy the local storage values stored
+      if ("statusCode" in (error as any) && (error as any).statusCode === 401)
+        this.destroyLastUserLoggedKey()
+
       //clear all the internal callbacks connected to the authentication...
       this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
       await this.logout()
@@ -468,6 +461,10 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         ...authInfo,
       })
     } catch (error) {
+      //safety check, _account could be null and this method destroy the local storage values stored
+      if ("statusCode" in (error as any) && (error as any).statusCode === 401)
+        this.destroyLastUserLoggedKey()
+
       this._clearEventsCallbacks([
         "__onOAuthLinkAuthenticatedDesktop",
         "__onLinkAccountError",
@@ -519,6 +516,10 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
 
       resolve({ ...authInfo })
     } catch (error) {
+      //safety check, _account could be null and this method destroy the local storage values stored
+      if ("statusCode" in (error as any) && (error as any).statusCode === 401)
+        this.destroyLastUserLoggedKey()
+
       this._clearEventsCallbacks([
         "__onLinkAccountComplete",
         "__onLinkAccountError",
@@ -724,12 +725,15 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
     if (config.storage) this._storage = config.storage
   }
 
-  on(eventName: AuthEvents, callback: Function) {
+  on(eventName: AuthEvents, callback: Function, onlyOnce?: boolean) {
     const index = this._eventsCallbacks.findIndex((item) => {
       return item.eventName === eventName
     })
 
-    if (index > -1) this._eventsCallbacks[index].callbacks.push(callback)
+    if (index > -1 && onlyOnce === true) return
+
+    if (index > -1 && !onlyOnce)
+      this._eventsCallbacks[index].callbacks.push(callback)
 
     this._eventsCallbacks.push({
       eventName,
@@ -824,8 +828,10 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
 
         this._isLoggingOut = true
         this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
+
         this._account?.emptyActiveWallets()
         this._account?.destroyLastUserLoggedKey()
+        this._isAuthenticated = false
         this._emit("__logout")
       } catch (error) {
         this._clearEventsCallbacks([
@@ -841,6 +847,10 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
 
   isLoggingOut() {
     return this._isLoggingOut === true
+  }
+
+  isAuthenticated() {
+    return this._isAuthenticated === true
   }
 
   link(
@@ -906,6 +916,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
 
   async recoverAccountFromLocalDB(): Promise<void> {
     if (!this._storage) return
+    if (this._account) return
 
     const lastUserLoggedKey = window.localStorage.getItem(
       CLIENT_DB_KEY_LAST_USER_LOGGED
@@ -945,7 +956,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
 
       //need to understand how to handle the "isConnected" concept on refresh
 
-      this._account = new Account({
+      const account = new Account({
         did: user.did,
         organizationId: user.organizationId,
         token: user.token,
@@ -1040,13 +1051,27 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         allowGroupsSuggestion: user.allowGroupsSuggestion,
       })
 
-      this._oracleRef.setCurrentAccount(this._account)
-      this._chatRef.setCurrentAccount(this._account)
-      this._postRef.setCurrentAccount(this._account)
-      this._tradeRef.setCurrentAccount(this._account)
+      this.setCurrentAccount(account)
+      this._oracleRef.setCurrentAccount(account)
+      this._chatRef.setCurrentAccount(account)
+      this._postRef.setCurrentAccount(account)
+      this._tradeRef.setCurrentAccount(account)
     } catch (error) {
+      //safety check, _account could be null and this method destroy the local storage values stored
+      if ("statusCode" in (error as any) && (error as any).statusCode === 401)
+        this.destroyLastUserLoggedKey()
+
       console.log("Error during rebuilding phase for account.")
       console.log(error)
     }
+  }
+
+  destroyLastUserLoggedKey() {
+    window.localStorage.removeItem(CLIENT_DB_KEY_LAST_USER_LOGGED)
+  }
+
+  setCurrentAccount(account: Account) {
+    super.setCurrentAccount(account)
+    this._emit("__onAccountReady")
   }
 }

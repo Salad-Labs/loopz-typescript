@@ -37,6 +37,8 @@ export type AuthEvents =
   | "__onOAuthLinkAuthenticatedMobile" //to verify
   | "__linkMobileOAuth"
   | "__linkMobileWallet"
+  | "__onAccountReady"
+  | "__tryRebuildAccountOnRefresh"
   | "link"
   | "onLinkError"
   | "auth"

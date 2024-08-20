@@ -165,14 +165,16 @@ export class Loopz {
     return Loopz._instance
   }
 
-  async init(): Promise<{
+  init(): {
     auth: Auth
     trade: Trade
     post: Post
     oracle: Oracle
     chat: Chat
-  }> {
-    await Loopz._auth.recoverAccountFromLocalDB()
+  } {
+    Loopz._auth.on("__tryRebuildAccountOnRefresh", async () => {
+      await Loopz._auth.recoverAccountFromLocalDB()
+    })
 
     return {
       auth: Loopz._auth,

@@ -325,9 +325,7 @@ export class Trade extends HTTPClient {
       return item.event === event
     })
 
-    if (!item) throw new Error("event not found.")
-
-    for (const cb of item.callbacks) cb(params as any)
+    if (item) for (const cb of item.callbacks) cb(params as any)
   }
 
   on(
