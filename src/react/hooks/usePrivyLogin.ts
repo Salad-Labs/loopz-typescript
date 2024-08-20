@@ -1,11 +1,18 @@
 import { useLogin, usePrivy } from "@privy-io/react-auth"
 import { Auth } from "@src/auth"
 import { useEffect, useRef } from "react"
+import { useFundWallet } from "@privy-io/react-auth"
 
 export const usePrivyLogin = (auth: Auth) => {
   const initialized = useRef<boolean>(false)
   const { ready, authenticated, getAccessToken } = usePrivy()
   const disableLogin = !ready || (ready && authenticated)
+
+  const { fundWallet } = useFundWallet({
+    onUserExited: (o) => {
+      console.log(o)
+    },
+  })
 
   const { login } = useLogin({
     onComplete: async (

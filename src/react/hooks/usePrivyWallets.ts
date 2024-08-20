@@ -7,12 +7,16 @@ export const usePrivyWallets = (trade: Trade) => {
 
   useEffect(() => {
     if (ready && wallets) {
-      trade.on("__onAccountReady", () => {
-        if (wallets && wallets.length > 0) {
-          const account = trade.getCurrentAccount()
-          if (account) account.setActiveWallets(wallets)
-        }
-      })
+      trade.on(
+        "__onAccountReady",
+        () => {
+          if (wallets && wallets.length > 0) {
+            const account = trade.getCurrentAccount()
+            if (account) account.setActiveWallets(wallets)
+          }
+        },
+        true
+      )
     }
   }, [ready, wallets])
 }

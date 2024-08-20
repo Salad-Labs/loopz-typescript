@@ -45,8 +45,8 @@ export class Trade extends HTTPClient {
    */
   private _MIN_BLOCKS_REQUIRED: number = 3
 
-  private _eventsCallback: Array<{
-    event:
+  private _eventsCallbacks: Array<{
+    eventName:
       | "__onAccountReady"
       | "onFinalizeError"
       | "onFulfillOrder"
@@ -321,15 +321,15 @@ export class Trade extends HTTPClient {
       | "onCancelOrdersError",
     params?: any
   ) {
-    const item = this._eventsCallback.find((item) => {
-      return item.event === event
+    const item = this._eventsCallbacks.find((item) => {
+      return item.eventName === event
     })
 
     if (item) for (const cb of item.callbacks) cb(params as any)
   }
 
   on(
-    event:
+    eventName:
       | "__onAccountReady"
       | "onFinalizeError"
       | "onFulfillOrder"
@@ -339,30 +339,33 @@ export class Trade extends HTTPClient {
       | "onCancelOrders"
       | "onCancelOrdersMined"
       | "onCancelOrdersError",
-    callback: Function
+    callback: Function,
+    onlyOnce?: boolean
   ) {
-    const index = this._eventsCallback.findIndex((item) => {
-      return item.event === event
+    const index = this._eventsCallbacks.findIndex((item) => {
+      return item.eventName === eventName
     })
 
-    if (index > -1) this._eventsCallback[index].callbacks.push(callback)
-    else
-      this._eventsCallback.push({
-        event,
-        callbacks: [callback],
-      })
+    if (index > -1 && onlyOnce === true) return
+
+    if (index > -1 && !onlyOnce)
+      this._eventsCallbacks[index].callbacks.push(callback)
+
+    this._eventsCallbacks.push({
+      eventName,
+      callbacks: [callback],
+    })
   }
 
   /**
    * Unsubscribes a callback function from a specific event.
-   * @param {EventName} eventName - The name of the event to unsubscribe from.
-   * @param {Maybe<TradeEvents[EventName]>} [callback] - The callback function to unsubscribe.
+   * @param {"__onAccountReady" | "onFinalizeError"} eventName - The name of the event to unsubscribe from.
    * @returns None
    * @throws {Error} If the event is not supported or the callback is not a function.
    */
-  off(event: "__onAccountReady" | "onFinalizeError") {
-    const item = this._eventsCallback.find((eventItem) => {
-      return eventItem.event === event
+  off(eventName: "__onAccountReady" | "onFinalizeError") {
+    const item = this._eventsCallbacks.find((eventItem) => {
+      return eventItem.eventName === eventName
     })
 
     if (item) item.callbacks = []

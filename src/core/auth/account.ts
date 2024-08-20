@@ -90,7 +90,12 @@ export class Account implements AccountSchema {
   readonly allowAddToGroupsFrom: "ONLY_FOLLOWED" | "EVERYONE"
   readonly allowGroupsSuggestion: boolean
 
-  private activeWallets: Array<ConnectedWallet> = []
+  private _activeWallets: Array<ConnectedWallet> = []
+
+  private _eventsCallbacks: Array<{
+    eventName: "onFundExit"
+    callbacks: Array<Function>
+  }> = []
 
   constructor(config: AccountInitConfig) {
     this.did = config.did
@@ -199,22 +204,53 @@ export class Account implements AccountSchema {
   }
 
   getActiveWallets(): Array<ConnectedWallet> {
-    return this.activeWallets
+    return this._activeWallets
   }
 
   setActiveWallets(wallets: Array<ConnectedWallet>): void {
-    this.activeWallets = wallets
+    this._activeWallets = wallets
   }
 
   emptyActiveWallets() {
-    this.activeWallets = []
+    this._activeWallets = []
   }
 
   getCurrentNetwork(): Network {
-    return this.activeWallets[0].chainId as Network
+    return this._activeWallets[0].chainId as Network
   }
 
   async changeNetwork(chainId: number | `0x${string}`): Promise<void> {
-    await this.activeWallets[0].switchChain(chainId)
+    await this._activeWallets[0].switchChain(chainId)
+  }
+
+  on(eventName: "onFundExit", callback: Function, onlyOnce?: boolean) {
+    const index = this._eventsCallbacks.findIndex((item) => {
+      return item.eventName === eventName
+    })
+
+    if (index > -1 && onlyOnce === true) return
+
+    if (index > -1 && !onlyOnce)
+      this._eventsCallbacks[index].callbacks.push(callback)
+
+    this._eventsCallbacks.push({
+      eventName,
+      callbacks: [callback],
+    })
+  }
+
+  /**
+   * Unsubscribes a callback function from a specific event.
+   * @param {EventName} eventName - The name of the event to unsubscribe from.
+   * @param {Maybe<TradeEvents[EventName]>} [callback] - The callback function to unsubscribe.
+   * @returns None
+   * @throws {Error} If the event is not supported or the callback is not a function.
+   */
+  off(eventName: "onFundExit") {
+    const item = this._eventsCallbacks.find((eventItem) => {
+      return eventItem.eventName === eventName
+    })
+
+    if (item) item.callbacks = []
   }
 }

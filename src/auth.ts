@@ -309,11 +309,11 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       this._postRef.setAuthToken(authInfo.authToken)
       this._chatRef.setAuthToken(authInfo.authToken)
 
-      this.setCurrentAccount(account)
       this._chatRef.setCurrentAccount(account)
       this._tradeRef.setCurrentAccount(account)
       this._oracleRef.setCurrentAccount(account)
       this._postRef.setCurrentAccount(account)
+      this.setCurrentAccount(account) //this must be the last because it fires event
 
       //clear all the internal callbacks connected to the authentication...
       this._clearEventsCallbacks([
@@ -385,11 +385,11 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       this._postRef.setAuthToken(authInfo.authToken)
       this._chatRef.setAuthToken(authInfo.authToken)
 
-      this.setCurrentAccount(account)
-      this._chatRef.setCurrentAccount(account)
       this._tradeRef.setCurrentAccount(account)
+      this._chatRef.setCurrentAccount(account)
       this._oracleRef.setCurrentAccount(account)
       this._postRef.setCurrentAccount(account)
+      this.setCurrentAccount(account) //this must be the last because it fires event
 
       //clear all the internal callbacks connected to the authentication...
       this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
@@ -959,7 +959,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       const account = new Account({
         did: user.did,
         organizationId: user.organizationId,
-        token: user.token,
+        token: token,
         walletAddress: user.wallet.address,
         walletConnectorType: user.wallet.connectorType,
         walletImported: user.wallet.imported,
@@ -1051,15 +1051,23 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         allowGroupsSuggestion: user.allowGroupsSuggestion,
       })
 
-      this.setCurrentAccount(account)
+      this._authToken = token
+      this._oracleRef.setAuthToken(token)
+      this._chatRef.setAuthToken(token)
+      this._postRef.setAuthToken(token)
+      this._tradeRef.setAuthToken(token)
+
+      this._tradeRef.setCurrentAccount(account)
       this._oracleRef.setCurrentAccount(account)
       this._chatRef.setCurrentAccount(account)
       this._postRef.setCurrentAccount(account)
-      this._tradeRef.setCurrentAccount(account)
+      this.setCurrentAccount(account) //this must be the last because it fires event
     } catch (error) {
       //safety check, _account could be null and this method destroy the local storage values stored
-      if ("statusCode" in (error as any) && (error as any).statusCode === 401)
+      if ("statusCode" in (error as any) && (error as any).statusCode === 401) {
         this.destroyLastUserLoggedKey()
+        await this.logout()
+      }
 
       console.log("Error during rebuilding phase for account.")
       console.log(error)
