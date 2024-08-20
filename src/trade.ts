@@ -20,6 +20,7 @@ import { ApiResponse } from "./types/base/apiresponse"
 import { Account } from "./core"
 import { ethers } from "ethers"
 import { Web3Provider } from "@ethersproject/providers"
+import { ConnectedWallet } from "@privy-io/react-auth"
 
 /**
  * Trade class that handles interactions with the OpenSea trading platform.
@@ -290,12 +291,12 @@ export class Trade extends HTTPClient {
     return orderInit
   }
 
-  async init() {
+  async init(wallet: ConnectedWallet) {
     try {
       if (!this._account) throw new Error("Account is not initialized.")
 
-      const wallets = this._account.getActiveWallets()
-      this._provider = await wallets[0].getEthersProvider()
+      this._provider = await wallet.getEthersProvider()
+
       this._seaport = new Seaport(this._provider, { seaportVersion: "1.5" })
     } catch (error) {
       console.log(error)
@@ -372,7 +373,7 @@ export class Trade extends HTTPClient {
   }
 
   /**
-   * Set the block numbers to wait in which consider a transaction mined by the createTrade, cancelTrade and execTrade methods.
+   * Set the block numbers to wait in which consider a transaction mined by the create, cancel and finalize methods.
    * @param {number} blocksNumberConfirmationRequired - The number of blocks required for confirmation.
    * @throws {Error} If blocksNumberConfirmationRequired is less than 1.
    */
@@ -663,7 +664,7 @@ export class Trade extends HTTPClient {
    * @param {string} order.direction - The direction of ordering, either "ASC" for ascending or "DESC" for descending.
    * @param {string} order.field - The field to order results by.
    */
-  async getGlobalTradesList({
+  async getTrades({
     networkId,
     status,
     skip,
@@ -733,7 +734,7 @@ export class Trade extends HTTPClient {
    * @param {string} order.direction - The direction of ordering, either "ASC" for ascending or "DESC" for descending.
    * @param {string} order.field - The field to order results by.
    */
-  async getUserTradesList({
+  async getUserTrades({
     networkId,
     did,
     status,

@@ -1,8 +1,11 @@
 import { AccountEngine, AccountSchema } from "@src/interfaces/auth"
 import { Maybe, Network } from "../../types"
 import { AccountInitConfig } from "../../types/auth/account"
-import { ConnectedWallet } from "@privy-io/react-auth"
+import { ConnectedWallet, EIP1193Provider } from "@privy-io/react-auth"
 import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "../../constants/app"
+import { encodeFunctionData } from "viem"
+import { erc1155Abi } from "../../constants"
+import { ethers } from "ethers"
 
 export class Account implements AccountSchema, AccountEngine {
   readonly did: string
@@ -193,6 +196,24 @@ export class Account implements AccountSchema, AccountEngine {
       })
 
       if (index > -1) this._eventsCallbacks[index].callbacks = []
+    })
+  }
+
+  async test(contractAddress: string, provider: EIP1193Provider) {
+    const data = encodeFunctionData({
+      abi: erc1155Abi,
+      functionName: `setApprovalForAll`,
+      args: [contractAddress, true],
+    })
+
+    const transactionRequest = {
+      to: contractAddress,
+      data: data,
+    }
+
+    await provider.request({
+      method: "eth_sendTransaction",
+      params: [transactionRequest],
     })
   }
 
