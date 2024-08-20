@@ -1,4 +1,4 @@
-import { useWallets } from "@privy-io/react-auth"
+import { useWallets, getEmbeddedConnectedWallet } from "@privy-io/react-auth"
 import { Trade } from "@src/trade"
 import { useEffect } from "react"
 
@@ -12,7 +12,11 @@ export const usePrivyWallets = (trade: Trade) => {
         () => {
           if (wallets && wallets.length > 0) {
             const account = trade.getCurrentAccount()
-            if (account) account.setActiveWallets(wallets)
+            if (account) {
+              account.setActiveWallets(wallets)
+              const embeddedWallets = getEmbeddedConnectedWallet(wallets)
+              if (embeddedWallets) account.setEmbeddedWallet(embeddedWallets)
+            }
           }
         },
         true

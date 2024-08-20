@@ -2,15 +2,21 @@ import { useLogin, usePrivy } from "@privy-io/react-auth"
 import { Auth } from "@src/auth"
 import { useEffect, useRef } from "react"
 import { useFundWallet } from "@privy-io/react-auth"
+import { Chain } from "viem"
 
 export const usePrivyLogin = (auth: Auth) => {
   const initialized = useRef<boolean>(false)
   const { ready, authenticated, getAccessToken } = usePrivy()
   const disableLogin = !ready || (ready && authenticated)
 
-  const { fundWallet } = useFundWallet({
-    onUserExited: (o) => {
-      console.log(o)
+  useFundWallet({
+    onUserExited: (fundInfo: {
+      address: string
+      chain: Chain
+      fundingMethod: any | "manual" | null
+      balance: bigint | undefined
+    }) => {
+      auth.getCurrentAccount()?._emit("onFundExit", fundInfo)
     },
   })
 

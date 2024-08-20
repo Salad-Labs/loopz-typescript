@@ -296,7 +296,7 @@ export class Trade extends HTTPClient {
 
       const wallets = this._account.getActiveWallets()
       this._provider = await wallets[0].getEthersProvider()
-      this._seaport = new Seaport(this._provider)
+      this._seaport = new Seaport(this._provider, { seaportVersion: "1.5" })
     } catch (error) {
       console.log(error)
     }

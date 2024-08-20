@@ -1,10 +1,10 @@
-import { AccountSchema } from "@src/interfaces/auth"
+import { AccountEngine, AccountSchema } from "@src/interfaces/auth"
 import { Maybe, Network } from "../../types"
 import { AccountInitConfig } from "../../types/auth/account"
 import { ConnectedWallet } from "@privy-io/react-auth"
 import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "../../constants/app"
 
-export class Account implements AccountSchema {
+export class Account implements AccountSchema, AccountEngine {
   readonly did: string
   readonly organizationId: string
   readonly walletAddress: string
@@ -91,6 +91,8 @@ export class Account implements AccountSchema {
   readonly allowGroupsSuggestion: boolean
 
   private _activeWallets: Array<ConnectedWallet> = []
+
+  private _embeddedWallet: Maybe<ConnectedWallet> = null
 
   private _eventsCallbacks: Array<{
     eventName: "onFundExit"
@@ -184,6 +186,16 @@ export class Account implements AccountSchema {
     this.allowGroupsSuggestion = config.allowGroupsSuggestion
   }
 
+  private _clearEventsCallbacks(events: Array<"onFundExit">) {
+    events.forEach((event: "onFundExit") => {
+      const index = this._eventsCallbacks.findIndex((item) => {
+        return item.eventName === event
+      })
+
+      if (index > -1) this._eventsCallbacks[index].callbacks = []
+    })
+  }
+
   //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
   //the user refresh the page
   storeLastUserLoggedKey() {
@@ -207,8 +219,16 @@ export class Account implements AccountSchema {
     return this._activeWallets
   }
 
+  getEmbeddedWallet(): Maybe<ConnectedWallet> {
+    return this._embeddedWallet
+  }
+
   setActiveWallets(wallets: Array<ConnectedWallet>): void {
     this._activeWallets = wallets
+  }
+
+  setEmbeddedWallet(wallet: ConnectedWallet): void {
+    this._embeddedWallet = wallet
   }
 
   emptyActiveWallets() {
@@ -241,8 +261,7 @@ export class Account implements AccountSchema {
 
   /**
    * Unsubscribes a callback function from a specific event.
-   * @param {EventName} eventName - The name of the event to unsubscribe from.
-   * @param {Maybe<TradeEvents[EventName]>} [callback] - The callback function to unsubscribe.
+   * @param {"onFundExit"} eventName - The name of the event to unsubscribe from.
    * @returns None
    * @throws {Error} If the event is not supported or the callback is not a function.
    */
@@ -252,5 +271,19 @@ export class Account implements AccountSchema {
     })
 
     if (item) item.callbacks = []
+  }
+
+  /**
+   * Emits an event with the specified name and parameters to all registered callbacks for that event.
+   * @param {"onFundExit"} event - The name of the event to emit.
+   * @param {any} [params] - The parameters to pass to the event callbacks.
+   * @returns None
+   */
+  _emit(event: "onFundExit", params?: any) {
+    const item = this._eventsCallbacks.find((item) => {
+      return item.eventName === event
+    })
+
+    if (item) for (const cb of item.callbacks) cb(params as any)
   }
 }
