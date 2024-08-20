@@ -40,6 +40,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
   private _postRef: Post
   private _oracleRef: Oracle
   private _chatRef: Chat
+  private _isLoggingOut: boolean = false
 
   /**
    * Constructs a new instance of Auth with the provided configuration.
@@ -372,11 +373,11 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         },
       })
 
-      if (!response || !response.data) return reject("Invalid response.")
+      if (!response || !response.data) throw new Error("Invalid response.")
 
       const { user } = response.data[0]
 
-      if (!user) return reject("Access not granted")
+      if (!user) throw new Error("Access not granted.")
 
       const account = new Account(user)
 
@@ -449,28 +450,28 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         },
       })
 
-      if (!response || !response.data)
-        return this._emit("onLinkError", new Error("Invalid response."))
+      if (!response || !response.data) throw new Error("Invalid response.")
 
       const { link } = response.data[0]
       const { status } = link
 
       if (!link || !status)
-        return this._emit(
-          "onLinkError",
-          new Error("An error occured while updating the account.")
-        )
+        throw new Error("An error occured while updating the account.")
 
       //clear all the internal callbacks connected to the authentication...
-      let event: "__onOAuthLinkAuthenticatedDesktop" =
-        "__onOAuthLinkAuthenticatedDesktop"
-
-      this._clearEventsCallbacks([event, "__onLinkAccountError"])
+      this._clearEventsCallbacks([
+        "__onOAuthLinkAuthenticatedDesktop",
+        "__onLinkAccountError",
+      ])
 
       this._emit("link", {
         ...authInfo,
       })
     } catch (error) {
+      this._clearEventsCallbacks([
+        "__onOAuthLinkAuthenticatedDesktop",
+        "__onLinkAccountError",
+      ])
       this._emit("onLinkError", error)
     }
   }
@@ -502,13 +503,13 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         },
       })
 
-      if (!response || !response.data) return reject("Invalid response.")
+      if (!response || !response.data) throw new Error("Invalid response.")
 
       const { link } = response.data[0]
       const { status } = link
 
       if (!link || !status)
-        return reject("An error occured while updating the account.")
+        throw new Error("An error occured while updating the account.")
 
       //clear all the internal callbacks connected to the link...
       this._clearEventsCallbacks([
@@ -518,6 +519,10 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
 
       resolve({ ...authInfo })
     } catch (error) {
+      this._clearEventsCallbacks([
+        "__onLinkAccountComplete",
+        "__onLinkAccountError",
+      ])
       reject(error)
     }
   }
@@ -812,18 +817,30 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
     return new Promise((resolve, reject) => {
       try {
         this.on("__onLogoutComplete", (status: boolean) => {
+          this._isLoggingOut = false
+          this._clearEventsCallbacks(["__onLogoutComplete"])
           resolve(status)
         })
 
+        this._isLoggingOut = true
         this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
         this._account?.emptyActiveWallets()
         this._account?.destroyLastUserLoggedKey()
         this._emit("__logout")
       } catch (error) {
+        this._clearEventsCallbacks([
+          "__onLoginComplete",
+          "__onLoginError",
+          "__onLogoutComplete",
+        ])
         console.warn(error)
         reject(false)
       }
     })
+  }
+
+  isLoggingOut() {
+    return this._isLoggingOut === true
   }
 
   link(
@@ -926,6 +943,8 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
 
       const { e2eSecret, e2eSecretIV } = secrets
 
+      //need to understand how to handle the "isConnected" concept on refresh
+
       this._account = new Account({
         did: user.did,
         organizationId: user.organizationId,
@@ -1020,6 +1039,11 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         allowAddToGroupsFrom: user.allowAddToGroupsFrom,
         allowGroupsSuggestion: user.allowGroupsSuggestion,
       })
+
+      this._oracleRef.setCurrentAccount(this._account)
+      this._chatRef.setCurrentAccount(this._account)
+      this._postRef.setCurrentAccount(this._account)
+      this._tradeRef.setCurrentAccount(this._account)
     } catch (error) {
       console.log("Error during rebuilding phase for account.")
       console.log(error)

@@ -59,10 +59,23 @@ export const usePrivyLogin = (auth: Auth) => {
     if (!initialized.current && ready && !disableLogin) {
       initialized.current = true
 
+      //__authenticate fires after the __onLoginComplete & __onLoginError are added in events queue.
+      //__authenticate fires in authenticate() method of the auth object.
       auth.on("__authenticate", () => {
         login()
       })
       auth._emit("__onPrivyReady")
     }
-  }, [ready, disableLogin])
+
+    //account is setup when the client did the login or after the refresh of the page it has rebuilt the account
+    //object (and it can do it only if it has a jwt token valid)
+    if (authenticated && auth.getCurrentAccount()) {
+      console.log("emitting auth...")
+      auth._emit("auth")
+    } else if (!authenticated && ready) {
+      console.log("client logout...")
+      //to prevent loop
+      if (!auth.isLoggingOut()) auth.logout()
+    }
+  }, [ready, disableLogin, authenticated])
 }
