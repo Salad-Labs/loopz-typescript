@@ -5,7 +5,7 @@ import React from "react"
 
 export const PrivyContext: React.FC<PrivyAdapterProps> = ({
   auth,
-  trade,
+  order,
   appId,
   config,
 }) => {
@@ -19,7 +19,7 @@ export const PrivyContext: React.FC<PrivyAdapterProps> = ({
         ...config,
       }}
     >
-      <PrivyWrapper auth={auth} trade={trade}>
+      <PrivyWrapper auth={auth} order={order}>
         <></>
       </PrivyWrapper>
     </PrivyProvider>

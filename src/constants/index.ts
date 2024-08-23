@@ -1,3 +1,3 @@
 export * from "./base"
-export * from "./post"
-export * from "./trade"
+export * from "./proposal"
+export * from "./order"

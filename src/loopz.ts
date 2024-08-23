@@ -7,8 +7,8 @@ import { v4 as uuid } from "uuid"
 import { Auth } from "./auth"
 import { Chat } from "./chat"
 import { Oracle } from "./oracle"
-import { Post } from "./post"
-import { Trade } from "./trade"
+import { Proposal } from "./proposal"
+import { Order } from "./order"
 import { LoopzConfig } from "./types/app/loopzconfig"
 import { PrivyClientConfig } from "@privy-io/react-auth"
 import { PrivyAdapter } from "./adapter"
@@ -21,8 +21,8 @@ export class Loopz {
   private static _auth: Auth
   private static _chat: Chat
   private static _oracle: Oracle
-  private static _post: Post
-  private static _trade: Trade
+  private static _proposal: Proposal
+  private static _order: Order
 
   private static _apiKey: string
 
@@ -65,11 +65,11 @@ export class Loopz {
       apiKey: config.apiKey,
       devMode: Loopz._devMode,
     })
-    Loopz._post = new Post({
+    Loopz._proposal = new Proposal({
       apiKey: config.apiKey,
       devMode: Loopz._devMode,
     })
-    Loopz._trade = new Trade({
+    Loopz._order = new Order({
       apiKey: config.apiKey,
       devMode: Loopz._devMode,
     })
@@ -83,15 +83,15 @@ export class Loopz {
       privyAppId: config.privyAppId,
       privyConfig: config.privyClientConfig,
       oracle: Loopz._oracle,
-      post: Loopz._post,
-      trade: Loopz._trade,
+      proposal: Loopz._proposal,
+      order: Loopz._order,
       chat: Loopz._chat,
       storage: config.storage,
       devMode: Loopz._devMode,
     })
 
     if (Loopz._privyAdapter)
-      Loopz._privyAdapter.render(Loopz._auth, Loopz._trade)
+      Loopz._privyAdapter.render(Loopz._auth, Loopz._order)
   }
 
   private static async createOrConnectToStorage(): Promise<DexieStorage> {
@@ -167,8 +167,8 @@ export class Loopz {
 
   init(): {
     auth: Auth
-    trade: Trade
-    post: Post
+    order: Order
+    proposal: Proposal
     oracle: Oracle
     chat: Chat
   } {
@@ -178,8 +178,8 @@ export class Loopz {
 
     return {
       auth: Loopz._auth,
-      trade: Loopz._trade,
-      post: Loopz._post,
+      order: Loopz._order,
+      proposal: Loopz._proposal,
       oracle: Loopz._oracle,
       chat: Loopz._chat,
     }

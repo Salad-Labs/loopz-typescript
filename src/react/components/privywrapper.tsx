@@ -10,7 +10,7 @@ import { usePrivyWallets } from "../hooks/usePrivyWallets"
 
 export const PrivyWrapper: React.FC<PrivyWrapperProps> = ({
   auth,
-  trade,
+  order,
   children,
 }) => {
   //used in desktop environment (React, Angular, Vanilla js, Vue)
@@ -19,7 +19,7 @@ export const PrivyWrapper: React.FC<PrivyWrapperProps> = ({
   usePrivyLogout(auth)
   usePrivyLinkAccount(auth)
   usePrivyUnlinkAccount(auth)
-  usePrivyWallets(trade)
+  usePrivyWallets(order)
 
   return <>{children}</>
 }

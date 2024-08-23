@@ -15,8 +15,8 @@ import { PrivyClientConfig } from "@privy-io/react-auth"
 import { AuthInternalEvents } from "./interfaces/auth/authinternalevents"
 import { PrivyErrorCode } from "@src/enums/adapter/auth/privyerrorcode"
 import { PrivyAuthInfo } from "./types/adapter"
-import { Trade } from "./trade"
-import { Post } from "./post"
+import { Order } from "./order"
+import { Proposal } from "./proposal"
 import { Oracle } from "./oracle"
 import forge from "node-forge"
 import { AccountInitConfig } from "./types/auth/account"
@@ -36,8 +36,8 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
     callbacks: Function[]
     eventName: AuthEvents
   }> = []
-  private _tradeRef: Trade
-  private _postRef: Post
+  private _orderRef: Order
+  private _proposalRef: Proposal
   private _oracleRef: Oracle
   private _chatRef: Chat
   private _isLoggingOut: boolean = false
@@ -55,9 +55,9 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
     this._apiKey = config.apiKey
     this._privyAppId = config.privyAppId
     this._privyConfig = config.privyConfig
-    this._tradeRef = config.trade
+    this._orderRef = config.order
     this._oracleRef = config.oracle
-    this._postRef = config.post
+    this._proposalRef = config.proposal
     this._chatRef = config.chat
 
     //OAuth providers like Google, Instagram etc bring the user from the current web application page to
@@ -304,15 +304,15 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       //the user refresh the page
       account.storeLastUserLoggedKey()
 
-      this._tradeRef.setAuthToken(authInfo.authToken)
+      this._orderRef.setAuthToken(authInfo.authToken)
       this._oracleRef.setAuthToken(authInfo.authToken)
-      this._postRef.setAuthToken(authInfo.authToken)
+      this._proposalRef.setAuthToken(authInfo.authToken)
       this._chatRef.setAuthToken(authInfo.authToken)
 
       this._chatRef.setCurrentAccount(account)
-      this._tradeRef.setCurrentAccount(account)
+      this._orderRef.setCurrentAccount(account)
       this._oracleRef.setCurrentAccount(account)
-      this._postRef.setCurrentAccount(account)
+      this._proposalRef.setCurrentAccount(account)
       this.setCurrentAccount(account) //this must be the last because it fires event
 
       //clear all the internal callbacks connected to the authentication...
@@ -380,15 +380,15 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       //the user refresh the page
       account.storeLastUserLoggedKey()
 
-      this._tradeRef.setAuthToken(authInfo.authToken)
+      this._orderRef.setAuthToken(authInfo.authToken)
       this._oracleRef.setAuthToken(authInfo.authToken)
-      this._postRef.setAuthToken(authInfo.authToken)
+      this._proposalRef.setAuthToken(authInfo.authToken)
       this._chatRef.setAuthToken(authInfo.authToken)
 
-      this._tradeRef.setCurrentAccount(account)
+      this._orderRef.setCurrentAccount(account)
       this._chatRef.setCurrentAccount(account)
       this._oracleRef.setCurrentAccount(account)
-      this._postRef.setCurrentAccount(account)
+      this._proposalRef.setCurrentAccount(account)
       this.setCurrentAccount(account) //this must be the last because it fires event
 
       //clear all the internal callbacks connected to the authentication...
@@ -1024,8 +1024,8 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         isNft: user.isNft,
         collectionAddress: user.collectionAddress,
         tokenId: user.tokenId ? user.tokenId : null,
-        postNotificationPush: user.postNotificationPush,
-        postNotificationSystem: user.postNotificationSystem,
+        proposalNotificationPush: user.proposalNotificationPush,
+        proposalNotificationSystem: user.proposalNotificationSystem,
         dealNotificationPush: user.dealNotificationPush,
         dealNotificationSystem: user.dealNotificationSystem,
         followNotificationPush: user.followNotificationPush,
@@ -1054,13 +1054,13 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       this._authToken = token
       this._oracleRef.setAuthToken(token)
       this._chatRef.setAuthToken(token)
-      this._postRef.setAuthToken(token)
-      this._tradeRef.setAuthToken(token)
+      this._proposalRef.setAuthToken(token)
+      this._orderRef.setAuthToken(token)
 
-      this._tradeRef.setCurrentAccount(account)
+      this._orderRef.setCurrentAccount(account)
       this._oracleRef.setCurrentAccount(account)
       this._chatRef.setCurrentAccount(account)
-      this._postRef.setCurrentAccount(account)
+      this._proposalRef.setCurrentAccount(account)
       this.setCurrentAccount(account) //this must be the last because it fires event
     } catch (error) {
       //safety check, _account could be null and this method destroy the local storage values stored

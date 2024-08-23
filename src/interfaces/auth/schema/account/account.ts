@@ -60,8 +60,8 @@ export interface AccountSchema {
   isNft: boolean
   collectionAddress: string
   tokenId: Maybe<string>
-  postNotificationPush: boolean
-  postNotificationSystem: boolean
+  proposalNotificationPush: boolean
+  proposalNotificationSystem: boolean
   dealNotificationPush: boolean
   dealNotificationSystem: boolean
   followNotificationPush: boolean

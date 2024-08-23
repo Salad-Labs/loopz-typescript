@@ -1,11 +1,10 @@
 import { AccountEngine, AccountSchema } from "@src/interfaces/auth"
-import { Maybe, Network } from "../../types"
+import { Maybe } from "../../types"
 import { AccountInitConfig } from "../../types/auth/account"
 import { ConnectedWallet, EIP1193Provider } from "@privy-io/react-auth"
 import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "../../constants/app"
 import { encodeFunctionData } from "viem"
-import { erc1155Abi } from "../../constants"
-import { ethers } from "ethers"
+import { erc1155Abi, erc20Abi, erc721Abi } from "../../constants"
 
 export class Account implements AccountSchema, AccountEngine {
   readonly did: string
@@ -66,8 +65,8 @@ export class Account implements AccountSchema, AccountEngine {
   readonly isNft: boolean
   readonly collectionAddress: string
   readonly tokenId: Maybe<string>
-  readonly postNotificationPush: boolean
-  readonly postNotificationSystem: boolean
+  readonly proposalNotificationPush: boolean
+  readonly proposalNotificationSystem: boolean
   readonly dealNotificationPush: boolean
   readonly dealNotificationSystem: boolean
   readonly followNotificationPush: boolean
@@ -162,8 +161,8 @@ export class Account implements AccountSchema, AccountEngine {
     this.isNft = config.isNft
     this.collectionAddress = config.collectionAddress
     this.tokenId = config.tokenId
-    this.postNotificationPush = config.postNotificationPush
-    this.postNotificationSystem = config.postNotificationSystem
+    this.proposalNotificationPush = config.proposalNotificationPush
+    this.proposalNotificationSystem = config.proposalNotificationSystem
     this.dealNotificationPush = config.dealNotificationPush
     this.dealNotificationSystem = config.dealNotificationSystem
     this.followNotificationPush = config.followNotificationPush
@@ -199,16 +198,69 @@ export class Account implements AccountSchema, AccountEngine {
     })
   }
 
-  async test(contractAddress: string, provider: EIP1193Provider) {
+  async setApprovalForAll(
+    type: "ERC721" | "ERC1155",
+    contractAddress: string,
+    operator: string,
+    provider: EIP1193Provider
+  ) {
     const data = encodeFunctionData({
-      abi: erc1155Abi,
+      abi: type === "ERC1155" ? erc1155Abi : erc721Abi,
       functionName: `setApprovalForAll`,
-      args: [contractAddress, true],
+      args: [operator, true],
     })
 
     const transactionRequest = {
       to: contractAddress,
-      data: data,
+      data,
+    }
+
+    await provider.request({
+      method: "eth_sendTransaction",
+      params: [transactionRequest],
+    })
+  }
+
+  //ERC721
+  async approve(
+    contractAddress: string,
+    operator: string,
+    tokenId: number,
+    provider: EIP1193Provider
+  ) {
+    const data = encodeFunctionData({
+      abi: erc721Abi,
+      functionName: `approve`,
+      args: [operator, tokenId],
+    })
+
+    const transactionRequest = {
+      to: contractAddress,
+      data,
+    }
+
+    await provider.request({
+      method: "eth_sendTransaction",
+      params: [transactionRequest],
+    })
+  }
+
+  //ERC20
+  async approveToken(
+    contractAddress: string,
+    operator: string,
+    wei: string,
+    provider: EIP1193Provider
+  ) {
+    const data = encodeFunctionData({
+      abi: erc20Abi,
+      functionName: `approve`,
+      args: [operator, wei],
+    })
+
+    const transactionRequest = {
+      to: contractAddress,
+      data,
     }
 
     await provider.request({
@@ -256,8 +308,10 @@ export class Account implements AccountSchema, AccountEngine {
     this._activeWallets = []
   }
 
-  getCurrentNetwork(): Network {
-    return this._activeWallets[0].chainId as Network
+  getCurrentNetwork(noCaip?: boolean): string {
+    return !noCaip
+      ? this._activeWallets[0].chainId
+      : this._activeWallets[0].chainId.replace("eip155:", "")
   }
 
   async changeNetwork(chainId: number | `0x${string}`): Promise<void> {

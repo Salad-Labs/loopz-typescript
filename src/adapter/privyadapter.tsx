@@ -5,7 +5,7 @@ import { createRoot, Root } from "react-dom/client"
 import { v4 as uuid } from "uuid"
 import { PrivyClientConfig } from "@privy-io/react-auth"
 import { Auth } from "@src/auth"
-import { Trade } from "@src/trade"
+import { Order } from "@src/order"
 import { PrivyContext } from "../react/components"
 
 export class PrivyAdapter {
@@ -29,7 +29,7 @@ export class PrivyAdapter {
     this._privyConfig = privyAdapterOptions.options!
   }
 
-  render(auth: Auth, trade: Trade) {
+  render(auth: Auth, order: Order) {
     if (!this._root) throw new Error("Root object must be initializated.")
     if (!this._privyConfig)
       throw new Error("Privy configuration must be setup.")
@@ -37,7 +37,7 @@ export class PrivyAdapter {
     this._root.render(
       <PrivyContext
         auth={auth}
-        trade={trade}
+        order={order}
         appId={this._privyAppId}
         config={this._privyConfig}
       />

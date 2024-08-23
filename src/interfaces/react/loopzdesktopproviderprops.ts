@@ -1,11 +1,11 @@
 import { Auth } from "@src/auth"
-import { Trade } from "@src/trade"
+import { Order } from "@src/order"
 import { LoopzConfig } from "@src/types/app/loopzconfig"
 import { ReactNode } from "react"
 
 export interface LoopzDesktopProviderProps {
   config: LoopzConfig
   auth: Auth
-  trade: Trade
+  order: Order
   children: ReactNode
 }

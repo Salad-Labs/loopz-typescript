@@ -1,5 +1,5 @@
 import { Maybe } from "../../types/base"
-import { Collection } from "../post"
+import { Collection } from "../proposal"
 
 /**
  * Interface representing a collectible item with various properties.

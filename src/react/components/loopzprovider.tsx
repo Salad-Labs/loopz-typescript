@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from "react"
 import { Loopz } from "../../loopz"
 import { Auth } from "@src/auth"
-import { Trade } from "@src/trade"
+import { Order } from "@src/order"
 import { Oracle } from "@src/oracle"
-import { Post } from "@src/post"
+import { Proposal } from "@src/proposal"
 import { PrivyProvider as PrivyProviderDesktop } from "@privy-io/react-auth"
 import { PrivyWrapper } from "./privywrapper"
 import {
@@ -20,9 +20,9 @@ export const LoopzProvider: React.FC<LoopzProviderProps> = ({
 }) => {
   const initialized = useRef<boolean>(false)
   const authRef = useRef<Auth>()
-  const tradeRef = useRef<Trade>()
+  const orderRef = useRef<Order>()
   const oracleRef = useRef<Oracle>()
-  const postRef = useRef<Post>()
+  const proposalRef = useRef<Proposal>()
   const chatRef = useRef<Chat>()
 
   const [loopzContext, setLoopzContext] = useState<ILoopzContext | null>(null)
@@ -38,15 +38,15 @@ export const LoopzProvider: React.FC<LoopzProviderProps> = ({
       Loopz.boot(config, {
         runAdapter: false,
       }).then(async (loopz: Loopz) => {
-        const { auth, trade, oracle, post, chat } = await loopz.init()
+        const { auth, order, oracle, proposal, chat } = await loopz.init()
 
         authRef.current = auth
-        tradeRef.current = trade
+        orderRef.current = order
         oracleRef.current = oracle
-        postRef.current = post
+        proposalRef.current = proposal
         chatRef.current = chat
 
-        setLoopzContext({ auth, trade, oracle, post, chat, loopz })
+        setLoopzContext({ auth, order, oracle, proposal, chat, loopz })
       })
     }
   }, [config])
@@ -58,11 +58,11 @@ export const LoopzProvider: React.FC<LoopzProviderProps> = ({
   return loopzInitialized ? (
     <LoopzContext.Provider value={loopzContext!}>
       <>
-        {loopzInitialized && authRef.current && tradeRef.current && (
+        {loopzInitialized && authRef.current && orderRef.current && (
           <LoopzDesktopProvider
             config={config}
             auth={authRef.current}
-            trade={tradeRef.current}
+            order={orderRef.current}
           >
             {children}
           </LoopzDesktopProvider>
@@ -77,7 +77,7 @@ export const LoopzProvider: React.FC<LoopzProviderProps> = ({
 const LoopzDesktopProvider: React.FC<LoopzDesktopProviderProps> = ({
   config,
   auth,
-  trade,
+  order,
   children,
 }) => {
   return (
@@ -90,7 +90,7 @@ const LoopzDesktopProvider: React.FC<LoopzDesktopProviderProps> = ({
         ...config.privyClientConfig,
       }}
     >
-      <PrivyWrapper auth={auth} trade={trade}>
+      <PrivyWrapper auth={auth} order={order}>
         {children}
       </PrivyWrapper>
     </PrivyProviderDesktop>

@@ -1,9 +1,9 @@
 import { Auth } from "@src/auth"
-import { Trade } from "@src/trade"
+import { Order } from "@src/order"
 import { ReactNode } from "react"
 
 export interface PrivyWrapperProps {
   auth: Auth
-  trade: Trade
+  order: Order
   children: ReactNode
 }

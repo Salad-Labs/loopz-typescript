@@ -1,7 +1,7 @@
-//Trade class
-export * from "./trade"
+//Order class
+export * from "./order"
 //Post class
-export * from "./post"
+export * from "./proposal"
 //Chat class
 export * from "./chat"
 //Oracle class
