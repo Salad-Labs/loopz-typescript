@@ -205,7 +205,7 @@ export class HTTPClient {
   protected backendUrl(): string {
     return `https://${
       this._devMode === "development" ? `develop.api.` : `api.`
-    }nfttrader.io`
+    }nfttrader.io/v1`
   }
 
   protected backendChatUrl(): string {
