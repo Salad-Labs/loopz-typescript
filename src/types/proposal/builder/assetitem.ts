@@ -1,7 +1,7 @@
 import { ProposalAsset } from "../../../interfaces/proposal"
 
 /**
- * Represents an item extracted from a PostAsset object, containing specific properties.
+ * Represents an item extracted from a ProposalAsset object, containing specific properties.
  */
 type AssetItem = Pick<
   ProposalAsset,

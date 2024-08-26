@@ -1,7 +1,7 @@
 import { ProposalAsset } from "./proposalasset"
 
 /**
- * Represents a collection of post assets, including wanted and offered assets.
+ * Represents a collection of proposal assets, including wanted and offered assets.
  * @interface ProposalAssets
  */
 export interface ProposalAssets {

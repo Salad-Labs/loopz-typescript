@@ -85,13 +85,14 @@ export class Order extends HTTPClient {
 
     try {
       const { response } = await this._fetch<ApiResponse<MultiSigWallet>>(
-        `${this.backendUrl()}/wallet/multisigWallet/${this._account.getCurrentNetwork(
-          true
+        `${this.backendUrl()}/wallet/multisig/${this._account.getCurrentNetwork(
+          false
         )}`,
         {
           method: "GET",
           headers: {
             "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
           },
         }
       )
@@ -117,13 +118,14 @@ export class Order extends HTTPClient {
 
     try {
       const { response } = await this._fetch<ApiResponse<Fee>>(
-        `${this.backendUrl()}/fee/nftTraderFee/${this._account.getCurrentNetwork(
-          true
+        `${this.backendUrl()}/fee/platform/${this._account.getCurrentNetwork(
+          false
         )}`,
         {
           method: "GET",
           headers: {
             "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
           },
         }
       )
@@ -234,14 +236,22 @@ export class Order extends HTTPClient {
     const masterFee: Maybe<Fee> = await this._getMasterFee()
     const gnosis: Maybe<MultiSigWallet> = await this._getGnosis()
 
-    let flatFee: string | undefined
-    let basisPoints: number | undefined
+    let flatFee: string = ""
+    let basisPoints: number = 0
     let gnosisRecipient = ""
+    let checkFee: boolean = true
 
     if (masterFee) {
-      flatFee = masterFee.flatFee[0].fee
-      basisPoints = masterFee.percentageFee[0].basisPoints
+      if (masterFee.flatFee) flatFee = masterFee.flatFee
+      else checkFee = false
+      if (masterFee.percentageFee) basisPoints = masterFee.percentageFee
+      else checkFee = false
     } else {
+      flatFee = "0"
+      basisPoints = 50
+    }
+
+    if (!checkFee) {
       flatFee = "0"
       basisPoints = 50
     }
@@ -400,19 +410,14 @@ export class Order extends HTTPClient {
    * @param {OrderAsset<WithAddress>} taker - The assets desired by the taker.
    * @param {number} [end=0] - The end time for the order.
    * @param {Array<SeaportFee>} [fees] - Optional fees for the order.
-   * @param {Object} [post] - Optional post information for the order.
-   * @param {string} post.postId - The ID of the post.
-   * @param {string} post.replyId - The reply id related to the offer accepted to initialize the order
+   * @param {string} proposalId - The ID of the proposal.
    */
   async create(
     maker: OrderAsset<WithAddress>,
     taker: OrderAsset<WithAddress>,
     end: number = 0,
     fees?: Array<SeaportFee>,
-    post?: {
-      postId: string
-      replyId: string
-    }
+    proposalId?: string
   ): Promise<Maybe<OrderInstance>> {
     try {
       if (!this._account) throw new Error("An account must be initialized.")
@@ -479,19 +484,17 @@ export class Order extends HTTPClient {
       const order = await executeAllActions()
       const orderHash = this._seaport.getOrderHash(order.parameters)
 
-      await this._fetch(`${this.backendUrl()}/trade/insertTrade`, {
+      await this._fetch(`${this.backendUrl()}/order/create`, {
         method: "POST",
         body: {
-          network: `${this._account.getCurrentNetwork(true)}`,
+          network: `${this._account.getCurrentNetwork(false)}`,
           orderInit,
           order: {
             orderHash,
             orderType: order.parameters.orderType,
             ...order,
           },
-          postId: post && post.postId ? post.postId.toString() : undefined,
-          replyId: post && post.replyId ? post.replyId.toString() : undefined,
-          creatorAddress: maker.address,
+          proposalId,
         },
         headers: {
           "x-api-key": `${this._apiKey}`,
@@ -519,12 +522,13 @@ export class Order extends HTTPClient {
 
       const { response } = await this._fetch<ApiResponse<OrderDetail>>(
         `${this.backendUrl()}/tradelist/getSwapDetail/${this._account.getCurrentNetwork(
-          true
+          false
         )}/${orderId}`,
         {
           method: "GET",
           headers: {
             "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
           },
         }
       )
@@ -591,13 +595,14 @@ export class Order extends HTTPClient {
         throw new Error("init() must be called to initialize the client.")
 
       const { response } = await this._fetch<ApiResponse<OrderDetail>>(
-        `${this.backendUrl()}/tradelist/getSwapDetail/${this._account.getCurrentNetwork(
-          true
+        `${this.backendUrl()}/order/${this._account.getCurrentNetwork(
+          false
         )}/${orderId}`,
         {
           method: "GET",
           headers: {
             "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
           },
         }
       )
@@ -638,11 +643,12 @@ export class Order extends HTTPClient {
   async get(networkId: string, id: string): Promise<Maybe<OrderDetail>> {
     try {
       const { response } = await this._fetch<ApiResponse<OrderDetail>>(
-        `${this.backendUrl()}/tradelist/getSwapDetail/${networkId}/${id}`,
+        `${this.backendUrl()}/order/${networkId}/${id}`,
         {
           method: "GET",
           headers: {
             "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
           },
         }
       )
@@ -700,10 +706,11 @@ export class Order extends HTTPClient {
   }): Promise<Maybe<OrderListResponse>> {
     try {
       const { response } = await this._fetch<ApiResponse<OrderListResponse>>(
-        `${this.backendUrl()}/tradelist/getFullList/${networkId}/${status}/${skip}/${take}`,
+        `${this.backendUrl()}/order/get/all/${networkId}/${status}/${skip}/${take}`,
         {
           headers: {
             "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
           },
           method: "POST",
           body: {
@@ -772,7 +779,7 @@ export class Order extends HTTPClient {
   }): Promise<Maybe<OrderListResponse>> {
     try {
       const { response } = await this._fetch<ApiResponse<OrderListResponse>>(
-        `${this.backendUrl()}/tradelist/getSwapList/${networkId}/${did}/${status}/${skip}/${take}${
+        `${this.backendUrl()}/order/user/all/${networkId}/${did}/${status}/${skip}/${take}${
           typeof searchAddress !== "undefined" && searchAddress !== null
             ? `/${searchAddress}`
             : ""
@@ -780,6 +787,7 @@ export class Order extends HTTPClient {
         {
           headers: {
             "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
           },
           method: "POST",
           body: {

@@ -304,6 +304,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       //the user refresh the page
       account.storeLastUserLoggedKey()
 
+      this.setAuthToken(authInfo.authToken)
       this._orderRef.setAuthToken(authInfo.authToken)
       this._oracleRef.setAuthToken(authInfo.authToken)
       this._proposalRef.setAuthToken(authInfo.authToken)
@@ -380,13 +381,14 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       //the user refresh the page
       account.storeLastUserLoggedKey()
 
+      this.setAuthToken(authInfo.authToken)
       this._orderRef.setAuthToken(authInfo.authToken)
       this._oracleRef.setAuthToken(authInfo.authToken)
       this._proposalRef.setAuthToken(authInfo.authToken)
       this._chatRef.setAuthToken(authInfo.authToken)
 
-      this._orderRef.setCurrentAccount(account)
       this._chatRef.setCurrentAccount(account)
+      this._orderRef.setCurrentAccount(account)
       this._oracleRef.setCurrentAccount(account)
       this._proposalRef.setCurrentAccount(account)
       this.setCurrentAccount(account) //this must be the last because it fires event
@@ -428,7 +430,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
             status: boolean
           }
         }>
-      >(`${this.backendUrl()}/linkAccount`, {
+      >(`${this.backendUrl()}/user/link/account`, {
         method: "POST",
         body: {
           ...this._formatAuthParams(authInfo),
@@ -485,7 +487,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
             status: boolean
           }
         }>
-      >(`${this.backendUrl()}/linkAccount`, {
+      >(`${this.backendUrl()}/user/link/account`, {
         method: "POST",
         body: {
           ...this._formatAuthParams(authInfo),
@@ -832,6 +834,13 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         this._account?.emptyActiveWallets()
         this._account?.destroyLastUserLoggedKey()
         this._isAuthenticated = false
+
+        this.setAuthToken(null)
+        this._oracleRef.setAuthToken(null)
+        this._chatRef.setAuthToken(null)
+        this._orderRef.setAuthToken(null)
+        this._proposalRef.setAuthToken(null)
+
         this._emit("__logout")
       } catch (error) {
         this._clearEventsCallbacks([
@@ -1051,15 +1060,15 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         allowGroupsSuggestion: user.allowGroupsSuggestion,
       })
 
-      this._authToken = token
+      this.setAuthToken(token)
       this._oracleRef.setAuthToken(token)
       this._chatRef.setAuthToken(token)
       this._proposalRef.setAuthToken(token)
       this._orderRef.setAuthToken(token)
 
+      this._chatRef.setCurrentAccount(account)
       this._orderRef.setCurrentAccount(account)
       this._oracleRef.setCurrentAccount(account)
-      this._chatRef.setCurrentAccount(account)
       this._proposalRef.setCurrentAccount(account)
       this.setCurrentAccount(account) //this must be the last because it fires event
     } catch (error) {

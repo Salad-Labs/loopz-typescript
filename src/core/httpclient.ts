@@ -224,7 +224,7 @@ export class HTTPClient {
     }`
   }
 
-  setAuthToken(authToken: string): void {
+  setAuthToken(authToken: Maybe<string>): void {
     this._authToken = authToken
   }
 

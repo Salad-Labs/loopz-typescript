@@ -3,13 +3,13 @@
  */
 type Fee = {
   /**
-   * @property {Array<{ fee: string }>} flatFee - An array of objects representing flat fees.
+   * @property {string} flatFee - An array of objects representing flat fees.
    */
-  flatFee: Array<{ fee: string }>
+  flatFee: string
   /**
-   * @property {Array<{ basisPoints: number }>} percentageFee - An array of objects representing percentage fees.
+   * @property {number} percentageFee - An array of objects representing percentage fees.
    */
-  percentageFee: Array<{ basisPoints: number }>
+  percentageFee: number
 }
 
 export { Fee }

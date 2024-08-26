@@ -1,6 +1,6 @@
 //Order class
 export * from "./order"
-//Post class
+//Proposal class
 export * from "./proposal"
 //Chat class
 export * from "./chat"

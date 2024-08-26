@@ -308,8 +308,8 @@ export class Account implements AccountSchema, AccountEngine {
     this._activeWallets = []
   }
 
-  getCurrentNetwork(noCaip?: boolean): string {
-    return !noCaip
+  getCurrentNetwork(caip?: boolean): string {
+    return caip
       ? this._activeWallets[0].chainId
       : this._activeWallets[0].chainId.replace("eip155:", "")
   }
