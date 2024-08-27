@@ -26,6 +26,19 @@ export interface AccountEngine {
       tokenId: string
     }
   }): Promise<void>
-  updateSettings({}): Promise<void>
+  updateSettings(
+    setting:
+      | "proposalNotificationPush"
+      | "proposalNotificationSystem"
+      | "orderNotificationPush"
+      | "orderNotificationSystem"
+      | "followNotificationPush"
+      | "followNotificationSystem"
+      | "collectionNotificationPush"
+      | "collectionNotificationSystem"
+      | "generalNotificationPush"
+      | "generalNotificationSystem",
+    enabled: boolean
+  ): Promise<void>
   updateChatSettings({}): Promise<void>
 }

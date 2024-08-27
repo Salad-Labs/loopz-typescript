@@ -1,4 +1,4 @@
-import { Maybe } from "@src/types"
+import { Maybe, Network } from "@src/types"
 
 export interface AccountSchema {
   did: string
@@ -58,8 +58,11 @@ export interface AccountSchema {
   phone: Maybe<string>
   isVerified: boolean
   isPfpNft: boolean
-  collectionAddress: string
-  tokenId: Maybe<string>
+  pfp: Maybe<{
+    collectionAddress: string
+    tokenId: string
+    networkId: Network
+  }>
   proposalNotificationPush: boolean
   proposalNotificationSystem: boolean
   orderNotificationPush: boolean

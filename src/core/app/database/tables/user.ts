@@ -1,4 +1,4 @@
-import { Maybe } from "@src/types"
+import { Maybe, Network } from "@src/types"
 
 export interface LocalDBUser {
   did: string //primary key
@@ -9,6 +9,11 @@ export interface LocalDBUser {
   avatarUrl: string
   isVerified: boolean
   isPfpNft: boolean
+  pfp: Maybe<{
+    collectionAddress: string
+    tokenId: string
+    networkId: Network
+  }>
   wallet: {
     address: string
     connectorType: string
@@ -77,6 +82,17 @@ export interface LocalDBUser {
     profilePictureUrl: Maybe<string>
     username: Maybe<string>
   }>
+  proposalNotificationPush: boolean
+  proposalNotificationSystem: boolean
+  orderNotificationPush: boolean
+  orderNotificationSystem: boolean
+  followNotificationPush: boolean
+  followNotificationSystem: boolean
+  collectionNotificationPush: boolean
+  collectionNotificationSystem: boolean
+  generalNotificationPush: boolean
+  generalNotificationSystem: boolean
+  accountSuspended: boolean
   allowNotification: boolean
   allowNotificationSound: boolean
   visibility: boolean

@@ -1,4 +1,4 @@
-import { Maybe } from "../../base"
+import { Maybe, Network } from "../../base"
 
 export type AccountInitConfig = {
   did: string
@@ -57,8 +57,11 @@ export type AccountInitConfig = {
   phone: Maybe<string>
   isVerified: boolean
   isPfpNft: boolean
-  collectionAddress: string
-  tokenId: Maybe<string>
+  pfp: Maybe<{
+    collectionAddress: string
+    tokenId: string
+    networkId: Network
+  }>
   proposalNotificationPush: boolean
   proposalNotificationSystem: boolean
   orderNotificationPush: boolean

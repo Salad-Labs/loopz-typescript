@@ -1,12 +1,18 @@
 import { AccountEngine, AccountSchema } from "@src/interfaces/auth"
-import { Maybe } from "../../types"
+import { Maybe, Network } from "../../types"
 import { AccountInitConfig } from "../../types/auth/account"
 import { ConnectedWallet, EIP1193Provider } from "@privy-io/react-auth"
 import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "../../constants/app"
 import { encodeFunctionData } from "viem"
 import { erc1155Abi, erc20Abi, erc721Abi } from "../../constants"
+import { HTTPClient } from ".."
+import { ApiResponse } from "@src/types/base/apiresponse"
+import { DexieStorage } from "../app"
 
-export class Account implements AccountSchema, AccountEngine {
+export class Account
+  extends HTTPClient
+  implements AccountSchema, AccountEngine
+{
   readonly did: string
   readonly organizationId: string
   readonly walletAddress: string
@@ -63,8 +69,11 @@ export class Account implements AccountSchema, AccountEngine {
   readonly phone: Maybe<string>
   readonly isVerified: boolean
   readonly isPfpNft: boolean
-  readonly collectionAddress: string
-  readonly tokenId: Maybe<string>
+  readonly pfp: Maybe<{
+    collectionAddress: string
+    tokenId: string
+    networkId: Network
+  }>
   readonly proposalNotificationPush: boolean
   readonly proposalNotificationSystem: boolean
   readonly orderNotificationPush: boolean
@@ -101,7 +110,19 @@ export class Account implements AccountSchema, AccountEngine {
     callbacks: Array<Function>
   }> = []
 
-  constructor(config: AccountInitConfig) {
+  private _storage: DexieStorage
+
+  constructor(
+    config: AccountInitConfig & {
+      enableDevMode: boolean
+      apiKey: string
+      storage: DexieStorage
+    }
+  ) {
+    super(config.enableDevMode)
+
+    this._storage = config.storage
+    this._apiKey = config.apiKey
     this.did = config.did
     this.organizationId = config.organizationId
     this.token = config.token
@@ -159,8 +180,7 @@ export class Account implements AccountSchema, AccountEngine {
     this.phone = config.phone
     this.isVerified = config.isVerified
     this.isPfpNft = config.isPfpNft
-    this.collectionAddress = config.collectionAddress
-    this.tokenId = config.tokenId
+    this.pfp = config.pfp
     this.proposalNotificationPush = config.proposalNotificationPush
     this.proposalNotificationSystem = config.proposalNotificationSystem
     this.orderNotificationPush = config.orderNotificationPush
@@ -362,12 +382,142 @@ export class Account implements AccountSchema, AccountEngine {
     if (item) for (const cb of item.callbacks) cb(params as any)
   }
 
-  updateData({}: {}): Promise<void> {
-    throw new Error("Method not implemented.")
+  async updateData({
+    username,
+    avatarUrl,
+    bio,
+    pfp = null,
+  }: {
+    username: Maybe<string>
+    avatarUrl: Maybe<URL>
+    bio: Maybe<string>
+    pfp: Maybe<{
+      networkId: Network
+      collectionAddress: string
+      tokenId: string
+    }>
+  }) {
+    try {
+      const { response } = await this._fetch<ApiResponse<{}>>(
+        `${this.backendUrl()}/user/update`,
+        {
+          method: "POST",
+          body: {
+            username,
+            avatarUrl: avatarUrl ? avatarUrl.toString() : null,
+            bio,
+            pfp: pfp
+              ? {
+                  networkId: pfp.networkId,
+                  collectionAddress: pfp.collectionAddress,
+                  tokenId: pfp.tokenId,
+                }
+              : null,
+          },
+          headers: {
+            "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this.token}`,
+          },
+        }
+      )
+
+      if (!response) throw new Error("Response is invalid.")
+      if (response!.code !== 200) throw new Error("Error.")
+
+      if (username) (this as any).username = username
+      if (avatarUrl) (this as any).avatarUrl = avatarUrl
+      if (bio) (this as any).bio = bio
+      if (pfp) {
+        ;(this as any).pfp.collectionAddress = pfp.collectionAddress
+        ;(this as any).pfp.tokenId = pfp.tokenId
+        ;(this as any).pfp.networkId = pfp.networkId
+      }
+
+      await this._storage.transaction("rw", this._storage.user, async () => {
+        const user = await this._storage.user
+          .where("[did+organizationId]")
+          .equals([this.did, this.organizationId])
+          .first()
+        if (!user) return
+
+        await this._storage.user.update(user, {
+          username: username ? username : undefined,
+          avatarUrl: avatarUrl ? avatarUrl.toString() : undefined,
+          bio: bio ? bio : undefined,
+          pfp: pfp ? pfp : undefined,
+        })
+      })
+    } catch (error) {
+      console.log(error)
+    }
   }
 
-  updateSettings({}: {}): Promise<void> {
-    throw new Error("Method not implemented.")
+  async updateSettings(
+    setting:
+      | "proposalNotificationPush"
+      | "proposalNotificationSystem"
+      | "orderNotificationPush"
+      | "orderNotificationSystem"
+      | "followNotificationPush"
+      | "followNotificationSystem"
+      | "collectionNotificationPush"
+      | "collectionNotificationSystem"
+      | "generalNotificationPush"
+      | "generalNotificationSystem",
+    enabled: boolean
+  ) {
+    try {
+      const { response } = await this._fetch<ApiResponse<{}>>(
+        `${this.backendUrl()}/user/update/settings`,
+        {
+          method: "POST",
+          body: {
+            setting,
+            enabled,
+          },
+          headers: {
+            "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this.token}`,
+          },
+        }
+      )
+
+      if (!response) throw new Error("Response is invalid.")
+      if (response!.code !== 200) throw new Error("Error")
+
+      await this._storage.transaction("rw", this._storage.user, async () => {
+        const user = await this._storage.user
+          .where("[did+organizationId]")
+          .equals([this.did, this.organizationId])
+          .first()
+        if (!user) return
+
+        await this._storage.user.update(user, {
+          proposalNotificationPush:
+            setting === "proposalNotificationPush" ? enabled : undefined,
+          proposalNotificationSystem:
+            setting === "proposalNotificationSystem" ? enabled : undefined,
+          orderNotificationPush:
+            setting === "orderNotificationPush" ? enabled : undefined,
+          orderNotificationSystem:
+            setting === "orderNotificationSystem" ? enabled : undefined,
+          followNotificationPush:
+            setting === "followNotificationSystem" ? enabled : undefined,
+          followNotificationSystem:
+            setting === "followNotificationSystem" ? enabled : undefined,
+          collectionNotificationPush:
+            setting === "collectionNotificationPush" ? enabled : undefined,
+          collectionNotificationSystem:
+            setting === "collectionNotificationSystem" ? enabled : undefined,
+          generalNotificationPush:
+            setting === "generalNotificationPush" ? enabled : undefined,
+          generalNotificationSystem:
+            setting === "generalNotificationSystem" ? enabled : undefined,
+        })
+      })
+    } catch (error) {
+      console.log(error)
+    }
   }
 
   updateChatSettings({}: {}): Promise<void> {

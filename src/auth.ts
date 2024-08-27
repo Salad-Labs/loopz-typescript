@@ -42,6 +42,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
   private _chatRef: Chat
   private _isLoggingOut: boolean = false
   private _isAuthenticated: boolean = false
+  private _isDevMode: boolean = false
 
   /**
    * Constructs a new instance of Auth with the provided configuration.
@@ -51,6 +52,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
   constructor(config: AuthConfig & ApiKeyAuthorized) {
     super(config.devMode)
 
+    this._isDevMode = config.devMode
     this._storage = config.storage
     this._apiKey = config.apiKey
     this._privyAppId = config.privyAppId
@@ -155,6 +157,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
             avatarUrl: account.avatarUrl,
             isVerified: account.isVerified,
             isPfpNft: account.isPfpNft,
+            pfp: account.pfp ? account.pfp : null,
             wallet: {
               address: account.walletAddress,
               connectorType: account.walletConnectorType,
@@ -245,6 +248,17 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
                   username: account.twitterUsername,
                 }
               : null,
+            proposalNotificationPush: account.proposalNotificationPush,
+            proposalNotificationSystem: account.proposalNotificationSystem,
+            orderNotificationPush: account.orderNotificationPush,
+            orderNotificationSystem: account.orderNotificationSystem,
+            followNotificationPush: account.followNotificationPush,
+            followNotificationSystem: account.followNotificationSystem,
+            collectionNotificationPush: account.collectionNotificationPush,
+            collectionNotificationSystem: account.collectionNotificationSystem,
+            generalNotificationPush: account.generalNotificationPush,
+            generalNotificationSystem: account.generalNotificationSystem,
+            accountSuspended: account.accountSuspended,
             allowNotification: account.allowNotification,
             allowNotificationSound: account.allowNotificationSound,
             visibility: account.visibility,
@@ -299,7 +313,12 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       if (!user)
         return this._emit("onAuthError", new Error("Access not granted."))
 
-      const account = new Account(user)
+      const account = new Account({
+        ...user,
+        enableDevMode: this._isDevMode,
+        apiKey: this._apiKey!,
+        storage: this._storage!,
+      })
       //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
       //the user refresh the page
       account.storeLastUserLoggedKey()
@@ -376,13 +395,18 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
 
       if (!user) throw new Error("Access not granted.")
 
-      const account = new Account(user)
+      const account = new Account({
+        ...user,
+        enableDevMode: this._isDevMode,
+        apiKey: this._apiKey!,
+        storage: this._storage!,
+      })
       //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
       //the user refresh the page
       account.storeLastUserLoggedKey()
 
       this.setAuthToken(authInfo.authToken)
-      console.log(authInfo.authToken)
+
       this._orderRef.setAuthToken(authInfo.authToken)
       this._oracleRef.setAuthToken(authInfo.authToken)
       this._proposalRef.setAuthToken(authInfo.authToken)
@@ -963,6 +987,9 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       const { e2eSecret, e2eSecretIV } = secrets
 
       const account = new Account({
+        enableDevMode: this._isDevMode,
+        apiKey: this._apiKey!,
+        storage: this._storage,
         did: user.did,
         organizationId: user.organizationId,
         token: token,
@@ -1028,8 +1055,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         phone: user.phone ? user.phone : null,
         isVerified: user.isVerified,
         isPfpNft: user.isPfpNft,
-        collectionAddress: user.collectionAddress,
-        tokenId: user.tokenId ? user.tokenId : null,
+        pfp: user.pfp ? user.pfp : null,
         proposalNotificationPush: user.proposalNotificationPush,
         proposalNotificationSystem: user.proposalNotificationSystem,
         orderNotificationPush: user.orderNotificationPush,
