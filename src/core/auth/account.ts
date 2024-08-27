@@ -62,7 +62,7 @@ export class Account implements AccountSchema, AccountEngine {
   readonly avatarUrl: string
   readonly phone: Maybe<string>
   readonly isVerified: boolean
-  readonly isNft: boolean
+  readonly isPfpNft: boolean
   readonly collectionAddress: string
   readonly tokenId: Maybe<string>
   readonly proposalNotificationPush: boolean
@@ -158,7 +158,7 @@ export class Account implements AccountSchema, AccountEngine {
     this.avatarUrl = config.avatarUrl
     this.phone = config.phone
     this.isVerified = config.isVerified
-    this.isNft = config.isNft
+    this.isPfpNft = config.isPfpNft
     this.collectionAddress = config.collectionAddress
     this.tokenId = config.tokenId
     this.proposalNotificationPush = config.proposalNotificationPush
@@ -365,9 +365,11 @@ export class Account implements AccountSchema, AccountEngine {
   updateData({}: {}): Promise<void> {
     throw new Error("Method not implemented.")
   }
+
   updateSettings({}: {}): Promise<void> {
     throw new Error("Method not implemented.")
   }
+
   updateChatSettings({}: {}): Promise<void> {
     throw new Error("Method not implemented.")
   }

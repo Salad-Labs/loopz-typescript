@@ -253,7 +253,9 @@ export class Conversation
         isVerified: response.memberOut.isVerified
           ? response.memberOut.isVerified
           : false,
-        isNft: response.memberOut.isNft ? response.memberOut.isNft : false,
+        isPfpNft: response.memberOut.isPfpNft
+          ? response.memberOut.isPfpNft
+          : false,
         blacklistIds: response.memberOut.blacklistIds
           ? response.memberOut.blacklistIds
           : null,
@@ -471,7 +473,7 @@ export class Conversation
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
       isVerified: response.isVerified ? response.isVerified : false,
-      isNft: response.isNft ? response.isNft : false,
+      isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
       allowNotification: response.allowNotification
         ? response.allowNotification
@@ -703,7 +705,9 @@ export class Conversation
         isVerified: response.memberOut.isVerified
           ? response.memberOut.isVerified
           : false,
-        isNft: response.memberOut.isNft ? response.memberOut.isNft : false,
+        isPfpNft: response.memberOut.isPfpNft
+          ? response.memberOut.isPfpNft
+          : false,
         blacklistIds: response.memberOut.blacklistIds
           ? response.memberOut.blacklistIds
           : null,
@@ -925,7 +929,7 @@ export class Conversation
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
       isVerified: response.isVerified ? response.isVerified : false,
-      isNft: response.isNft ? response.isNft : false,
+      isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
       allowNotification: response.allowNotification
         ? response.allowNotification
@@ -1214,7 +1218,7 @@ export class Conversation
       isVerified: response.owner!.isVerified
         ? response.owner!.isVerified
         : false,
-      isNft: response.owner!.isNft ? response.owner!.isNft : false,
+      isPfpNft: response.owner!.isPfpNft ? response.owner!.isPfpNft : false,
       blacklistIds: response.owner!.blacklistIds
         ? response.owner!.blacklistIds
         : null,

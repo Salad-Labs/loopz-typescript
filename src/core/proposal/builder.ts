@@ -630,7 +630,7 @@ export class Builder {
         username: "",
         address: this.creatorAddress ? this.creatorAddress : "",
         imageUrl: "",
-        isNft: false,
+        isPfpNft: false,
         isVerified: false,
       },
       messages: this.messages!,

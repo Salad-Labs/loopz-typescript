@@ -1,5 +1,5 @@
 import { ConnectedWallet } from "@privy-io/react-auth"
-import { Maybe } from "@src/types"
+import { Maybe, Network } from "@src/types"
 
 export interface AccountEngine {
   destroyLastUserLoggedKey(): void
@@ -11,7 +11,21 @@ export interface AccountEngine {
   changeNetwork(chainId: number | `0x${string}`): Promise<void>
   getEmbeddedWallet(): Maybe<ConnectedWallet>
   setEmbeddedWallet(wallet: ConnectedWallet): void
-  updateData({}): Promise<void>
+  updateData({
+    username,
+    avatarUrl,
+    bio,
+    pfp: { networkId, collectionAddress, tokenId },
+  }: {
+    username: string
+    avatarUrl: URL
+    bio: string
+    pfp: {
+      networkId: Network
+      collectionAddress: string
+      tokenId: string
+    }
+  }): Promise<void>
   updateSettings({}): Promise<void>
   updateChatSettings({}): Promise<void>
 }

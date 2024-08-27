@@ -64,9 +64,9 @@ export class User
    */
   readonly isVerified: boolean
   /**
-   * @property isNft - Indicates if the user is associated with NFTs.
+   * @property isPfpNft - Indicates if the user is associated with NFTs.
    */
-  readonly isNft: boolean
+  readonly isPfpNft: boolean
   /**
    * @property blacklistIds - An array of user IDs that are blacklisted by this user.
    */
@@ -150,7 +150,7 @@ export class User
     this.bio = config.bio
     this.avatarUrl = config.avatarUrl
     this.isVerified = config.isVerified
-    this.isNft = config.isNft
+    this.isPfpNft = config.isPfpNft
     this.blacklistIds = config.blacklistIds
     this.allowNotification = config.allowNotification
     this.allowNotificationSound = config.allowNotificationSound
@@ -203,7 +203,7 @@ export class User
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
       isVerified: response.isVerified ? response.isVerified : false,
-      isNft: response.isNft ? response.isNft : false,
+      isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
       allowNotification: response.allowNotification
         ? response.allowNotification
@@ -270,7 +270,7 @@ export class User
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
       isVerified: response.isVerified ? response.isVerified : false,
-      isNft: response.isNft ? response.isNft : false,
+      isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
       allowNotification: response.allowNotification
         ? response.allowNotification
@@ -350,7 +350,9 @@ export class User
               isVerified: item.blockedUser.isVerified
                 ? item.blockedUser.isVerified
                 : false,
-              isNft: item.blockedUser.isNft ? item.blockedUser.isNft : false,
+              isPfpNft: item.blockedUser.isPfpNft
+                ? item.blockedUser.isPfpNft
+                : false,
               blacklistIds: item.blockedUser.blacklistIds
                 ? item.blockedUser.blacklistIds
                 : null,

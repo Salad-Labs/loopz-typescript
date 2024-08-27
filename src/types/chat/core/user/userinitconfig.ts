@@ -39,9 +39,9 @@ export type UserInitConfig = {
    */
   isVerified: boolean
   /**
-   * @property {boolean} isNft - Indicates if the pfp image is a NFT
+   * @property {boolean} isPfpNft - Indicates if the pfp image is a NFT
    */
-  isNft: boolean
+  isPfpNft: boolean
   /**
    * @property {Maybe<Array<string>>} blacklistIds - An array of user IDs that are blacklisted.
    */

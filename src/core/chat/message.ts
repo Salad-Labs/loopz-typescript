@@ -916,7 +916,7 @@ export class Message
         ? new URL(response.user!.avatarUrl)
         : null,
       isVerified: response.user!.isVerified ? response.user!.isVerified : false,
-      isNft: response.user!.isNft ? response.user!.isNft : false,
+      isPfpNft: response.user!.isPfpNft ? response.user!.isPfpNft : false,
       blacklistIds: response.user!.blacklistIds
         ? response.user!.blacklistIds
         : null,

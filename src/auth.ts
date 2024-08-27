@@ -154,7 +154,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
             bio: account.bio,
             avatarUrl: account.avatarUrl,
             isVerified: account.isVerified,
-            isNft: account.isNft,
+            isPfpNft: account.isPfpNft,
             wallet: {
               address: account.walletAddress,
               connectorType: account.walletConnectorType,
@@ -1027,7 +1027,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         avatarUrl: user.avatarUrl,
         phone: user.phone ? user.phone : null,
         isVerified: user.isVerified,
-        isNft: user.isNft,
+        isPfpNft: user.isPfpNft,
         collectionAddress: user.collectionAddress,
         tokenId: user.tokenId ? user.tokenId : null,
         proposalNotificationPush: user.proposalNotificationPush,

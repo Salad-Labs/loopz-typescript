@@ -1457,7 +1457,7 @@ export class Chat
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
       isVerified: response.isVerified ? response.isVerified : false,
-      isNft: response.isNft ? response.isNft : false,
+      isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
       allowNotification: response.allowNotification
         ? response.allowNotification
@@ -1843,7 +1843,7 @@ export class Chat
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
       isVerified: response.isVerified ? response.isVerified : false,
-      isNft: response.isNft ? response.isNft : false,
+      isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
       allowNotification: response.allowNotification
         ? response.allowNotification
@@ -1903,7 +1903,7 @@ export class Chat
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
       isVerified: response.isVerified ? response.isVerified : false,
-      isNft: response.isNft ? response.isNft : false,
+      isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
       allowNotification: response.allowNotification
         ? response.allowNotification
@@ -2375,7 +2375,9 @@ export class Chat
         isVerified: response.memberOut.isVerified
           ? response.memberOut.isVerified
           : false,
-        isNft: response.memberOut.isNft ? response.memberOut.isNft : false,
+        isPfpNft: response.memberOut.isPfpNft
+          ? response.memberOut.isPfpNft
+          : false,
         blacklistIds: response.memberOut.blacklistIds
           ? response.memberOut.blacklistIds
           : null,
@@ -2548,7 +2550,9 @@ export class Chat
         isVerified: response.memberOut.isVerified
           ? response.memberOut.isVerified
           : false,
-        isNft: response.memberOut.isNft ? response.memberOut.isNft : false,
+        isPfpNft: response.memberOut.isPfpNft
+          ? response.memberOut.isPfpNft
+          : false,
         blacklistIds: response.memberOut.blacklistIds
           ? response.memberOut.blacklistIds
           : null,
@@ -2667,7 +2671,7 @@ export class Chat
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
       isVerified: response.isVerified ? response.isVerified : false,
-      isNft: response.isNft ? response.isNft : false,
+      isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
       allowNotification: response.allowNotification
         ? response.allowNotification
@@ -3037,7 +3041,7 @@ export class Chat
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
       isVerified: response.isVerified ? response.isVerified : false,
-      isNft: response.isNft ? response.isNft : false,
+      isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
       allowNotification: response.allowNotification
         ? response.allowNotification
@@ -3097,7 +3101,7 @@ export class Chat
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
       isVerified: response.isVerified ? response.isVerified : false,
-      isNft: response.isNft ? response.isNft : false,
+      isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
       allowNotification: response.allowNotification
         ? response.allowNotification
@@ -3268,7 +3272,7 @@ export class Chat
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
       isVerified: response.isVerified ? response.isVerified : false,
-      isNft: response.isNft ? response.isNft : false,
+      isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
       allowNotification: response.allowNotification
         ? response.allowNotification
@@ -3712,7 +3716,7 @@ export class Chat
           bio: item.bio ? item.bio : null,
           avatarUrl: item.avatarUrl ? new URL(item.avatarUrl) : null,
           isVerified: item.isVerified ? item.isVerified : false,
-          isNft: item.isNft ? item.isNft : false,
+          isPfpNft: item.isPfpNft ? item.isPfpNft : false,
           blacklistIds: item.blacklistIds ? item.blacklistIds : null,
           allowNotification: item.allowNotification
             ? item.allowNotification
@@ -4139,7 +4143,7 @@ export class Chat
           bio: item.bio ? item.bio : null,
           avatarUrl: item.avatarUrl ? new URL(item.avatarUrl) : null,
           isVerified: item.isVerified ? item.isVerified : false,
-          isNft: item.isNft ? item.isNft : false,
+          isPfpNft: item.isPfpNft ? item.isPfpNft : false,
           blacklistIds: item.blacklistIds ? item.blacklistIds : null,
           allowNotification: item.allowNotification
             ? item.allowNotification
@@ -4198,7 +4202,7 @@ export class Chat
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
       isVerified: response.isVerified ? response.isVerified : false,
-      isNft: response.isNft ? response.isNft : false,
+      isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
       allowNotification: response.allowNotification
         ? response.allowNotification
@@ -5193,7 +5197,7 @@ export class Chat
               ? new URL(r.memberOut.avatarUrl)
               : null,
             isVerified: r.memberOut.isVerified ? r.memberOut.isVerified : false,
-            isNft: r.memberOut.isNft ? r.memberOut.isNft : false,
+            isPfpNft: r.memberOut.isPfpNft ? r.memberOut.isPfpNft : false,
             blacklistIds: r.memberOut.blacklistIds
               ? r.memberOut.blacklistIds
               : null,
@@ -5327,7 +5331,7 @@ export class Chat
               ? new URL(r.memberOut.avatarUrl)
               : null,
             isVerified: r.memberOut.isVerified ? r.memberOut.isVerified : false,
-            isNft: r.memberOut.isNft ? r.memberOut.isNft : false,
+            isPfpNft: r.memberOut.isPfpNft ? r.memberOut.isPfpNft : false,
             blacklistIds: r.memberOut.blacklistIds
               ? r.memberOut.blacklistIds
               : null,
@@ -5782,7 +5786,7 @@ export class Chat
           bio: r.bio ? r.bio : null,
           avatarUrl: r.avatarUrl ? new URL(r.avatarUrl) : null,
           isVerified: r.isVerified ? r.isVerified : false,
-          isNft: r.isNft ? r.isNft : false,
+          isPfpNft: r.isPfpNft ? r.isPfpNft : false,
           blacklistIds: r.blacklistIds ? r.blacklistIds : null,
           allowNotification: r.allowNotification ? r.allowNotification : false,
           allowNotificationSound: r.allowNotificationSound

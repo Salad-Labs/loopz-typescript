@@ -57,7 +57,7 @@ export interface AccountSchema {
   avatarUrl: string
   phone: Maybe<string>
   isVerified: boolean
-  isNft: boolean
+  isPfpNft: boolean
   collectionAddress: string
   tokenId: Maybe<string>
   proposalNotificationPush: boolean

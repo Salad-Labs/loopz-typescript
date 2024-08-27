@@ -38,9 +38,9 @@ export interface UserSchema {
    */
   isVerified: boolean
   /**
-   * @property {boolean} isNft - Indicates if the pfp is a NFT.
+   * @property {boolean} isPfpNft - Indicates if the pfp is a NFT.
    */
-  isNft: boolean
+  isPfpNft: boolean
   /**
    * @property {Maybe<Array<string>>} blacklistIds - An array of user IDs to blacklist.
    */

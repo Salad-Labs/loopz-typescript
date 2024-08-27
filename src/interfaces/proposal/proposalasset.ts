@@ -36,9 +36,9 @@ export interface ProposalAsset {
   type: "ERC721" | "ERC1155" | "ERC20" | "NATIVE"
   /**
    * Represents an NFT (Non-Fungible Token) with the following properties:
-   * @property {boolean} isNft - Indicates if the item is an NFT.
+   * @property {boolean} isPfpNft - Indicates if the item is an NFT.
    */
-  isNft: boolean
+  isPfpNft: boolean
   /**
    * @property {string} symbol - The symbol associated with the NFT.
    */

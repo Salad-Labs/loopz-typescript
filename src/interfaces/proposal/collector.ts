@@ -20,9 +20,9 @@ export interface Collector {
    */
   isVerified: boolean
   /**
-   * @property {boolean} isNft - Indicates if the collector is an NFT collector (0 for false, 1 for true).
+   * @property {boolean} isPfpNft - Indicates if the collector is an NFT collector (0 for false, 1 for true).
    */
-  isNft: boolean
+  isPfpNft: boolean
   /**
    * @property {string} [networkId] - The network ID of the collector (optional).
    */

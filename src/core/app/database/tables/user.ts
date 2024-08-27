@@ -8,7 +8,7 @@ export interface LocalDBUser {
   bio: string
   avatarUrl: string
   isVerified: boolean
-  isNft: boolean
+  isPfpNft: boolean
   wallet: {
     address: string
     connectorType: string
