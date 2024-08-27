@@ -67,10 +67,6 @@ export interface IOrder {
    */
   end: string
   /**
-   * @property {"DIRECT_DEAL" | "PUBLIC_DEAL"} type - The type of order.
-   */
-  type: "DIRECT_DEAL" | "PUBLIC_DEAL"
-  /**
    *  @property {Array<Collector>} maker - An array of collectors representing the makers of the order.
    */
   maker: Array<Collector>

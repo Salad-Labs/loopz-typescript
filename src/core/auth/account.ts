@@ -361,4 +361,14 @@ export class Account implements AccountSchema, AccountEngine {
 
     if (item) for (const cb of item.callbacks) cb(params as any)
   }
+
+  updateData({}: {}): Promise<void> {
+    throw new Error("Method not implemented.")
+  }
+  updateSettings({}: {}): Promise<void> {
+    throw new Error("Method not implemented.")
+  }
+  updateChatSettings({}: {}): Promise<void> {
+    throw new Error("Method not implemented.")
+  }
 }
