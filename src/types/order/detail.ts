@@ -53,9 +53,9 @@ export type Detail = {
    */
   statusVerification: -1 | 0 | 1 | 2
   /**
-   * @property {string} swapId - The swap ID of the token.
+   * @property {string} orderId - The order ID of the token.
    */
-  swapId: string
+  orderId: string
   /**
    * @property {string} symbol - The symbol of the token.
    */

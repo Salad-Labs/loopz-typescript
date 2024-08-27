@@ -382,6 +382,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
       account.storeLastUserLoggedKey()
 
       this.setAuthToken(authInfo.authToken)
+      console.log(authInfo.authToken)
       this._orderRef.setAuthToken(authInfo.authToken)
       this._oracleRef.setAuthToken(authInfo.authToken)
       this._proposalRef.setAuthToken(authInfo.authToken)
@@ -829,12 +830,10 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         })
 
         this._isLoggingOut = true
-        this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
-
-        this._account?.emptyActiveWallets()
-        this._account?.destroyLastUserLoggedKey()
         this._isAuthenticated = false
-
+        this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
+        this._account?.emptyActiveWallets()
+        this.destroyLastUserLoggedKey()
         this.setAuthToken(null)
         this._oracleRef.setAuthToken(null)
         this._chatRef.setAuthToken(null)
@@ -963,8 +962,6 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
 
       const { e2eSecret, e2eSecretIV } = secrets
 
-      //need to understand how to handle the "isConnected" concept on refresh
-
       const account = new Account({
         did: user.did,
         organizationId: user.organizationId,
@@ -1035,8 +1032,8 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         tokenId: user.tokenId ? user.tokenId : null,
         proposalNotificationPush: user.proposalNotificationPush,
         proposalNotificationSystem: user.proposalNotificationSystem,
-        dealNotificationPush: user.dealNotificationPush,
-        dealNotificationSystem: user.dealNotificationSystem,
+        orderNotificationPush: user.orderNotificationPush,
+        orderNotificationSystem: user.orderNotificationSystem,
         followNotificationPush: user.followNotificationPush,
         followNotificationSystem: user.followNotificationSystem,
         collectionNotificationPush: user.collectionNotificationPush,
@@ -1045,8 +1042,8 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         generalNotificationSystem: user.generalNotificationSystem,
         accountSuspended: user.accountSuspended,
         e2ePublicKey: user.e2ePublicKey,
-        e2eSecret, //this info should come from the backend. This data is never stored in the local DB, it exists only in memory to make harder the access to it
-        e2eSecretIV, //this info should come from the backend. This data is never stored in the local DB, it exists only in memory to make harder the access to it
+        e2eSecret, //this info comes from the backend. This data is never stored in the local DB, it exists only in memory to make harder the access to it
+        e2eSecretIV, //this info comes from the backend. This data is never stored in the local DB, it exists only in memory to make harder the access to it
         createdAt: user.createdAt,
         updatedAt: user.updatedAt ? user.updatedAt : null,
         deletedAt: user.deletedAt ? user.deletedAt : null,

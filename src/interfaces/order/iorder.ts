@@ -11,13 +11,13 @@ export interface IOrder {
    */
   networkId: string
   /**
-   * @property {string} swapId - The unique identifier of the swap.
+   * @property {string} orderId - The unique identifier of the order.
    */
-  swapId: string
+  orderId: string
   /**
-   * @property {0 | 1 | 2} swapStatus - The status of the swap (0 - pending, 1 - completed, 2 - cancelled).
+   * @property {0 | 1 | 2} orderStatus - The status of the order (0 - pending, 1 - completed, 2 - cancelled).
    */
-  swapStatus: 0 | 1 | 2
+  orderStatus: 0 | 1 | 2
   /**
    * @property {string} txHash - The transaction hash of the order.
    */
@@ -35,7 +35,7 @@ export interface IOrder {
    */
   valueMaker: string
   /**
-   * @property {string} addressTaker - The address of the taker in the deal.
+   * @property {string} addressTaker - The address of the taker in the order.
    */
   addressTaker: string
   /**
@@ -43,39 +43,39 @@ export interface IOrder {
    */
   usernameTaker: Maybe<string>
   /**
-   *@property {string} valueTaker - The value taken in the deal.
+   *@property {string} valueTaker - The value taken in the order.
    */
   valueTaker: string
   /**
-   *@property {string} name - The name of the deal.
+   *@property {string} name - The name of the order.
    */
   name: string
   /**
-   *@property {string} symbol - The symbol of the deal.
+   *@property {string} symbol - The symbol of the order.
    */
   symbol: string
   /**
-   *@property {string} imageUrl - The URL of the image associated with the deal.
+   *@property {string} imageUrl - The URL of the image associated with the order.
    */
   imageUrl: string
   /**
-   *@property {string} swapStart - The start of the swap in the deal.
+   *@property {string} start - The start of the order in the order.
    */
-  swapStart: string
+  start: string
   /**
-   * @property {string} swapEnd - The end of the swap in the deal
+   * @property {string} end - The end of the order in the order
    */
-  swapEnd: string
+  end: string
   /**
-   * @property {"DIRECT_DEAL" | "PUBLIC_DEAL"} type - The type of deal.
+   * @property {"DIRECT_DEAL" | "PUBLIC_DEAL"} type - The type of order.
    */
   type: "DIRECT_DEAL" | "PUBLIC_DEAL"
   /**
-   *  @property {Array<Collector>} maker - An array of collectors representing the makers of the deal.
+   *  @property {Array<Collector>} maker - An array of collectors representing the makers of the order.
    */
   maker: Array<Collector>
   /**
-   * @property {Array<Collector>} taker - An array of collectors representing the takers of the deal.
+   * @property {Array<Collector>} taker - An array of collectors representing the takers of the order.
    */
   taker: Array<Collector>
   /**

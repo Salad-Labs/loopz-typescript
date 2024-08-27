@@ -61,8 +61,8 @@ export type AccountInitConfig = {
   tokenId: Maybe<string>
   proposalNotificationPush: boolean
   proposalNotificationSystem: boolean
-  dealNotificationPush: boolean
-  dealNotificationSystem: boolean
+  orderNotificationPush: boolean
+  orderNotificationSystem: boolean
   followNotificationPush: boolean
   followNotificationSystem: boolean
   collectionNotificationPush: boolean

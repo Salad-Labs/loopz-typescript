@@ -67,8 +67,8 @@ export class Account implements AccountSchema, AccountEngine {
   readonly tokenId: Maybe<string>
   readonly proposalNotificationPush: boolean
   readonly proposalNotificationSystem: boolean
-  readonly dealNotificationPush: boolean
-  readonly dealNotificationSystem: boolean
+  readonly orderNotificationPush: boolean
+  readonly orderNotificationSystem: boolean
   readonly followNotificationPush: boolean
   readonly followNotificationSystem: boolean
   readonly collectionNotificationPush: boolean
@@ -163,8 +163,8 @@ export class Account implements AccountSchema, AccountEngine {
     this.tokenId = config.tokenId
     this.proposalNotificationPush = config.proposalNotificationPush
     this.proposalNotificationSystem = config.proposalNotificationSystem
-    this.dealNotificationPush = config.dealNotificationPush
-    this.dealNotificationSystem = config.dealNotificationSystem
+    this.orderNotificationPush = config.orderNotificationPush
+    this.orderNotificationSystem = config.orderNotificationSystem
     this.followNotificationPush = config.followNotificationPush
     this.followNotificationSystem = config.followNotificationSystem
     this.collectionNotificationPush = config.collectionNotificationPush

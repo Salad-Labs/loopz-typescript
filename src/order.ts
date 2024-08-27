@@ -416,7 +416,7 @@ export class Order extends HTTPClient {
     maker: OrderAsset<WithAddress>,
     taker: OrderAsset<WithAddress>,
     end: number = 0,
-    fees?: Array<SeaportFee>,
+    fees: Array<SeaportFee> = [],
     proposalId?: string
   ): Promise<Maybe<OrderInstance>> {
     try {
@@ -446,27 +446,42 @@ export class Order extends HTTPClient {
       // Retrieve the maker address
       const [addressMaker] = await this._provider.listAccounts()
 
+      const makerAssets = maker.assets?.map((asset) => {
+        return {
+          ...asset,
+          recipient: asset.recipient?.toLowerCase(),
+          token: asset.token?.toLowerCase(),
+        }
+      })
+      const takerAssets = taker.assets?.map((asset) => {
+        return {
+          ...asset,
+          recipient: asset.recipient?.toLowerCase(),
+          token: asset.token?.toLowerCase(),
+        }
+      })
+
       const orderInit = await this._addMasterFee({
-        offer: [...(maker.assets ?? [])].map(
-          (a) =>
+        offer: [...(makerAssets ?? [])].map(
+          (asset) =>
             ({
-              ...a,
+              ...asset,
               itemType:
-                typeof a.itemType === "string"
-                  ? AssetsArray.TOKEN_CONSTANTS[a.itemType]
-                  : a.itemType,
-            } as { itemType: ItemType } & typeof a)
+                typeof asset.itemType === "string"
+                  ? AssetsArray.TOKEN_CONSTANTS[asset.itemType]
+                  : asset.itemType,
+            } as { itemType: ItemType } & typeof asset)
         ),
-        consideration: [...(taker.assets ?? [])].map(
-          (a) =>
+        consideration: [...(takerAssets ?? [])].map(
+          (asset) =>
             ({
-              ...a,
+              ...asset,
               itemType:
-                typeof a.itemType === "string"
-                  ? AssetsArray.TOKEN_CONSTANTS[a.itemType]
-                  : a.itemType,
-              recipient: a.recipient ? a.recipient : addressMaker,
-            } as { itemType: ItemType } & typeof a)
+                typeof asset.itemType === "string"
+                  ? AssetsArray.TOKEN_CONSTANTS[asset.itemType]
+                  : asset.itemType,
+              recipient: asset.recipient ? asset.recipient : addressMaker,
+            } as { itemType: ItemType } & typeof asset)
         ),
         zone: taker.address,
         endTime: Math.floor(
@@ -521,7 +536,7 @@ export class Order extends HTTPClient {
         throw new Error("init() must be called to initialize the client.")
 
       const { response } = await this._fetch<ApiResponse<OrderDetail>>(
-        `${this.backendUrl()}/tradelist/getSwapDetail/${this._account.getCurrentNetwork(
+        `${this.backendUrl()}/order/${this._account.getCurrentNetwork(
           false
         )}/${orderId}`,
         {

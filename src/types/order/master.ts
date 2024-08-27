@@ -1,18 +1,18 @@
 import { Collector } from "../../interfaces/proposal/collector"
 /**
- * Represents a Master object containing various properties related to a swap transaction.
+ * Represents a Master object containing various properties related to a order transaction.
  */
 export type Master = {
   /**
-   * @property {string} imageUrl - The URL of the image associated with the swap.
+   * @property {string} imageUrl - The URL of the image associated with the order.
    */
   imageUrl: string
   /**
-   * @property {string} name - The name of the swap.
+   * @property {string} name - The name of the order.
    */
   name: string
   /**
-   * @property {string} symbol - The symbol of the swap.
+   * @property {string} symbol - The symbol of the order.
    */
   symbol: string
   /**
@@ -56,31 +56,31 @@ export type Master = {
    */
   percentageFeeTakerNative: number
   /**
-   * @property {number} swapStatus - The status of the swap transaction.
+   * @property {number} orderStatus - The status of the order transaction.
    */
-  swapStatus: number
+  orderStatus: number
   /**
-   * @property {string} swapEnd - The end of the swap transaction.
+   * @property {string} end - The end of the order transaction.
    */
-  swapEnd: string
+  end: string
   /**
-   * @property {string} txHash - The transaction hash of the swap.
+   * @property {string} txHash - The transaction hash of the order.
    */
   txHash: string
   /**
-   * @property {Array<Collector>} maker - An array of collectors representing the maker of the swap.
+   * @property {Array<Collector>} maker - An array of collectors representing the maker of the order.
    */
   maker: Array<Collector>
   /**
-   * @property {Array<Collector>} taker - An array of collectors representing the taker of the swap.
+   * @property {Array<Collector>} taker - An array of collectors representing the taker of the order.
    */
   taker: Array<Collector>
   /**
-   * @property {Array<Object>} collections - An array of collections involved in the swap, each with the following properties:
+   * @property {Array<Object>} collections - An array of collections involved in the order, each with the following properties:
    */
   collections: Array<{
     /**
-     * @property {boolean} creator - Identify the creator of the swap.
+     * @property {boolean} creator - Identify the creator of the order.
      */
     creator: boolean
     /**
