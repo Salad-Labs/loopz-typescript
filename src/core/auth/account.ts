@@ -5,9 +5,11 @@ import { ConnectedWallet, EIP1193Provider } from "@privy-io/react-auth"
 import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "../../constants/app"
 import { encodeFunctionData } from "viem"
 import { erc1155Abi, erc20Abi, erc721Abi } from "../../constants"
-import { HTTPClient } from ".."
+import { HTTPClient, QIError } from ".."
 import { ApiResponse } from "@src/types/base/apiresponse"
 import { DexieStorage } from "../app"
+import { Chat } from "@src/chat"
+import { AddGroupFrom, ReceiveMessageFrom, UserOnlineStatus } from "@src/enums"
 
 export class Account
   extends HTTPClient
@@ -112,15 +114,19 @@ export class Account
 
   private _storage: DexieStorage
 
+  private _chatRef: Chat
+
   constructor(
     config: AccountInitConfig & {
       enableDevMode: boolean
       apiKey: string
       storage: DexieStorage
+      chatRef: Chat
     }
   ) {
     super(config.enableDevMode)
 
+    this._chatRef = config.chatRef
     this._storage = config.storage
     this._apiKey = config.apiKey
     this.did = config.did
@@ -520,7 +526,34 @@ export class Account
     }
   }
 
-  updateChatSettings({}: {}): Promise<void> {
-    throw new Error("Method not implemented.")
+  async updateChatSettings(settings: {
+    allowNotification: boolean
+    allowNotificationSound: boolean
+    visibility: boolean
+    onlineStatus: UserOnlineStatus
+    allowReadReceipt: boolean
+    allowReceiveMessageFrom: ReceiveMessageFrom
+    allowAddToGroupsFrom: AddGroupFrom
+    allowGroupsSuggestion: boolean
+  }) {
+    try {
+      const response = await this._chatRef.updateUser(settings)
+
+      if (response instanceof QIError) throw new Error(response.toString())
+
+      await this._storage.transaction("rw", this._storage.user, async () => {
+        const user = await this._storage.user
+          .where("[did+organizationId]")
+          .equals([this.did, this.organizationId])
+          .first()
+        if (!user) return
+
+        await this._storage.user.update(user, {
+          ...settings,
+        })
+      })
+    } catch (error) {
+      console.log(error)
+    }
   }
 }

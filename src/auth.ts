@@ -318,6 +318,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         enableDevMode: this._isDevMode,
         apiKey: this._apiKey!,
         storage: this._storage!,
+        chatRef: this._chatRef,
       })
       //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
       //the user refresh the page
@@ -400,6 +401,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         enableDevMode: this._isDevMode,
         apiKey: this._apiKey!,
         storage: this._storage!,
+        chatRef: this._chatRef,
       })
       //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
       //the user refresh the page
@@ -990,6 +992,7 @@ export class Auth extends HTTPClient implements AuthInternalEvents {
         enableDevMode: this._isDevMode,
         apiKey: this._apiKey!,
         storage: this._storage,
+        chatRef: this._chatRef,
         did: user.did,
         organizationId: user.organizationId,
         token: token,
