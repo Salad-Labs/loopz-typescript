@@ -8,7 +8,7 @@ import {
   createClient,
 } from "@urql/core"
 import { IEngine } from "../../interfaces/chat/core"
-import { HTTPClient } from "../httpclient"
+import { Client as ClientEngine } from "../client"
 import { QIError } from "./qierror"
 import { Maybe } from "../../types/base"
 import { RealTimeWebSocketConnectionParams } from "../../types/chat/realtimewebsocketconnectionparams"
@@ -23,13 +23,13 @@ import { EngineInitConfig } from "../../types"
 import { Account, DexieStorage } from "../app"
 
 /**
- * Represents an Engine class that extends HTTPClient and implements IEngine interface.
+ * Represents an Engine class that extends Client and implements IEngine interface.
  * Manages API configurations, WebSocket connections, and GraphQL operations.
- * @extends HTTPClient
+ * @extends Client
  * @implements IEngine
  */
 
-export class Engine extends HTTPClient implements IEngine {
+export class Engine extends ClientEngine implements IEngine {
   /**
    * @property {Maybe<string>} _jwtToken - The JWT token for authentication.
    */

@@ -1,4 +1,4 @@
-import { HTTPClient } from "./core/httpclient"
+import { Client } from "./core/client"
 import { GetCollectionsArgs, GetNFTArgs, GetNFTsArgs } from "./types/oracle"
 import { Collectible } from "./interfaces/oracle"
 import { ApiKeyAuthorized, Maybe } from "./types/base"
@@ -6,11 +6,11 @@ import { ApiResponse } from "./types/base/apiresponse"
 import { Collection } from "./interfaces"
 
 /**
- * Represents an Oracle class that extends HTTPClient and provides methods to interact with an Oracle API.
+ * Represents an Oracle class that extends Client and provides methods to interact with an Oracle API.
  * @class Oracle
- * @extends HTTPClient
+ * @extends Client
  */
-export class Oracle extends HTTPClient {
+export class Oracle extends Client {
   /**
    * Constructor for creating an instance of a class that requires an API key for authorization.
    * @param {ApiKeyAuthorized} config - The configuration object containing the API key.

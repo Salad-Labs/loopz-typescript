@@ -14,15 +14,15 @@ import {
 import { validateListProposalsFilters } from "./core/utilities"
 import { PROPOSAL_STATUS } from "./constants/proposal/proposalstatus"
 import { PROPOSAL_TYPE } from "./constants/proposal/proposaltype"
-import { HTTPClient } from "./core/httpclient"
+import { Client } from "./core/client"
 import { ApiResponse } from "./types/base/apiresponse"
 
 /**
  * Represents a class for interacting with proposals through HTTP requests.
  * @class Proposal
- * @extends HTTPClient
+ * @extends Client
  */
-export class Proposal extends HTTPClient {
+export class Proposal extends Client {
   /**
    * Get the PROPOSAL_STATUS constant object.
    * @returns {ProposalStatus} The constant object PROPOSAL_STATUS.

@@ -2,7 +2,7 @@ import { Seaport } from "@opensea/seaport-js"
 import { ItemType } from "@opensea/seaport-js/lib/constants"
 import { CreateOrderInput } from "@opensea/seaport-js/lib/types"
 import { AssetsArray } from "./core/assetsarray"
-import { HTTPClient } from "./core/httpclient"
+import { Client } from "./core/client"
 import { ApiKeyAuthorized, Maybe, Network } from "./types/base"
 import {
   OrderAsset,
@@ -25,10 +25,10 @@ import { ConnectedWallet } from "@privy-io/react-auth"
 /**
  * Order class that handles interactions with the OpenSea trading platform.
  * @class Order
- * @extends HTTPClient
+ * @extends Client
  */
 
-export class Order extends HTTPClient {
+export class Order extends Client {
   /**
    * @property {Maybe<ethers.providers.Web3Provider | ethers.providers.JsonRpcProvider>} _provider - The provider instance.
    */

@@ -1,4 +1,4 @@
-import { HTTPClient } from "./core/httpclient"
+import { Client } from "./core/client"
 import {
   AuthClientConfig,
   AuthConfig,
@@ -26,9 +26,9 @@ import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "./constants/app"
 /**
  * Represents an authentication client that interacts with a backend server for user authentication.
  * @class Auth
- * @extends HTTPClient
+ * @extends Client
  */
-export class Auth extends HTTPClient implements AuthInternalEvents {
+export class Auth extends Client implements AuthInternalEvents {
   private _storage?: DexieStorage
   private _privyAppId: string
   private _privyConfig?: PrivyClientConfig

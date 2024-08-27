@@ -5,16 +5,13 @@ import { ConnectedWallet, EIP1193Provider } from "@privy-io/react-auth"
 import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "../../constants/app"
 import { encodeFunctionData } from "viem"
 import { erc1155Abi, erc20Abi, erc721Abi } from "../../constants"
-import { HTTPClient, QIError } from ".."
+import { Client, QIError } from ".."
 import { ApiResponse } from "@src/types/base/apiresponse"
 import { DexieStorage } from "../app"
 import { Chat } from "@src/chat"
 import { AddGroupFrom, ReceiveMessageFrom, UserOnlineStatus } from "@src/enums"
 
-export class Account
-  extends HTTPClient
-  implements AccountSchema, AccountEngine
-{
+export class Account extends Client implements AccountSchema, AccountEngine {
   readonly did: string
   readonly organizationId: string
   readonly walletAddress: string

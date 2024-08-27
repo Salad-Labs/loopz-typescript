@@ -1,5 +1,5 @@
 export * from "./assetsarray"
-export * from "./httpclient"
+export * from "./client"
 export * from "./messagemap"
 export * from "./chat"
 export * from "./proposal"

@@ -4,9 +4,9 @@ import { Account } from "./app"
 
 /**
  * Class representing an HTTP client for making HTTP requests.
- * @class HTTPClient
+ * @class Client
  */
-export class HTTPClient {
+export class Client {
   private _devMode: "development" | "production" = "production"
 
   /**
@@ -211,16 +211,24 @@ export class HTTPClient {
   protected backendChatUrl(): string {
     return `${
       this._devMode === "development"
-        ? `url server chat graphql development`
-        : `url server chat graphql production`
+        ? `https://z47gatqqyraabhwztl7jqvhsgi.appsync-api.eu-west-1.amazonaws.com/graphql`
+        : `` //url server chat graphql production
+    }`
+  }
+
+  protected backendNotificationUrl(): string {
+    return `${
+      this._devMode === "development"
+        ? `wss://develop.wss.nfttrader.io`
+        : `wss://wss.nfttrader.io`
     }`
   }
 
   protected backendChatRealtimeUrl(): string {
     return `${
       this._devMode === "development"
-        ? `url server chat graphql development`
-        : `url server chat graphql production`
+        ? `wss://z47gatqqyraabhwztl7jqvhsgi.appsync-realtime-api.eu-west-1.amazonaws.com/graphql` //url server chat graphql development
+        : `` //url server chat graphql production
     }`
   }
 
