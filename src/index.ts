@@ -8,6 +8,8 @@ export * from "./chat"
 export * from "./oracle"
 //Auth class
 export * from "./auth"
+//Notification class
+export * from "./notification"
 //Core classes
 export * from "./core/index"
 //Types

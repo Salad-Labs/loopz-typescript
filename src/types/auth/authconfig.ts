@@ -4,6 +4,7 @@ import { Oracle } from "@src/oracle"
 import { Order } from "@src/order"
 import { Proposal } from "@src/proposal"
 import { Chat } from "@src/chat"
+import { Notification } from "@src/notification"
 
 /**
  * Represents the configuration for authentication.
@@ -14,6 +15,7 @@ export type AuthConfig = {
   order: Order
   proposal: Proposal
   chat: Chat
+  notification: Notification
   privyAppId: string
   privyConfig: PrivyClientConfig
 }

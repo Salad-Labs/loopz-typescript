@@ -22,6 +22,7 @@ import forge from "node-forge"
 import { AccountInitConfig } from "./types/auth/account"
 import { Chat } from "./chat"
 import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "./constants/app"
+import { Notification } from "./notification"
 
 /**
  * Represents an authentication client that interacts with a backend server for user authentication.
@@ -40,6 +41,7 @@ export class Auth extends Client implements AuthInternalEvents {
   private _proposalRef: Proposal
   private _oracleRef: Oracle
   private _chatRef: Chat
+  private _notificationRef: Notification
   private _isLoggingOut: boolean = false
   private _isAuthenticated: boolean = false
   private _isDevMode: boolean = false
@@ -61,6 +63,7 @@ export class Auth extends Client implements AuthInternalEvents {
     this._oracleRef = config.oracle
     this._proposalRef = config.proposal
     this._chatRef = config.chat
+    this._notificationRef = config.notification
 
     //OAuth providers like Google, Instagram etc bring the user from the current web application page to
     //their authentication pages. When the user is redirect from their auth pages to the web application page again
@@ -329,11 +332,13 @@ export class Auth extends Client implements AuthInternalEvents {
       this._oracleRef.setAuthToken(authInfo.authToken)
       this._proposalRef.setAuthToken(authInfo.authToken)
       this._chatRef.setAuthToken(authInfo.authToken)
+      this._notificationRef.setAuthToken(authInfo.authToken)
 
       this._chatRef.setCurrentAccount(account)
       this._orderRef.setCurrentAccount(account)
       this._oracleRef.setCurrentAccount(account)
       this._proposalRef.setCurrentAccount(account)
+      this._notificationRef.setCurrentAccount(account)
       this.setCurrentAccount(account) //this must be the last because it fires event
 
       //clear all the internal callbacks connected to the authentication...
@@ -413,11 +418,13 @@ export class Auth extends Client implements AuthInternalEvents {
       this._oracleRef.setAuthToken(authInfo.authToken)
       this._proposalRef.setAuthToken(authInfo.authToken)
       this._chatRef.setAuthToken(authInfo.authToken)
+      this._notificationRef.setAuthToken(authInfo.authToken)
 
       this._chatRef.setCurrentAccount(account)
       this._orderRef.setCurrentAccount(account)
       this._oracleRef.setCurrentAccount(account)
       this._proposalRef.setCurrentAccount(account)
+      this._notificationRef.setCurrentAccount(account)
       this.setCurrentAccount(account) //this must be the last because it fires event
 
       //clear all the internal callbacks connected to the authentication...
@@ -1091,11 +1098,13 @@ export class Auth extends Client implements AuthInternalEvents {
       this._chatRef.setAuthToken(token)
       this._proposalRef.setAuthToken(token)
       this._orderRef.setAuthToken(token)
+      this._notificationRef.setAuthToken(token)
 
       this._chatRef.setCurrentAccount(account)
       this._orderRef.setCurrentAccount(account)
       this._oracleRef.setCurrentAccount(account)
       this._proposalRef.setCurrentAccount(account)
+      this._notificationRef.setCurrentAccount(account)
       this.setCurrentAccount(account) //this must be the last because it fires event
     } catch (error) {
       //safety check, _account could be null and this method destroy the local storage values stored

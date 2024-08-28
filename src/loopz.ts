@@ -9,6 +9,7 @@ import { Chat } from "./chat"
 import { Oracle } from "./oracle"
 import { Proposal } from "./proposal"
 import { Order } from "./order"
+import { Notification } from "./notification"
 import { LoopzConfig } from "./types/app/loopzconfig"
 import { PrivyClientConfig } from "@privy-io/react-auth"
 import { PrivyAdapter } from "./adapter"
@@ -23,6 +24,7 @@ export class Loopz {
   private static _oracle: Oracle
   private static _proposal: Proposal
   private static _order: Order
+  private static _notification: Notification
 
   private static _apiKey: string
 
@@ -78,6 +80,10 @@ export class Loopz {
       storage: config.storage,
       devMode: Loopz._devMode,
     })
+    Loopz._notification = new Notification({
+      apiKey: config.apiKey,
+      devMode: Loopz._devMode,
+    })
     Loopz._auth = new Auth({
       apiKey: config.apiKey,
       privyAppId: config.privyAppId,
@@ -86,6 +92,7 @@ export class Loopz {
       proposal: Loopz._proposal,
       order: Loopz._order,
       chat: Loopz._chat,
+      notification: Loopz._notification,
       storage: config.storage,
       devMode: Loopz._devMode,
     })
