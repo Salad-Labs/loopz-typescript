@@ -219,6 +219,9 @@ import Dexie, { Table } from "dexie"
 import { Reaction } from "./core/chat/reaction"
 import { v4 as uuidv4 } from "uuid"
 import { DexieStorage } from "./core/app"
+import bip39 from "bip39"
+import { ApiResponse } from "./types/base/apiresponse"
+import { md, mgf, pki } from "node-forge"
 
 export class Chat
   extends Engine
@@ -271,6 +274,15 @@ export class Chat
     conversationId: string
     conversation: Conversation
   }> = []
+
+  private _keyPairingObject: Maybe<{
+    publicKey: Maybe<pki.rsa.PublicKey>
+    privateKey: Maybe<pki.rsa.PrivateKey>
+    md: Maybe<md.sha256.MessageDigest>
+    mgf1: Maybe<string>
+  }> = null
+
+  private _canChat: boolean = true
 
   static readonly SYNCING_TIME = 60000
 
@@ -5947,6 +5959,10 @@ export class Chat
       }) > -1
     )
       throw new Error("You have already launched sync().")
+    if (!this._canChat)
+      throw new Error(
+        "This client cannot start to chat. Are you missing to pairing the keys?"
+      )
 
     this._on("sync", () => {
       this._isSyncing = false
@@ -6531,6 +6547,312 @@ export class Chat
 
         resolve()
       } catch (error) {
+        reject(error)
+      }
+    })
+  }
+
+  /** transfer keys logic */
+
+  //this action is performed by device A
+  async pair(): Promise<Maybe<string>> {
+    if (!this._userKeyPair)
+      throw new Error(
+        "Pairing is possible only if the user has generated a personal keys pair."
+      )
+    if (!this._authToken) throw new Error("JWT is not setup correctly.")
+    if (!this._apiKey) throw new Error("API key is not setup correctly.")
+
+    const mnemonic = bip39.generateMnemonic()
+    const seed = bip39.mnemonicToSeedSync(mnemonic)
+    const hex = seed.toString("hex")
+
+    try {
+      const { response } = await this._fetch<ApiResponse<{ status: number }>>(
+        `${this.backendUrl()}/pair/device/init`,
+        {
+          method: "POST",
+          body: {
+            pairingIdentity: hex,
+          },
+          headers: {
+            "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
+          },
+        }
+      )
+
+      if (!response || !response.data) throw new Error("Response is invalid.")
+    } catch (error) {
+      console.log(error)
+      return null
+    }
+
+    return mnemonic
+  }
+
+  //this action is performed by device B
+  async startPairing(mnemonic: string): Promise<Maybe<{ status: number }>> {
+    if (!this._authToken) throw new Error("JWT is not setup correctly.")
+    if (!this._apiKey) throw new Error("API key is not setup correctly.")
+
+    try {
+      const keyPair = await Crypto.generateKeys("STANDARD")
+
+      if (!keyPair)
+        throw new Error("It was not possible to generate a valid key pair.")
+
+      const seed = bip39.mnemonicToSeedSync(mnemonic)
+      const hex = seed.toString("hex")
+      const _md = md.sha256.create()
+
+      _md.update(hex)
+
+      this._keyPairingObject = {
+        privateKey: keyPair.privateKey,
+        publicKey: keyPair.publicKey,
+        md: _md,
+        mgf1: mgf.mgf1.create(_md),
+      }
+
+      const { response } = await this._fetch<ApiResponse<{ status: number }>>(
+        `${this.backendUrl()}/pair/device/knowledge`,
+        {
+          method: "POST",
+          body: {
+            pairingIdentity: hex,
+            publicKey: Crypto.convertRSAPublicKeyToPem(
+              this._keyPairingObject.publicKey!
+            ),
+          },
+          headers: {
+            "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
+          },
+        }
+      )
+
+      if (!response || !response.data) throw new Error("Response is invalid.")
+
+      return response.data[0]
+    } catch (error) {
+      console.log(error)
+      return null
+    }
+  }
+
+  //this is called by device A
+  async transferKeysWhenReady(mnemonic: string): Promise<{ status: number }> {
+    if (!this._userKeyPair)
+      throw new Error(
+        "Pairing is possible only if the user has generated a personal keys pair."
+      )
+    if (!this._authToken) throw new Error("JWT is not setup correctly.")
+    if (!this._apiKey) throw new Error("API key is not setup correctly.")
+
+    return new Promise(async (resolve, reject) => {
+      try {
+        console.log("trying to transfer keys...")
+
+        const seed = bip39.mnemonicToSeedSync(mnemonic)
+        const hex = seed.toString("hex")
+
+        const { response } = await this._fetch<
+          ApiResponse<{ status: number; publicKey: string }>
+        >(`${this.backendUrl()}/pair/device/check`, {
+          method: "POST",
+          body: {
+            pairingIdentity: hex,
+          },
+          headers: {
+            "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
+          },
+        })
+
+        if (!response || !response.data) {
+          reject("Response is invalid.")
+          return
+        }
+
+        const status = response.data[0].status
+        const publicKeyPem = response.data[0].publicKey
+
+        if (status === 1) setTimeout(this.transferKeysWhenReady, 2000)
+        else {
+          //let's encrypt the personal key pair of the current user
+          const personalPublicKey = this._userKeyPair!.publicKey
+          const personalPrivateKey = this._userKeyPair!.privateKey
+          const publicKey = pki.publicKeyFromPem(publicKeyPem)
+          const personalPublicKeyPem =
+            Crypto.convertRSAPublicKeyToPem(personalPublicKey)
+          const personalPrivateKeyPem =
+            Crypto.convertRSAPrivateKeyToPem(personalPrivateKey)
+          const _md = md.sha256.create()
+          _md.update(hex)
+          const mgf1 = mgf.mgf1.create(_md)
+
+          const encryptedPublicKey = publicKey.encrypt(
+            personalPublicKeyPem,
+            "RSA-OAEP",
+            {
+              md: _md,
+              mgf1,
+            }
+          )
+          const encryptedPrivateKey = publicKey.encrypt(
+            personalPrivateKeyPem,
+            "RSA-OAEP",
+            {
+              md: _md,
+              mgf1,
+            }
+          )
+
+          const encryptedPublicKeyBase64 = Crypto.toBase64(encryptedPublicKey)
+          const encryptedPrivateKeyBase64 = Crypto.toBase64(encryptedPrivateKey)
+
+          const { response } = await this._fetch<
+            ApiResponse<{ status: number }>
+          >(`${this.backendUrl()}/pair/device/transfer/keys`, {
+            method: "POST",
+            body: {
+              pairingIdentity: hex,
+              encryptedPublicKey: encryptedPublicKeyBase64,
+              encryptedPrivateKey: encryptedPrivateKeyBase64,
+            },
+            headers: {
+              "x-api-key": `${this._apiKey}`,
+              Authorization: `Bearer ${this._authToken}`,
+            },
+          })
+
+          if (!response || !response.data) {
+            reject("Response is invalid.")
+            return
+          }
+
+          resolve(response.data[0])
+        }
+      } catch (error) {
+        console.log(error)
+        reject(error)
+      }
+    })
+  }
+
+  async downloadKeysWhenReady(mnemonic: string): Promise<pki.rsa.KeyPair> {
+    if (!this._account)
+      throw new Error(
+        "Account is not setup correctly. Authenticate to the platform first."
+      )
+    if (!this._authToken) throw new Error("JWT is not setup correctly.")
+    if (!this._apiKey) throw new Error("API key is not setup correctly.")
+
+    return new Promise(async (resolve, reject) => {
+      try {
+        console.log("trying to download keys...")
+
+        const seed = bip39.mnemonicToSeedSync(mnemonic)
+        const hex = seed.toString("hex")
+
+        const { response } = await this._fetch<
+          ApiResponse<{
+            status: number
+            encryptedPrivateKey?: string
+            encryptedPublicKey?: string
+          }>
+        >(`${this.backendUrl()}/pair/device/download/keys`, {
+          method: "POST",
+          body: {
+            pairingIdentity: hex,
+          },
+          headers: {
+            "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
+          },
+        })
+
+        if (!response || !response.data) {
+          reject("Response is invalid.")
+          return
+        }
+
+        const status = response.data[0].status
+        const encryptedPrivateKey = response.data[0].encryptedPrivateKey
+        const encryptedPublicKey = response.data[0].encryptedPublicKey
+
+        if (status === 3) setTimeout(this.downloadKeysWhenReady, 2000)
+        else {
+          //let's decrypt the personal key pair for the current user
+          const personalEncryptedPublicKeyBase64 = encryptedPublicKey!
+          const personalEncryptedPrivateKeyBase64 = encryptedPrivateKey!
+          const personalEncryptedPublicKey = Crypto.fromBase64(
+            personalEncryptedPublicKeyBase64
+          )
+          const personalEncryptedPrivateKey = Crypto.fromBase64(
+            personalEncryptedPrivateKeyBase64
+          )
+          const personalPublicKeyPem =
+            this._keyPairingObject!.privateKey!.decrypt(
+              personalEncryptedPublicKey,
+              "RSA-OAEP",
+              {
+                md: this._keyPairingObject!.md,
+                mgf1: this._keyPairingObject!.mgf1,
+              }
+            )
+          const personalPrivateKeyPem =
+            this._keyPairingObject!.privateKey!.decrypt(
+              personalEncryptedPrivateKey,
+              "RSA-OAEP",
+              {
+                md: this._keyPairingObject!.md,
+                mgf1: this._keyPairingObject!.mgf1,
+              }
+            )
+
+          this._userKeyPair = await Crypto.generateKeyPairFromPem(
+            personalPublicKeyPem,
+            personalPrivateKeyPem
+          )
+
+          if (!this._userKeyPair) {
+            reject("Key pair generated is not valid.")
+            return
+          }
+
+          //let's update the current user on our local database
+          const privateKeyForLocalDB = Crypto.encryptAES_CBC(
+            personalPrivateKeyPem,
+            Buffer.from(this._account!.e2eSecret, "hex").toString("base64"),
+            Buffer.from(this._account!.e2eSecretIV, "hex").toString("base64")
+          )
+
+          await this._storage.transaction(
+            "rw",
+            this._storage.user,
+            async () => {
+              let user = await this._storage.get(
+                "user",
+                "[did+organizationId]",
+                [this._account!.did, this._account!.organizationId]
+              )
+
+              await this._storage.user.update(user, {
+                e2eEncryptedPrivateKey: privateKeyForLocalDB,
+                e2ePublicKey: personalPublicKeyPem,
+              })
+
+              return true
+            }
+          )
+
+          this._canChat = true
+          resolve(this._userKeyPair)
+        }
+      } catch (error) {
+        console.log(error)
         reject(error)
       }
     })

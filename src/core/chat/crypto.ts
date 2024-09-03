@@ -1,4 +1,4 @@
-import forge from "node-forge"
+import forge, { Bytes } from "node-forge"
 import { Maybe } from "../../types/base"
 
 /**
@@ -88,7 +88,7 @@ export class Crypto {
    * @returns {Promise<Maybe<forge.pki.rsa.KeyPair>>} A promise that resolves to a key pair object
    * or null if the keys cannot be verified.
    */
-  static /*async*/ generateKeyPairFromPem(
+  static generateKeyPairFromPem(
     publicKeyPem: string,
     privateKeyPem: string
   ): Promise<Maybe<forge.pki.rsa.KeyPair>> {
@@ -248,5 +248,13 @@ export class Crypto {
     md.update(text)
 
     return md.digest().getBytes()
+  }
+
+  static toBase64(text: string | Bytes): string {
+    return forge.util.encode64(text)
+  }
+
+  static fromBase64(text: string | Bytes): string {
+    return forge.util.decode64(text)
   }
 }
