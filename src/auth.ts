@@ -103,7 +103,7 @@ export class Auth extends Client implements AuthInternalEvents {
   private async _getUserE2EPublicKey(
     did: string,
     organizationId: string
-  ): Promise<Maybe<string>> {
+  ): Promise<Maybe<string | "error">> {
     try {
       const storage = this._storage as DexieStorage
       const e2ePublicKey = await storage.transaction(
@@ -124,7 +124,7 @@ export class Auth extends Client implements AuthInternalEvents {
       return e2ePublicKey
     } catch (error) {
       console.log(error)
-      return null
+      return "error"
     }
   }
 
@@ -286,6 +286,14 @@ export class Auth extends Client implements AuthInternalEvents {
 
   private async _callBackendAuthAfterOAuthRedirect(authInfo: PrivyAuthInfo) {
     try {
+      const e2ePublicKey = await this._getUserE2EPublicKey(
+        authInfo.user.id,
+        this._apiKey!
+      )
+
+      if (e2ePublicKey === "error")
+        throw new Error("Error retrieven e2e public key.")
+
       const { response } = await this._fetch<
         ApiResponse<{
           user: AccountInitConfig
@@ -294,10 +302,7 @@ export class Auth extends Client implements AuthInternalEvents {
         method: "POST",
         body: {
           ...this._formatAuthParams(authInfo),
-          e2ePublicKey: await this._getUserE2EPublicKey(
-            authInfo.user.id,
-            this._apiKey!
-          ),
+          e2ePublicKey,
         },
         headers: {
           "x-api-key": `${this._apiKey}`,
@@ -315,6 +320,18 @@ export class Auth extends Client implements AuthInternalEvents {
 
       if (!user)
         return this._emit("onAuthError", new Error("Access not granted."))
+
+      //let's check if it's the first login of the user.
+      //this is needed to understand if the user is doing the login on a different device
+      if (!user.firstLogin && !e2ePublicKey) {
+        //this means i have done the signin already on a different device
+        //because if i'm using the same device i should have e2ePublicKey already setup.
+        //So, if this value is null and it's not the first login of the user, means probably the user is doing the login on a different device.
+        //Thus, let's block the possibility to chat since before to do that the user needs to transfer the private keys between the devices.
+        this._chatRef.setCanChat(false)
+      } else {
+        this._chatRef.setCanChat(true)
+      }
 
       const account = new Account({
         ...user,
@@ -376,6 +393,14 @@ export class Auth extends Client implements AuthInternalEvents {
     authInfo: PrivyAuthInfo
   ) {
     try {
+      const e2ePublicKey = await this._getUserE2EPublicKey(
+        authInfo.user.id,
+        this._apiKey!
+      )
+
+      if (e2ePublicKey === "error")
+        throw new Error("Error retrieven e2e public key.")
+
       const { response } = await this._fetch<
         ApiResponse<{
           user: AccountInitConfig
@@ -384,10 +409,7 @@ export class Auth extends Client implements AuthInternalEvents {
         method: "POST",
         body: {
           ...this._formatAuthParams(authInfo),
-          e2ePublicKey: await this._getUserE2EPublicKey(
-            authInfo.user.id,
-            this._apiKey!
-          ),
+          e2ePublicKey,
         },
         headers: {
           "x-api-key": `${this._apiKey}`,
@@ -400,6 +422,18 @@ export class Auth extends Client implements AuthInternalEvents {
       const { user } = response.data[0]
 
       if (!user) throw new Error("Access not granted.")
+
+      //let's check if it's the first login of the user.
+      //this is needed to understand if the user is doing the login on a different device
+      if (!user.firstLogin && !e2ePublicKey) {
+        //this means i have done the signin already on a different device
+        //because if i'm using the same device i should have e2ePublicKey already setup.
+        //So, if this value is null and it's not the first login of the user, means probably the user is doing the login on a different device.
+        //Thus, let's block the possibility to chat since before to do that the user needs to transfer the private keys between the devices.
+        this._chatRef.setCanChat(false)
+      } else {
+        this._chatRef.setCanChat(true)
+      }
 
       const account = new Account({
         ...user,

@@ -1,4 +1,5 @@
 import { ConnectedWallet } from "@privy-io/react-auth"
+import { AddGroupFrom, ReceiveMessageFrom, UserOnlineStatus } from "@src/enums"
 import { Maybe, Network } from "@src/types"
 
 export interface AccountEngine {
@@ -40,5 +41,18 @@ export interface AccountEngine {
       | "generalNotificationSystem",
     enabled: boolean
   ): Promise<void>
-  updateChatSettings({}): Promise<void>
+  updateChatSettings(settings: {
+    allowNotification: boolean
+    allowNotificationSound: boolean
+    visibility: boolean
+    onlineStatus: UserOnlineStatus
+    allowReadReceipt: boolean
+    allowReceiveMessageFrom: ReceiveMessageFrom
+    allowAddToGroupsFrom: AddGroupFrom
+    allowGroupsSuggestion: boolean
+  }): Promise<void>
+  exportPersonalKeys(
+    download: boolean,
+    callback?: (fileContent: string) => any
+  ): Promise<void>
 }

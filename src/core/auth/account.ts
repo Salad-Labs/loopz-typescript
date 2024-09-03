@@ -553,4 +553,30 @@ export class Account extends Client implements AccountSchema, AccountEngine {
       console.log(error)
     }
   }
+
+  async exportPersonalKeys(
+    download: boolean = true,
+    callback?: (fileContent: string) => any
+  ) {
+    try {
+      const items = await this._storage.table("user").toArray()
+      const fileContent = JSON.stringify(items, null, 2)
+
+      if (download) {
+        const blob = new Blob([fileContent], { type: "application/json" })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = "user.json"
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      } else {
+        if (callback) callback(fileContent)
+      }
+    } catch (error) {
+      console.error(error)
+    }
+  }
 }

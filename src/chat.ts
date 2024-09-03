@@ -6741,6 +6741,7 @@ export class Chat
     })
   }
 
+  //called by device B
   async downloadKeysWhenReady(mnemonic: string): Promise<pki.rsa.KeyPair> {
     if (!this._account)
       throw new Error(
@@ -6856,5 +6857,15 @@ export class Chat
         reject(error)
       }
     })
+  }
+
+  clientCanChat(): boolean {
+    return this._canChat === true
+  }
+
+  setCanChat(canChat: boolean) {
+    this._canChat = canChat
+    if (!this._canChat)
+      console.warn("User needs to transfer private keys between devices.")
   }
 }
