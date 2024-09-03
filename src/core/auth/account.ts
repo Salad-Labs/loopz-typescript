@@ -559,7 +559,11 @@ export class Account extends Client implements AccountSchema, AccountEngine {
     callback?: (fileContent: string) => any
   ) {
     try {
-      const items = await this._storage.table("user").toArray()
+      const items = await this._storage.get("user", "[did+organizationId]", [
+        this.did,
+        this.organizationId,
+      ])
+
       const fileContent = JSON.stringify(items, null, 2)
 
       if (download) {
