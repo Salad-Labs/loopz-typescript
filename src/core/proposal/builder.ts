@@ -1,14 +1,9 @@
 import { PROPOSAL_STATUS } from "../../constants/proposal/proposalstatus"
 import { PROPOSAL_TYPE } from "../../constants/proposal/proposaltype"
-import { Maybe } from "../../types/base"
-import { AssetItem } from "../../types/proposal/builder/assetitem"
+import { Asset, Maybe } from "../../types/base"
 import { Offer, LookingFor } from "../../enums/proposal"
-import { ReplyProposalAssets, ProposalLike } from "../../interfaces/proposal"
-import {
-  ProposalReplyObject,
-  ProposalTypeValue,
-  ProposalObject,
-} from "../../types/proposal"
+import { IProposal } from "../../interfaces/proposal"
+import { ProposalTypeValue, CreateProposal } from "../../types/proposal"
 import { ethers } from "ethers"
 
 /**
@@ -49,17 +44,20 @@ export class Builder {
    */
   private messages: Maybe<Array<{ type: string }>> = null
   /**
-   * @property {Maybe<ReplyProposalAssets>} assets - Object containing reply proposal assets.
+   * @property {Maybe<{wanted?: Asset[], offered?: Asset[]}>} assets - Object containing proposal assets.
    */
-  private assets: Maybe<ReplyProposalAssets> = {}
+  private assets: Maybe<{
+    wanted?: (Partial<Asset> & { token: string })[]
+    offered?: (Partial<Asset> & { token: string })[]
+  }> = {}
   /**
-   * @property {AssetItem[]} wanted - Array of wanted items.
+   * @property {(Partial<Asset> & { token: string })[]} wanted - Array of wanted items.
    */
-  private wanted: AssetItem[] = []
+  private wanted: (Partial<Asset> & { token: string })[] = []
   /**
-   * @property {AssetItem[]} offered - Array of offered items.
+   * @property {Asset[]} offered - Array of offered items.
    */
-  private offered: AssetItem[] = []
+  private offered: (Partial<Asset> & { token: string })[] = []
   /**
    * @property {Array<string>} typeWanted - Array of strings representing types of wanted items.
    */
@@ -169,8 +167,8 @@ export class Builder {
     let countToken = 0
 
     for (let w of this.wanted) {
-      ;(w.type === "ERC1155" || w.type === "ERC721") && countNFT++
-      ;(w.type === "ERC20" || w.type === "NATIVE") && countToken++
+      ;(w.itemType === "ERC1155" || w.itemType === "ERC721") && countNFT++
+      ;(w.itemType === "ERC20" || w.itemType === "NATIVE") && countToken++
     }
 
     this.typeWanted[1] = countToken === 0 ? "0" : countToken === 1 ? "1" : "2"
@@ -187,8 +185,8 @@ export class Builder {
     let countToken = 0
 
     for (let o of this.offered) {
-      ;(o.type === "ERC1155" || o.type === "ERC721") && countNFT++
-      ;(o.type === "ERC20" || o.type === "NATIVE") && countToken++
+      ;(o.itemType === "ERC1155" || o.itemType === "ERC721") && countNFT++
+      ;(o.itemType === "ERC20" || o.itemType === "NATIVE") && countToken++
     }
 
     this.typeOffered[1] = countToken === 0 ? "0" : countToken === 1 ? "1" : "2"
@@ -266,27 +264,27 @@ export class Builder {
 
   /**
    * Adds the provided asset to the list of wanted assets based on certain conditions.
-   * @param {AssetItem} asset - The asset item to be added to the list of wanted assets.
+   * @param {Partial<Asset> & { token: string }} asset - The asset item to be added to the list of wanted assets.
    * @throws {Error} If adding the asset violates certain conditions.
    * @returns None
    */
-  addWantedAsset(asset: AssetItem) {
+  addWantedAsset(asset: Partial<Asset> & { token: string }) {
     if (this.type !== PROPOSAL_TYPE.R1) {
       //in collection format
       let exists: boolean = false
-      if (asset.type === "ERC20" || asset.type === "NATIVE") {
+      if (asset.itemType === "ERC20" || asset.itemType === "NATIVE") {
         //no more than one ERC20 can be put in the queue and no ERC20 and NATIVE can exist in the same queue
         exists =
           typeof this.wanted.find((w) => {
-            return w.type === asset.type
+            return w.itemType === asset.itemType
           }) !== "undefined" ||
           typeof this.wanted.find((w) => {
-            return w.type === "ERC20" || w.type === "NATIVE"
+            return w.itemType === "ERC20" || w.itemType === "NATIVE"
           }) !== "undefined"
       } else {
         exists =
           typeof this.wanted.find((w) => {
-            return w.address.toLowerCase() === asset.address.toLowerCase()
+            return w.token.toLowerCase() === asset.token.toLowerCase()
           }) !== "undefined"
       }
 
@@ -297,16 +295,16 @@ export class Builder {
 
       this.wanted.push(asset)
     } else {
-      if (asset.type === "NATIVE" || asset.type === "ERC20")
+      if (asset.itemType === "NATIVE" || asset.itemType === "ERC20")
         throw new Error("This asset can not be a NATIVE token or ERC20 token.")
 
       let exists: boolean = false
-      if (asset.type === "ERC721") {
+      if (asset.itemType === "ERC721") {
         exists =
           typeof this.wanted.find((w) => {
             return (
-              w.address.toLowerCase() === asset.address.toLowerCase() &&
-              asset.tokenId?.toLowerCase() === w.tokenId?.toLowerCase()
+              w.token.toLowerCase() === asset.token.toLowerCase() &&
+              asset.identifier?.toLowerCase() === w.identifier?.toLowerCase()
             )
           }) !== "undefined"
 
@@ -319,8 +317,8 @@ export class Builder {
       } else {
         let element = this.wanted.find((w) => {
           return (
-            w.address.toLowerCase() === asset.address.toLowerCase() &&
-            asset.tokenId?.toLowerCase() === w.tokenId?.toLowerCase()
+            w.token.toLowerCase() === asset.token.toLowerCase() &&
+            asset.identifier?.toLowerCase() === w.identifier?.toLowerCase()
           )
         })
 
@@ -345,20 +343,20 @@ export class Builder {
 
   /**
    * Adds an asset to the offered queue based on the asset type and existing assets in the queue.
-   * @param {AssetItem} asset - The asset item to be added to the offered queue.
+   * @param {Partial<Asset> & { token: string }} asset - The asset item to be added to the offered queue.
    * @returns None
    */
-  addOfferedAsset(asset: AssetItem) {
+  addOfferedAsset(asset: Partial<Asset> & { token: string }) {
     if (this.type !== PROPOSAL_TYPE.R1) {
-      if (asset.type === "ERC20" || asset.type === "NATIVE")
+      if (asset.itemType === "ERC20" || asset.itemType === "NATIVE")
         throw new Error("This asset can not be an ERC20 or NATIVE token.")
 
-      if (asset.type === "ERC721") {
+      if (asset.itemType === "ERC721") {
         let exists: boolean =
           typeof this.offered.find((o) => {
             return (
-              o.address.toLowerCase() === asset.address.toLowerCase() &&
-              o.tokenId?.toLowerCase() === asset.tokenId?.toLowerCase()
+              o.token.toLowerCase() === asset.token.toLowerCase() &&
+              o.identifier?.toLowerCase() === asset.identifier?.toLowerCase()
             )
           }) !== "undefined"
 
@@ -369,8 +367,8 @@ export class Builder {
       } else {
         let element = this.offered.find((o) => {
           return (
-            o.address.toLowerCase() === asset.address.toLowerCase() &&
-            asset.tokenId?.toLowerCase() === o.tokenId?.toLowerCase()
+            o.token.toLowerCase() === asset.token.toLowerCase() &&
+            asset.identifier?.toLowerCase() === o.identifier?.toLowerCase()
           )
         })
 
@@ -387,13 +385,13 @@ export class Builder {
       }
     } else {
       let exists: boolean = false
-      if (asset.type === "ERC20" || asset.type === "NATIVE") {
+      if (asset.itemType === "ERC20" || asset.itemType === "NATIVE") {
         exists =
           typeof this.offered.find((o) => {
-            return o.type === asset.type
+            return o.itemType === asset.itemType
           }) !== "undefined" ||
           typeof this.offered.find((o) => {
-            return o.type === "NATIVE" || o.type === "ERC20"
+            return o.itemType === "NATIVE" || o.itemType === "ERC20"
           }) !== "undefined"
 
         if (exists)
@@ -406,25 +404,25 @@ export class Builder {
         exists =
           typeof this.offered.find((o) => {
             return (
-              o.address.toLowerCase() === asset.address.toLowerCase() &&
-              o.tokenId?.toLowerCase() === asset.tokenId?.toLowerCase()
+              o.token.toLowerCase() === asset.token.toLowerCase() &&
+              o.identifier?.toLowerCase() === asset.identifier?.toLowerCase()
             )
           }) !== "undefined"
 
-        if (asset.type === "ERC721" && exists)
+        if (asset.itemType === "ERC721" && exists)
           throw new Error(
             "You cannot put the same ERC721 in the offered queue."
           )
         else if (
-          (asset.type === "ERC721" || asset.type === "ERC1155") &&
+          (asset.itemType === "ERC721" || asset.itemType === "ERC1155") &&
           !exists
         )
           this.offered.push(asset)
-        else if (asset.type === "ERC1155" && exists) {
+        else if (asset.itemType === "ERC1155" && exists) {
           let element = this.offered.find((o) => {
             return (
-              o.address.toLowerCase() === asset.address.toLowerCase() &&
-              asset.tokenId?.toLowerCase() === o.tokenId?.toLowerCase()
+              o.token.toLowerCase() === asset.token.toLowerCase() &&
+              asset.identifier?.toLowerCase() === o.identifier?.toLowerCase()
             )
           })
 
@@ -446,28 +444,28 @@ export class Builder {
 
   /**
    * Removes the specified asset from the wanted list based on certain conditions.
-   * @param {AssetItem} asset - The asset item to be removed from the wanted list.
+   * @param {Partial<Asset> & { token: string }} asset - The asset item to be removed from the wanted list.
    * @returns None
    */
-  removeWantedAsset(asset: AssetItem) {
+  removeWantedAsset(asset: Partial<Asset> & { token: string }) {
     if (this.type !== PROPOSAL_TYPE.R1) {
-      if (asset.type !== "NATIVE") {
+      if (asset.itemType !== "NATIVE") {
         this.wanted = this.wanted.filter((w) => {
-          return w.address.toLowerCase() !== asset.address.toLowerCase()
+          return w.token.toLowerCase() !== asset.token.toLowerCase()
         })
       } else {
         this.wanted = this.wanted.filter((w) => {
-          return w.type !== "NATIVE"
+          return w.itemType !== "NATIVE"
         })
       }
     } else {
-      if (asset.type === "ERC20" || asset.type === "NATIVE")
+      if (asset.itemType === "ERC20" || asset.itemType === "NATIVE")
         throw new Error("Can not remove a token from the wanted queue.")
 
       this.wanted = this.wanted.filter((w) => {
         return (
-          w.address.toLowerCase() !== asset.address.toLowerCase() &&
-          w.tokenId?.toLowerCase() !== asset.tokenId?.toLowerCase()
+          w.token.toLowerCase() !== asset.token.toLowerCase() &&
+          w.identifier?.toLowerCase() !== asset.identifier?.toLowerCase()
         )
       })
     }
@@ -479,34 +477,34 @@ export class Builder {
 
   /**
    * Removes the provided asset from the offered assets list based on certain conditions.
-   * @param {AssetItem} asset - The asset item to be removed.
+   * @param {Partial<Asset> & { token: string }} asset - The asset item to be removed.
    * @returns None
    */
-  removeOfferedAsset(asset: AssetItem) {
+  removeOfferedAsset(asset: Partial<Asset> & { token: string }) {
     if (this.type !== PROPOSAL_TYPE.R1) {
-      if (asset.type === "ERC20" || asset.type === "NATIVE")
+      if (asset.itemType === "ERC20" || asset.itemType === "NATIVE")
         throw new Error("Can not remove a token from the wanted queue.")
 
       this.offered = this.offered.filter((o) => {
         return (
-          o.address.toLowerCase() !== asset.address.toLowerCase() &&
-          o.tokenId !== asset.tokenId
+          o.token.toLowerCase() !== asset.token.toLowerCase() &&
+          o.identifier !== asset.identifier
         )
       })
     } else {
-      if (asset.type === "ERC20") {
+      if (asset.identifier === "ERC20") {
         this.offered = this.offered.filter((o) => {
-          return o.address.toLowerCase() !== asset.address.toLowerCase()
+          return o.token.toLowerCase() !== asset.token.toLowerCase()
         })
-      } else if (asset.type === "NATIVE") {
+      } else if (asset.itemType === "NATIVE") {
         this.offered = this.offered.filter((o) => {
-          return o.type !== "NATIVE"
+          return o.itemType !== "NATIVE"
         })
       } else {
         this.offered = this.offered.filter((o) => {
           return (
-            o.address.toLowerCase() !== asset.address.toLowerCase() &&
-            o.tokenId?.toLowerCase() !== asset.tokenId?.toLowerCase()
+            o.token.toLowerCase() !== asset.token.toLowerCase() &&
+            o.identifier?.toLowerCase() !== asset.identifier?.toLowerCase()
           )
         })
       }
@@ -607,10 +605,10 @@ export class Builder {
   }
 
   /**
-   * Factory method that creates a ProposalLike object based on the current state of the builder.
-   * @returns {ProposalLike} A ProposalLike object with the properties set by the builder.
+   * Factory method that creates a IProposal object based on the current state of the builder.
+   * @returns {IProposal} A IProposal object with the properties set by the builder.
    */
-  factory(): ProposalLike {
+  factory(): IProposal {
     this._validation()
     this.type! !== PROPOSAL_TYPE.R1 &&
       this.messages!.push({ type: this._getMessage() })
@@ -645,11 +643,11 @@ export class Builder {
   }
 
   /**
-   * Extracts relevant information from a ProposalLike object to create a ProposalObject.
-   * @param {ProposalLike} proposal - The ProposalLike object to extract information from.
-   * @returns {ProposalObject} A new ProposalObject containing selected properties from the ProposalLike object.
+   * Extracts relevant information from a IProposal object to create a ProposalObject.
+   * @param {IProposal} proposal - The IProposal object to extract information from.
+   * @returns {ProposalObject} A new ProposalObject containing selected properties from the IProposal object.
    */
-  getCreateProposal(proposal: ProposalLike): ProposalObject {
+  getCreateProposal(proposal: IProposal): CreateProposal {
     return {
       assets: proposal.assets,
       creatorAddress: proposal.creator.address,
@@ -657,21 +655,6 @@ export class Builder {
       messages: proposal.messages,
       networkId: proposal.networkId,
       type: proposal.type,
-    }
-  }
-
-  /**
-   * Creates a ProposalReplyObject based on the provided ProposalLike object.
-   * @param {ProposalLike} proposal - The ProposalLike object to create a reply from.
-   * @returns {ProposalReplyObject} A new ProposalReplyObject with creator address, assets, messages, networkId, and parentId.
-   */
-  getCreateProposalReply(proposal: ProposalLike): ProposalReplyObject {
-    return {
-      creatorAddress: proposal.creator.address,
-      assets: proposal.assets,
-      messages: proposal.messages,
-      networkId: proposal.networkId,
-      parentId: proposal.parentId!,
     }
   }
 }

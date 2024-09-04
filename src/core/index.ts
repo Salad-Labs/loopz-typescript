@@ -1,4 +1,3 @@
-export * from "./assetsarray"
 export * from "./client"
 export * from "./messagemap"
 export * from "./chat"

@@ -1,91 +1,158 @@
-import { Maybe } from "../../types/base"
-import { Collector } from "../proposal"
+import { Collector } from ".."
+import { AssetStatusVerification } from "@src/types"
+import { AssetTypeName } from "@src/types/base/assettypename"
+import { OrderDetail } from "./orderdetail"
+import { OrderParameters } from "@src/types"
 
 /**
- * Represents a order order with detailed information about the order.
- * @interface IOrder
+ * Represents a order detail object that includes master, detail, and parameters information.
  */
-export interface IOrder {
+export type IOrder = {
   /**
-   * @property {string} networkId - The network ID of the order.
+   * @property {string} name - The name of the order.
    */
-  networkId: string
+  name: string
   /**
-   * @property {string} orderId - The unique identifier of the order.
+   * @property {string} symbol - The symbol of the order.
    */
-  orderId: string
+  symbol: string
   /**
-   * @property {0 | 1 | 2} orderStatus - The status of the order (0 - pending, 1 - completed, 2 - cancelled).
+   * @property {string} valueMaker - The value for the maker.
    */
-  orderStatus: 0 | 1 | 2
+  valueMaker: string
+  /**
+   * @property {string} valueTaker - The value for the taker.
+   */
+  valueTaker: string
+  /**
+   * @property {string} flatFeeMaker - The flat fee for the maker.
+   */
+  flatFeeMaker: string
+  /**
+   * @property {number} flatFeeMakerNative - The flat fee for the maker in native currency.
+   */
+  flatFeeMakerNative: number
+  /**
+   * @property {string} flatFeeTaker -
+   */
+  flatFeeTaker: string
+  /**
+   * @property {number} flatFeeTakerNative - The flat fee taken by the taker in native currency.
+   */
+  flatFeeTakerNative: number
+  /**
+   * @property {string} percentageFeeMaker - The percentage fee taken by the maker.
+   */
+  percentageFeeMaker: string
+  /**
+   * @property {number} percentageFeeMakerNative - The percentage fee taken by the maker in native currency.
+   */
+  percentageFeeMakerNative: number
+  /**
+   * @property {string} percentageFeeTaker - The percentage fee taken by the taker.
+   */
+  percentageFeeTaker: string
+  /**
+   * @property {number} percentageFeeTakerNative - The percentage fee taken by the taker in native currency.
+   */
+  percentageFeeTakerNative: number
+  /**
+   * @property {number} orderStatus - The status of the order transaction.
+   */
+  orderStatus: number
+  /**
+   * @property {string} end - The end of the order transaction.
+   */
+  end: string
   /**
    * @property {string} txHash - The transaction hash of the order.
    */
   txHash: string
   /**
-   * @property {string} addressMaker - The address of the maker in the order.
+   * @property {Collector} maker - An array of collectors representing the maker of the order.
    */
-  addressMaker: string
+  maker: Collector
   /**
-   * @property {Maybe<string>} usernameMaker - The username of the maker (optional).
+   * @property {Collector} taker - An array of collectors representing the taker of the order.
    */
-  usernameMaker: Maybe<string>
+  taker: Collector
   /**
-   * @property {string} valueMaker - The value
-   */
-  valueMaker: string
-  /**
-   * @property {string} addressTaker - The address of the taker in the order.
-   */
-  addressTaker: string
-  /**
-   *@property {Maybe<string>} usernameTaker - The username of the taker, if available.
-   */
-  usernameTaker: Maybe<string>
-  /**
-   *@property {string} valueTaker - The value taken in the order.
-   */
-  valueTaker: string
-  /**
-   *@property {string} name - The name of the order.
-   */
-  name: string
-  /**
-   *@property {string} symbol - The symbol of the order.
-   */
-  symbol: string
-  /**
-   *@property {string} imageUrl - The URL of the image associated with the order.
-   */
-  imageUrl: string
-  /**
-   *@property {string} start - The start of the order in the order.
-   */
-  start: string
-  /**
-   * @property {string} end - The end of the order in the order
-   */
-  end: string
-  /**
-   *  @property {Array<Collector>} maker - An array of collectors representing the makers of the order.
-   */
-  maker: Array<Collector>
-  /**
-   * @property {Array<Collector>} taker - An array of collectors representing the takers of the order.
-   */
-  taker: Array<Collector>
-  /**
-   * @property {Array<{creator: boolean, networkId: string, collectionAddress: string, abi: Array<any>, name: string, symbol: string, assetLogo: string, type: "ERC721" | "ERC1155" | "ERC20" | "NATIVE", statusVerification: -1 | 0 | 1 | 2}>} collections - An array of collections
+   * @property {Array<Object>} collections - An array of collections involved in the order, each with the following properties:
    */
   collections: Array<{
+    /**
+     * @property {boolean} creator - Identify the creator of the order.
+     */
     creator: boolean
+    /**
+     * @property {string} networkId - The network ID of the collection.
+     */
     networkId: string
+    /**
+     * @property {string} collectionAddress - The address of the token collection.
+     */
     collectionAddress: string
+    /**
+     * @property {Array<any>} abi - The ABI (Application Binary Interface) of the token.
+     */
     abi: Array<any>
+    /**
+     * @property {string} name - The name of the token.
+     */
     name: string
+    /**
+     * @property {string} symbol - The symbol of the token.
+     */
     symbol: string
+    /**
+     * @property {string} assetLogo - The URL of the token's logo.
+     */
     assetLogo: string
-    type: "ERC721" | "ERC1155" | "ERC20" | "NATIVE"
-    statusVerification: -1 | 0 | 1 | 2
+    /**
+     * @property {AssetTypeName} type - The type of token (ERC721, ERC1155, ERC20, NATIVE).
+     */
+    type: AssetTypeName
+    /**
+     * @property {AssetStatusVerification} statusVerification - The status verification of the collection.
+     */
+    statusVerification: AssetStatusVerification
   }>
+  /**
+   * @property {Array<Detail>} detail - An array of Detail objects.
+   */
+  details?: Array<OrderDetail>
+  /**
+   * @property {Object} parameters - order parameters object.
+   */
+  parameters?: {
+    /**
+     * @property {string} parameters.addressMaker - The address of the maker in the order.
+     */
+    addressMaker: string
+    /**
+     * @property {string} parameters.addressTaker - The address of the taker in the order.
+     */
+    addressTaker: string
+    /**
+     * @property {Object} parameters.order - Order details object.
+     */
+    order: {
+      /**
+       * @property {string} parameters.order.orderHash - The hash of the order.
+       */
+      orderHash: string
+      /**
+       * @property {OrderParameters} parameters.order.parameters
+       */
+      parameters: OrderParameters
+      /**
+       * @property {string} parameters.order.signature - the signature of the order.
+       */
+      signature: string
+      /**
+       * @property {number} parameters.order.orderType - the type of the order.
+       */
+      orderType: number
+    }
+  }
 }

@@ -1,19 +1,16 @@
 import { Seaport } from "@opensea/seaport-js"
 import { ItemType } from "@opensea/seaport-js/lib/constants"
 import { CreateOrderInput } from "@opensea/seaport-js/lib/types"
-import { AssetsArray } from "./core/assetsarray"
+import { TOKEN_CONSTANTS } from "./constants/base/tokenconstants"
 import { Client } from "./core/client"
-import { ApiKeyAuthorized, Maybe, Network } from "./types/base"
+import { ApiKeyAuthorized, Asset, Maybe, Network } from "./types/base"
 import {
-  OrderAsset,
   SeaportFee,
   MultiSigWallet,
   Fee,
-  OrderInstance,
-  WithAddress,
+  OrderCreated,
   OrderConfig,
   PartialOrder,
-  OrderDetail,
   OrderListResponse,
 } from "./types/order"
 import { ApiResponse } from "./types/base/apiresponse"
@@ -21,6 +18,7 @@ import { Account } from "./core"
 import { ethers } from "ethers"
 import { Web3Provider } from "@ethersproject/providers"
 import { ConnectedWallet } from "@privy-io/react-auth"
+import { IOrder } from "."
 
 /**
  * Order class that handles interactions with the OpenSea trading platform.
@@ -271,7 +269,7 @@ export class Order extends Client {
           ...orderInit.consideration,
           {
             recipient: gnosisRecipient,
-            itemType: AssetsArray.TOKEN_CONSTANTS.NATIVE as any,
+            itemType: TOKEN_CONSTANTS.NATIVE as any,
             token: ethers.constants.AddressZero,
             amount: ethers.utils.parseEther(flatFee).toString(),
             identifier: "0",
@@ -406,19 +404,19 @@ export class Order extends Client {
 
   /**
    * Create an order instance with the given maker and taker assets, along with additional parameters.
-   * @param {OrderAsset<WithAddress>} maker - The assets offered by the maker.
-   * @param {OrderAsset<WithAddress>} taker - The assets desired by the taker.
+   * @param { assets: Array<Asset>; address: string } maker - The assets offered by the maker.
+   * @param { assets: Array<Asset>; address: string } taker - The assets desired by the taker.
    * @param {number} [end=0] - The end time for the order.
    * @param {Array<SeaportFee>} [fees] - Optional fees for the order.
    * @param {string} proposalId - The ID of the proposal.
    */
   async create(
-    maker: OrderAsset<WithAddress>,
-    taker: OrderAsset<WithAddress>,
+    maker: { assets: Array<Asset>; address: string },
+    taker: { assets: Array<Asset>; address: string },
     end: number = 0,
     fees: Array<SeaportFee> = [],
     proposalId?: string
-  ): Promise<Maybe<OrderInstance>> {
+  ): Promise<Maybe<OrderCreated>> {
     try {
       if (!this._account) throw new Error("An account must be initialized.")
       if (!this._provider || !this._seaport)
@@ -429,14 +427,14 @@ export class Order extends Client {
         //seaport supports erc20 tokens in the offer array object but platform not,
         //so we throw an error if someone try to place tokens in the offer
         const erc20 = maker.assets.find((asset) => {
-          return asset.itemType === AssetsArray.TOKEN_CONSTANTS["ERC20"]
+          return asset.itemType === TOKEN_CONSTANTS["ERC20"]
         })
 
         if (erc20)
           throw new Error("You cannot add an ERC20 token in the maker assets.")
 
         const token = maker.assets.find((asset) => {
-          return asset.itemType === AssetsArray.TOKEN_CONSTANTS["NATIVE"]
+          return asset.itemType === TOKEN_CONSTANTS["NATIVE"]
         })
 
         if (token)
@@ -468,7 +466,7 @@ export class Order extends Client {
               ...asset,
               itemType:
                 typeof asset.itemType === "string"
-                  ? AssetsArray.TOKEN_CONSTANTS[asset.itemType]
+                  ? TOKEN_CONSTANTS[asset.itemType]
                   : asset.itemType,
             } as { itemType: ItemType } & typeof asset)
         ),
@@ -478,7 +476,7 @@ export class Order extends Client {
               ...asset,
               itemType:
                 typeof asset.itemType === "string"
-                  ? AssetsArray.TOKEN_CONSTANTS[asset.itemType]
+                  ? TOKEN_CONSTANTS[asset.itemType]
                   : asset.itemType,
               recipient: asset.recipient ? asset.recipient : addressMaker,
             } as { itemType: ItemType } & typeof asset)
@@ -535,7 +533,7 @@ export class Order extends Client {
       if (!this._seaport)
         throw new Error("init() must be called to initialize the client.")
 
-      const { response } = await this._fetch<ApiResponse<OrderDetail>>(
+      const { response } = await this._fetch<ApiResponse<IOrder>>(
         `${this.backendUrl()}/order/${this._account.getCurrentNetwork(
           false
         )}/${orderId}`,
@@ -551,13 +549,13 @@ export class Order extends Client {
       if (!response || !response.data) throw new Error("response data is empty")
 
       const { data: orderDetail } = response
-      const data: OrderDetail = orderDetail[0]
-      const parameters = data.parameters.order.parameters
-      const taker = data.parameters.addressTaker
+      const data: IOrder = orderDetail[0]
+      const parameters = data.parameters!.order.parameters
+      const taker = data.parameters!.addressTaker
       const order: PartialOrder = {
-        hash: data.parameters.order.orderHash,
+        hash: data.parameters!.order.orderHash,
         parameters: parameters,
-        signature: data.parameters.order.signature,
+        signature: data.parameters!.order.signature,
       }
 
       try {
@@ -609,7 +607,7 @@ export class Order extends Client {
       if (!this._seaport)
         throw new Error("init() must be called to initialize the client.")
 
-      const { response } = await this._fetch<ApiResponse<OrderDetail>>(
+      const { response } = await this._fetch<ApiResponse<IOrder>>(
         `${this.backendUrl()}/order/${this._account.getCurrentNetwork(
           false
         )}/${orderId}`,
@@ -625,9 +623,9 @@ export class Order extends Client {
       if (!response || !response.data) throw new Error("response data is empty")
 
       const { data: orderDetail } = response
-      const data: OrderDetail = orderDetail[0]
-      const parameters = data.parameters.order.parameters
-      const maker = data.parameters.addressMaker
+      const data: IOrder = orderDetail[0]
+      const parameters = data.parameters!.order.parameters
+      const maker = data.parameters!.addressMaker
       const txOverrides: { gasLimit?: number; gasPrice?: string } = {}
 
       if (gasLimit && gasLimit !== 2000000) txOverrides.gasLimit = gasLimit
@@ -655,9 +653,9 @@ export class Order extends Client {
    * @param {string} id - The ID of the order.
    * @returns {Promise<Maybe<OrderDetail>>} A Promise that resolves to the order detail information, or null if an error occurs.
    */
-  async get(networkId: string, id: string): Promise<Maybe<OrderDetail>> {
+  async get(networkId: string, id: string): Promise<Maybe<IOrder>> {
     try {
-      const { response } = await this._fetch<ApiResponse<OrderDetail>>(
+      const { response } = await this._fetch<ApiResponse<IOrder>>(
         `${this.backendUrl()}/order/${networkId}/${id}`,
         {
           method: "GET",

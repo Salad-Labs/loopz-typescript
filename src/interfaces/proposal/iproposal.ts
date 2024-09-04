@@ -1,14 +1,14 @@
-import { Collector, ProposalAssets } from "../../interfaces/proposal"
-import { Maybe } from "../base"
-import { ProposalStatus } from "./proposalstatus"
-import { ProposalStatusName } from "./proposalstatusname"
-import { ProposalType } from "./proposaltype"
-import { ProposalTypeName } from "./proposaltypename"
+import { Collector } from "."
+import { Asset, Maybe } from "../../types/base"
+import { ProposalStatus } from "../../types/proposal/proposalstatus"
+import { ProposalStatusName } from "../../types/proposal/proposalstatusname"
+import { ProposalType } from "../../types/proposal/proposaltype"
+import { ProposalTypeName } from "../../types/proposal/proposaltypename"
 
 /**
  * Represents a proposal instance with various properties.
  */
-type ProposalItem = {
+type IProposal = {
   /**
    * @property {string} id - The unique identifier of the proposal.
    */
@@ -44,23 +44,20 @@ type ProposalItem = {
   /**
    * @property {ProposalAssets} assets - The assets associated with the proposal.
    */
-  assets: ProposalAssets
+  assets: {
+    /**
+     * @property {Partial<Asset> & { token: string }[]} [wanted] - the wanted assets.
+     */
+    wanted?: Partial<Asset> & { token: string }[]
+    /**
+     * @property {Partial<Asset> & { token: string }[]} [offered] - the offered assets.
+     */
+    offered?: Partial<Asset> & { token: string }[]
+  }
   /**
    * @property {boolean} isCreator - Indicates if the user is the creator of the proposal.
    */
-  isCreator: boolean
-  /**
-   * @property {number} [score] - The score of the proposal.
-   */
-  score?: number
-  /**
-   * @property {boolean} [isDifferent] - Indicates if the proposal is different from others.
-   */
-  isDifferent?: boolean
-  /**
-   * @property {number} [like] - The number of likes on the proposal.
-   */
-  like?: number
+  isCreator?: boolean
   /**
    * @property {string} [typeWanted] - The type of item wanted in the proposal.
    */
@@ -76,19 +73,11 @@ type ProposalItem = {
   /**
    * @property {number} [expirationDate] - The expiration date of the proposal.
    */
-  expirationDate?: number
+  expirationDate?: Maybe<number>
   /**
-   * @property {number} [numberOffers] - The number of offers for the proposal.
+   * @property {Maybe<IProposal>} [parent] - The parent proposal instance, if any.
    */
-  numberOffers?: number
-  /**
-   * @property {number} [numberOffersRead] - The number of offers read for the proposal.
-   */
-  numberOffersRead?: number
-  /**
-   * @property {Maybe<ProposalItem>} [parent] - The parent proposal instance, if any.
-   */
-  parent?: Maybe<ProposalItem>
+  parent?: Maybe<IProposal>
 }
 
-export { ProposalItem }
+export { IProposal }

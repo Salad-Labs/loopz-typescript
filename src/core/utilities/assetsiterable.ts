@@ -1,11 +1,11 @@
 import { ethers } from "ethers"
-import { TOKEN_CONSTANTS } from "../constants/base/tokenconstants"
-import { Asset } from "../types/base"
+import { TOKEN_CONSTANTS } from "../../constants/base/tokenconstants"
+import { Asset } from "../../types/base"
 
 /**
  * Represents an array of assets with methods to add different types of assets.
  */
-export class AssetsArray {
+export class AssetsIterable {
   /**
    * Getter for the _assets property which returns a copy of the private __assets array.
    * @returns A copy of the __assets array.
@@ -69,7 +69,7 @@ export class AssetsArray {
     this._addAsset(
       {
         amount,
-        itemType: AssetsArray.TOKEN_CONSTANTS.NATIVE,
+        itemType: TOKEN_CONSTANTS.NATIVE,
         token: ethers.constants.AddressZero,
         identifier: "0",
       },
@@ -95,7 +95,7 @@ export class AssetsArray {
       {
         token: address,
         amount,
-        itemType: AssetsArray.TOKEN_CONSTANTS.ERC20,
+        itemType: TOKEN_CONSTANTS.ERC20,
         identifier: "0",
       },
       recipient
@@ -118,7 +118,7 @@ export class AssetsArray {
 
     this._addAsset(
       {
-        itemType: AssetsArray.TOKEN_CONSTANTS.ERC721,
+        itemType: TOKEN_CONSTANTS.ERC721,
         token: address,
         identifier: id,
       },
@@ -149,7 +149,7 @@ export class AssetsArray {
 
     this._addAsset(
       {
-        itemType: AssetsArray.TOKEN_CONSTANTS.ERC1155,
+        itemType: TOKEN_CONSTANTS.ERC1155,
         token: address,
         identifier: id,
         amount,

@@ -182,7 +182,7 @@ import {
   AddMemberToConversationArgs,
 } from "./types/chat/schema/args"
 import { UAMutationEngine, UAQueryEngine } from "./interfaces/chat/core/ua"
-import { Maybe } from "./types/base"
+import { Asset, Maybe } from "./types/base"
 import {
   onDeleteMessage,
   onEditMessage,
@@ -222,6 +222,7 @@ import { DexieStorage } from "./core/app"
 import bip39 from "bip39"
 import { ApiResponse } from "./types/base/apiresponse"
 import { md, mgf, pki } from "node-forge"
+import { AssetsIterable } from "./core"
 
 export class Chat
   extends Engine
@@ -2937,6 +2938,15 @@ export class Chat
   }
 
   async sendMessage(args: SendMessageArgs): Promise<QIError | Message> {
+    let content: string
+
+    if (Array.isArray(args.content)) {
+      const assetsArray = new AssetsIterable(args.content)
+      content = JSON.stringify(assetsArray.toJSON())
+    } else {
+      content = args.content
+    }
+
     const response = await this._mutation<
       MutationSendMessageArgs,
       { sendMessage: MessageGraphQL },
@@ -2945,7 +2955,7 @@ export class Chat
       input: {
         content: Crypto.encryptStringOrFail(
           this.findPublicKeyById((args as SendMessageArgs).conversationId),
-          (args as SendMessageArgs).content
+          content
         ),
         conversationId: (args as SendMessageArgs).conversationId,
         type: (args as SendMessageArgs).type,

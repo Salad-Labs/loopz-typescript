@@ -1,9 +1,9 @@
-import { OrderInstance } from "./orderinstance"
+import { OrderCreated } from "./ordercreated"
 /**
  * Represents a partial order instance without the 'hash' property.
  * @extends Order
  */
-type PartialOrder = Omit<OrderInstance, "hash"> &
-  Partial<Pick<OrderInstance, "hash">>
+type PartialOrder = Omit<OrderCreated, "hash"> &
+  Partial<Pick<OrderCreated, "hash">>
 
 export { PartialOrder }

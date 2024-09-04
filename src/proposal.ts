@@ -1,16 +1,11 @@
 import { ApiKeyAuthorized, Maybe } from "./types/base"
 import {
+  IProposal,
   ListProposalsFilters,
   ListProposalsOrder,
   ListProposalsResponse,
 } from "./interfaces/proposal"
-import {
-  ProposalObject,
-  ProposalReplyObject,
-  ProposalStatus,
-  ProposalType,
-  ProposalItem,
-} from "./types/proposal"
+import { CreateProposal, ProposalStatus, ProposalType } from "./types/proposal"
 import { validateListProposalsFilters } from "./core/utilities"
 import { PROPOSAL_STATUS } from "./constants/proposal/proposalstatus"
 import { PROPOSAL_TYPE } from "./constants/proposal/proposaltype"
@@ -64,8 +59,7 @@ export class Proposal extends Client {
    * @throws {Error} If signedMessage is required but not provided.
    */
   private async _createProposal<
-    P extends (ProposalObject | ProposalReplyObject) &
-      Partial<Pick<ProposalItem, "parentId">>
+    P extends CreateProposal & Partial<Pick<IProposal, "parentId">>
   >(proposal: P): Promise<boolean> {
     try {
       const { response, statusCode } = await this._fetch<ApiResponse<boolean>>(
@@ -94,14 +88,14 @@ export class Proposal extends Client {
    * Retrieves a proposal instance with the given ID and optional creator address.
    * @param {string} id - The ID of the proposal instance to retrieve.
    * @param {string} [did] - The creator address associated with the proposal instance. If provided, the API checks if the creatorAddress is the creator of the proposal.
-   * @returns {Promise<Maybe<ProposalItem>>} A promise that resolves to the retrieved proposal instance, or null if not found.
+   * @returns {Promise<Maybe<IProposal>>} A promise that resolves to the retrieved proposal instance, or null if not found.
    * @throws {Error} If the "id" parameter is invalid or if an error occurs during the retrieval process.
    */
-  async get(id: string, did?: string): Promise<Maybe<ProposalItem>> {
+  async get(id: string, did?: string): Promise<Maybe<IProposal>> {
     if (!id) throw new Error('Invalid parameter "id".')
 
     try {
-      const { response } = await this._fetch<ApiResponse<ProposalItem>>(
+      const { response } = await this._fetch<ApiResponse<IProposal>>(
         `${this.backendUrl()}/proposal/${id}` + `${did ? `/${did}` : ``}`,
         {
           method: "GET",
@@ -219,10 +213,10 @@ export class Proposal extends Client {
 
   /**
    * Creates a new proposal using the provided proposal object and signed message.
-   * @param {ProposalObject} proposal - The proposal object containing the proposal data.
+   * @param {CreateProposal} proposal - The proposal object containing the proposal data.
    * @returns A new proposal created using the provided data.
    */
-  async create(proposal: ProposalObject, signedMessage: string) {
+  async create(proposal: CreateProposal, signedMessage: string) {
     return this._createProposal(proposal)
   }
 

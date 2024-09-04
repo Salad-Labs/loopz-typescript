@@ -1,15 +1,24 @@
-import { ReplyProposalAssets } from "../../interfaces/proposal"
+import { Asset } from "../base"
 import { ProposalType } from "./proposaltype"
 import { ProposalTypeName } from "./proposaltypename"
 
 /**
  * Represents a proposal object with the following properties:
  */
-type ProposalObject = {
+type CreateProposal = {
   /**
-   * @property {CreateProposalAssets} assets - The assets associated with the proposal.
+   * @property {Object} assets - The assets associated with the proposal.
    */
-  assets: ReplyProposalAssets
+  assets: {
+    /**
+     * @property {Asset[]} [wanted] - the wanted assets.
+     */
+    wanted?: Partial<Asset> & { token: string }[]
+    /**
+     * @property {Asset[]} [offered] - the offered assets.
+     */
+    offered?: Partial<Asset> & { token: string }[]
+  }
   /**
    * @property {number} expirationDate - The expiration date of the proposal.
    */
@@ -32,4 +41,4 @@ type ProposalObject = {
   creatorAddress: string
 }
 
-export { ProposalObject }
+export { CreateProposal }

@@ -1,9 +1,9 @@
-import { AssetStatusVerification, Maybe } from "../base"
-import { AssetTypeName } from "../base/assettypename"
+import { AssetStatusVerification, Maybe } from "../.."
+import { AssetTypeName } from "@src/types/base/assettypename"
 /**
  * Represents a detailed object with various properties related to a collection.
  */
-export type Detail = {
+export type OrderDetail = {
   /**
    * @property {Maybe<string>} blc - The BLC property, possibly a string.
    */
