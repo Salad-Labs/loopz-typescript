@@ -65,6 +65,7 @@ import {
 } from "../../constants/chat/queries"
 import { EngineInitConfig } from "../../types"
 import { Reaction } from "./reaction"
+import { AssetsIterable } from "../utilities"
 
 /**
  * Represents a conversation in a chat application.
@@ -809,6 +810,15 @@ export class Conversation
   async sendMessage(
     args: Pick<SendMessageArgs, "content" | "type">
   ): Promise<QIError | Message> {
+    let content: string
+
+    if (Array.isArray(args.content)) {
+      const assetsArray = new AssetsIterable(args.content)
+      content = JSON.stringify(assetsArray.toJSON())
+    } else {
+      content = args.content
+    }
+
     const response = await this._mutation<
       MutationSendMessageArgs,
       { sendMessage: MessageGraphQL },
@@ -817,7 +827,7 @@ export class Conversation
       input: {
         content: Crypto.encryptStringOrFail(
           this.findPublicKeyById(this.id),
-          args.content
+          content
         ),
         conversationId: this.id,
         type: args.type,
