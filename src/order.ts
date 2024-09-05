@@ -59,6 +59,8 @@ export class Order extends Client {
     callbacks: Array<Function>
   }> = []
 
+  private _initialized: boolean = false
+
   /**
    * Constructor for a class that requires an API key and optionally a number of blocks for confirmation.
    * @param {object} config - Configuration object containing API key and optional blocks number confirmation.
@@ -304,14 +306,20 @@ export class Order extends Client {
     return orderInit
   }
 
+  isInitialized(): boolean {
+    return this._initialized === true
+  }
+
   async init(wallet: ConnectedWallet) {
     try {
       if (!this._account) throw new Error("Account is not initialized.")
 
       this._provider = await wallet.getEthersProvider()
       this._seaport = new Seaport(this._provider, { seaportVersion: "1.5" })
+      this._initialized = true
     } catch (error) {
       console.log(error)
+      this._initialized = false
     }
   }
 
@@ -404,15 +412,15 @@ export class Order extends Client {
 
   /**
    * Create an order instance with the given maker and taker assets, along with additional parameters.
-   * @param { assets: Array<Asset>; address: string } maker - The assets offered by the maker.
-   * @param { assets: Array<Asset>; address: string } taker - The assets desired by the taker.
+   * @param {{Array<Asset>; address: string}} participantOne - The assets offered by the maker.
+   * @param {{Array<Asset>; address: string}} participantTwo - The assets desired by the taker.
    * @param {number} [end=0] - The end time for the order.
    * @param {Array<SeaportFee>} [fees] - Optional fees for the order.
    * @param {string} proposalId - The ID of the proposal.
    */
   async create(
-    maker: { assets: Array<Asset>; address: string },
-    taker: { assets: Array<Asset>; address: string },
+    participantOne: { assets: Array<Asset>; address: string },
+    participantTwo: { assets: Array<Asset>; address: string },
     end: number = 0,
     fees: Array<SeaportFee> = [],
     proposalId?: string
@@ -423,17 +431,21 @@ export class Order extends Client {
         throw new Error("init() must be called to initialize the client.")
       if (end < 0) throw new Error("end cannot be lower than zero.")
 
-      if ("assets" in maker && maker.assets && maker.assets.length > 0) {
+      if (
+        "assets" in participantOne &&
+        participantOne.assets &&
+        participantOne.assets.length > 0
+      ) {
         //seaport supports erc20 tokens in the offer array object but platform not,
         //so we throw an error if someone try to place tokens in the offer
-        const erc20 = maker.assets.find((asset) => {
+        const erc20 = participantOne.assets.find((asset) => {
           return asset.itemType === TOKEN_CONSTANTS["ERC20"]
         })
 
         if (erc20)
           throw new Error("You cannot add an ERC20 token in the maker assets.")
 
-        const token = maker.assets.find((asset) => {
+        const token = participantOne.assets.find((asset) => {
           return asset.itemType === TOKEN_CONSTANTS["NATIVE"]
         })
 
@@ -444,14 +456,14 @@ export class Order extends Client {
       // Retrieve the maker address
       const [addressMaker] = await this._provider.listAccounts()
 
-      const makerAssets = maker.assets?.map((asset) => {
+      const makerAssets = participantOne.assets?.map((asset) => {
         return {
           ...asset,
           recipient: asset.recipient?.toLowerCase(),
           token: asset.token?.toLowerCase(),
         }
       })
-      const takerAssets = taker.assets?.map((asset) => {
+      const takerAssets = participantTwo.assets?.map((asset) => {
         return {
           ...asset,
           recipient: asset.recipient?.toLowerCase(),
@@ -481,7 +493,7 @@ export class Order extends Client {
               recipient: asset.recipient ? asset.recipient : addressMaker,
             } as { itemType: ItemType } & typeof asset)
         ),
-        zone: taker.address,
+        zone: participantTwo.address,
         endTime: Math.floor(
           new Date().setDate(new Date().getDate() + end) / 1000
         ).toString(), // days in seconds (UNIX timestamp)

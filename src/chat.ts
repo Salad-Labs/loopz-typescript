@@ -113,6 +113,9 @@ import {
   ListUsersByIdsResult as ListUsersByIdsResultGraphQL,
   MutationUpdateRequestTradeArgs,
   SubscriptionOnUpdateRequestTradeArgs,
+  QueryListTradesByConversationIdArgs,
+  ListTradesByConversationIdResult as ListTradesByConversationIdResultGraphQL,
+  QueryGetConversationTradingPoolByIdArgs,
 } from "./graphql/generated/graphql"
 import {
   addBlockedUser,
@@ -159,6 +162,8 @@ import {
   listMessagesImportantByUserConversationId,
   listConversationMemberByUserId,
   listUsersByIds,
+  listTradesByConversationId,
+  getConversationTradingPoolById,
 } from "./constants/chat/queries"
 import { ConversationMember } from "./core/chat/conversationmember"
 import {
@@ -183,6 +188,7 @@ import {
   EjectMemberArgs,
   AddMemberToConversationArgs,
   UpdateRequestTradeArgs,
+  ListTradesByConversationIdArgs,
 } from "./types/chat/schema/args"
 import { UAMutationEngine, UAQueryEngine } from "./interfaces/chat/core/ua"
 import { Asset, Maybe } from "./types/base"
@@ -212,7 +218,10 @@ import {
 import { OperationResult } from "@urql/core"
 import { SubscriptionGarbage } from "./types/chat/subscriptiongarbage"
 import { KeyPairItem } from "./types/chat/keypairitem"
-import { ActiveUserConversationType } from "./enums"
+import {
+  ActiveUserConversationType,
+  ConversationTradingPoolStatus,
+} from "./enums"
 import {
   LocalDBConversation,
   LocalDBMessage,
@@ -226,6 +235,7 @@ import { DexieStorage } from "./core/app"
 import bip39 from "bip39"
 import { ApiResponse } from "./types/base/apiresponse"
 import { md, mgf, pki } from "node-forge"
+import { Order } from "./order"
 
 export class Chat
   extends Engine
@@ -2966,6 +2976,7 @@ export class Chat
         conversationTradingPoolId: args.conversationTradingPoolId,
         status: args.status,
         orderId: args.orderId,
+        counterparties: args.counterparties,
       },
     })
 
@@ -4352,6 +4363,95 @@ export class Chat
         : null,
       ownerId: response.ownerId ? response.ownerId : null,
       createdAt: response.createdAt,
+      updatedAt: response.updatedAt ? response.updatedAt : null,
+      deletedAt: response.deletedAt ? response.deletedAt : null,
+      client: this._client!,
+    })
+  }
+
+  async listTradesByConversationId(
+    args: ListTradesByConversationIdArgs
+  ): Promise<
+    | { items: Array<ConversationTradingPool>; nextToken?: Maybe<string> }
+    | QIError
+  > {
+    const response = await this._query<
+      QueryListTradesByConversationIdArgs,
+      {
+        listTradesByConversationId: ListTradesByConversationIdResultGraphQL
+      },
+      ListTradesByConversationIdResultGraphQL
+    >(
+      "listTradesByConversationId",
+      listTradesByConversationId,
+      "_query() -> listTradesByConversationId()",
+      {
+        input: {
+          conversationId: args.conversationId,
+          status: args.status,
+          nextToken: args.nextToken,
+        },
+      }
+    )
+
+    if (response instanceof QIError) return response
+
+    const listTrades: {
+      nextToken?: string
+      items: Array<ConversationTradingPool>
+    } = {
+      nextToken: response.nextToken ? response.nextToken : undefined,
+      items: response.items.map((item) => {
+        return new ConversationTradingPool({
+          ...this._parentConfig!,
+          id: item.id,
+          conversationId: item.conversationId ? item.conversationId : null,
+          userId: item.userId ? item.userId : null,
+          involvedUsers: item.involvedUsers ? item.involvedUsers : null,
+          operation: item.operation ? item.operation : null,
+          status: item.status ? item.status : null,
+          type: item.type ? item.type : null,
+          createdAt: item.createdAt ? item.createdAt : null,
+          updatedAt: item.updatedAt ? item.updatedAt : null,
+          deletedAt: item.deletedAt ? item.deletedAt : null,
+          client: this._client!,
+        })
+      }),
+    }
+
+    return listTrades
+  }
+
+  async getConversationTradingPoolById(
+    conversationTradingPoolId: string
+  ): Promise<ConversationTradingPool | QIError> {
+    const response = await this._query<
+      QueryGetConversationTradingPoolByIdArgs,
+      {
+        getConversationTradingPoolById: ConversationTradingPoolGraphQL
+      },
+      ConversationTradingPoolGraphQL
+    >(
+      "getConversationTradingPoolById",
+      getConversationTradingPoolById,
+      "_query() -> getConversationTradingPoolById()",
+      {
+        conversationTradingPoolId,
+      }
+    )
+
+    if (response instanceof QIError) return response
+
+    return new ConversationTradingPool({
+      ...this._parentConfig!,
+      id: response.id,
+      conversationId: response.conversationId ? response.conversationId : null,
+      userId: response.userId ? response.userId : null,
+      involvedUsers: response.involvedUsers ? response.involvedUsers : null,
+      operation: response.operation ? response.operation : null,
+      status: response.status ? response.status : null,
+      type: response.type ? response.type : null,
+      createdAt: response.createdAt ? response.createdAt : null,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
@@ -6997,7 +7097,7 @@ export class Chat
   }
 
   /** combining messages (NFT & crypto) */
-  async combineOffers({
+  async combineMessages({
     initializator,
     counterparty,
     messageInitializator,
@@ -7008,6 +7108,10 @@ export class Chat
     messageInitializator: Message
     messageCounterparty: Message
   }) {
+    if (!this._canChat)
+      throw new Error(
+        "This client chat cannot combine messages. Are you missing to pairing the keys?"
+      )
     if (!this._account) throw new Error("Account is not setup correctly.")
     if (messageInitializator.type !== "TRADE_PROPOSAL")
       throw new Error("messageInitializator is not of type `TRADE_PROPOSAL`.")
@@ -7017,68 +7121,212 @@ export class Chat
       messageInitializator.conversationId !== messageCounterparty.conversationId
     )
       throw new Error("Messages must be of the same conversation.")
-
-    const counterpartyId = counterparty.id
-    const initializatorId = initializator.id
-    const involvedUsers = [counterpartyId, initializatorId]
-
-    const {
-      assets: assetsInitializator,
-    }: { assets: Array<Asset>; message: string } = JSON.parse(
-      messageInitializator.content
+    if (
+      [messageCounterparty.userId, messageInitializator.userId].indexOf(
+        this._account.dynamoDBUserID
+      ) === -1
     )
-    const {
-      assets: assetsCounterparty,
-    }: { assets: Array<Asset>; message: string } = JSON.parse(
-      messageCounterparty.content
-    )
-
-    //let's check if the assets contains crypto
-    let cryptoParticipantOne = 0
-    let cryptoParticipantTwo = 0
-
-    assetsInitializator.forEach((asset) => {
-      if (asset.itemType === "NATIVE" || asset.itemType === "ERC20")
-        cryptoParticipantOne++
-    })
-
-    assetsCounterparty.forEach((asset) => {
-      if (asset.itemType === "NATIVE" || asset.itemType === "ERC20")
-        cryptoParticipantTwo++
-    })
-
-    if (cryptoParticipantOne > 1)
       throw new Error(
-        "You cannot add more than one crypto on the first participant side."
+        "User must combine at least a message on which he is the author."
       )
-    if (cryptoParticipantTwo > 1)
+    if (messageInitializator.userId !== initializator.id)
       throw new Error(
-        "You cannot add more than one crypto on the second participant side."
+        "It seems the `initializator` is not the author of `messageInitializator`."
       )
-    if (cryptoParticipantOne > 0 && cryptoParticipantTwo > 0)
+    if (messageCounterparty.userId !== counterparty.id)
       throw new Error(
-        "Both participants cannot add a token (ERC20 or NATIVE) in the order. Only one side is allowed to add a token in the trade."
+        "It seems the `counterparty` is not the author of `messageCounterparty`."
       )
 
-    const operation = {
-      operation: "trade",
-      creatorDid: "",
-      counterpartyDid: "",
-      creatorAddress: "",
-      counterpartyAddress: "",
-      organizationId: this._account.organizationId,
-      networkId: this._account.getCurrentNetwork(false),
-      assets: {
-        participantOne: assetsInitializator,
-        participantTwo: assetsCounterparty,
-      },
-      orderId: "",
+    try {
+      const counterpartyId = counterparty.id
+      const initializatorId = initializator.id
+      const involvedUsers = [counterpartyId, initializatorId]
+
+      const {
+        assets: assetsInitializator,
+      }: { assets: Array<Asset>; message: string } = JSON.parse(
+        messageInitializator.content
+      )
+      const {
+        assets: assetsCounterparty,
+      }: { assets: Array<Asset>; message: string } = JSON.parse(
+        messageCounterparty.content
+      )
+
+      //let's check if the assets contains crypto
+      let cryptoParticipantOne = 0
+      let cryptoParticipantTwo = 0
+
+      assetsInitializator.forEach((asset) => {
+        if (asset.itemType === "NATIVE" || asset.itemType === "ERC20")
+          cryptoParticipantOne++
+      })
+
+      assetsCounterparty.forEach((asset) => {
+        if (asset.itemType === "NATIVE" || asset.itemType === "ERC20")
+          cryptoParticipantTwo++
+      })
+
+      if (cryptoParticipantOne > 1)
+        throw new Error(
+          "You cannot add more than one crypto on the first participant side."
+        )
+      if (cryptoParticipantTwo > 1)
+        throw new Error(
+          "You cannot add more than one crypto on the second participant side."
+        )
+      if (cryptoParticipantOne > 0 && cryptoParticipantTwo > 0)
+        throw new Error(
+          "Both participants cannot add a token (ERC20 or NATIVE) in the order. Only one counterparty is allowed to add a token in the trade."
+        )
+
+      const operation = {
+        operation: "trade",
+        creatorDid: "",
+        counterpartyDid: "",
+        creatorAddress: "",
+        counterpartyAddress: "",
+        organizationId: this._account.organizationId,
+        networkId: this._account.getCurrentNetwork(false),
+        participantOneId: initializator.id,
+        participantTwoId: counterparty.id,
+        participantOneAddress: initializator.address,
+        participantTwoAddress: counterparty.address,
+        participantOneDid: initializator.did,
+        participantTwoDid: counterparty.did,
+        assets: {
+          participantOne: assetsInitializator,
+          participantTwo: assetsCounterparty,
+        },
+        orderId: "",
+      }
+
+      await this.requestTrade({
+        involvedUsers,
+        conversationId: messageInitializator.conversationId,
+        operation,
+      })
+    } catch (error) {
+      console.log(error)
     }
+  }
 
-    await this.requestTrade({
-      involvedUsers,
-      conversationId: messageInitializator.conversationId,
-      operation,
-    })
+  async handleOrderFromMessages({
+    conversationTradingPoolId,
+    status,
+    orderRef,
+    dayDuration,
+  }: {
+    conversationTradingPoolId: string
+    status: ConversationTradingPoolStatus
+    orderRef: Order
+    dayDuration: number
+  }) {
+    if (!this._canChat)
+      throw new Error(
+        "This client chat cannot perform order. Are you missing to pairing the keys?"
+      )
+    if (!this._account) throw new Error("Account is not setup correctly.")
+    if (!orderRef.isInitialized())
+      throw new Error(
+        "Order referece must be initialized in order to use this method."
+      )
+
+    try {
+      const conversationTradingPool = await this.getConversationTradingPoolById(
+        conversationTradingPoolId
+      )
+
+      if (conversationTradingPool instanceof QIError)
+        throw new Error(
+          "Error while retrieving ConversationTradingPool. The `conversationTradingPoolId` provided is wrong maybe?"
+        )
+
+      const operation = JSON.parse(conversationTradingPool.operation!)
+
+      if (status === ConversationTradingPoolStatus.TradeProgress) {
+        if (
+          conversationTradingPool.status !==
+          ConversationTradingPoolStatus.TradeInitialized
+        )
+          throw new Error(
+            "Trade status is not in state `TRADE_INITIALIZED`. You are trying to update a trade that was already initialized."
+          )
+
+        const { assets } = operation
+        const {
+          participantOne: assetsParticipantOne,
+          participantTwo: assetsParticipantTwo,
+        } = assets
+        let participantOne
+        let participantTwo
+        let creatorAddress
+        let creatorDid
+        let counterpartyAddress
+        let counterpartyDid
+
+        //in this way we understand who is the creator and who is the counterparty
+        if (this._account.dynamoDBUserID === operation.participantOneId) {
+          participantOne = {
+            assets: assetsParticipantOne,
+            address: operation.participantOneAddress,
+          } //maker is the current user
+          participantTwo = {
+            assets: assetsParticipantTwo,
+            address: operation.participantTwoAddress,
+          } //taker is the other user
+
+          creatorAddress = operation.participantOneAddress
+          creatorDid = operation.participantOneDid
+          counterpartyAddress = operation.participantTwoAddress
+          counterpartyDid = operation.participantTwoDid
+        } else {
+          participantOne = {
+            assets: assetsParticipantTwo,
+            address: operation.participantTwoAddress,
+          } //maker is the user marked as participantTwo
+          participantTwo = {
+            assets: assetsParticipantOne,
+            address: operation.participantOneAddress,
+          } //taker is the user marked as participantOne
+
+          creatorAddress = operation.participantTwoAddress
+          creatorDid = operation.participantTwoDid
+          counterpartyAddress = operation.participantOneAddress
+          counterpartyDid = operation.participantOneDid
+        }
+
+        const order = await orderRef.create(
+          participantOne,
+          participantTwo,
+          dayDuration
+        )
+
+        if (!order) throw new Error("Order was not created successfully.")
+
+        const orderId = order.orderId.toString()
+
+        await this.updateRequestTrade({
+          conversationTradingPoolId,
+          status,
+          counterparties: {
+            creatorAddress,
+            creatorDid,
+            counterpartyAddress,
+            counterpartyDid,
+          },
+          orderId,
+        })
+      } else if (status === ConversationTradingPoolStatus.TradeCompleted) {
+        await orderRef.finalize(operation.orderId)
+        await this.updateRequestTrade({
+          conversationTradingPoolId,
+          status,
+        })
+      }
+    } catch (error) {
+      console.log(error)
+    }
   }
 }

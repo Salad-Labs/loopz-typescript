@@ -8,4 +8,10 @@ export type UpdateRequestTradeArgs = {
   conversationTradingPoolId: string
   status: ConversationTradingPoolStatus
   orderId?: string
+  counterparties?: {
+    creatorDid: string
+    creatorAddress: string
+    counterpartyDid: string
+    counterpartyAddress: string
+  }
 }
