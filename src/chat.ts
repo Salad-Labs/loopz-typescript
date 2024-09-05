@@ -111,6 +111,8 @@ import {
   MemberOutResult as MemberOutResultGraphQL,
   QueryListUsersByIdsArgs,
   ListUsersByIdsResult as ListUsersByIdsResultGraphQL,
+  MutationUpdateRequestTradeArgs,
+  SubscriptionOnUpdateRequestTradeArgs,
 } from "./graphql/generated/graphql"
 import {
   addBlockedUser,
@@ -180,9 +182,10 @@ import {
   AddMembersToConversationArgs,
   EjectMemberArgs,
   AddMemberToConversationArgs,
+  UpdateRequestTradeArgs,
 } from "./types/chat/schema/args"
 import { UAMutationEngine, UAQueryEngine } from "./interfaces/chat/core/ua"
-import { Asset, Maybe } from "./types/base"
+import { Maybe } from "./types/base"
 import {
   onDeleteMessage,
   onEditMessage,
@@ -201,6 +204,7 @@ import {
   onUpdateUser,
   onRequestTrade,
   onDeleteRequestTrade,
+  onUpdateRequestTrade,
   onAddMembersToConversation,
   onAddMemberToConversation,
   onBatchDeleteMessages,
@@ -222,7 +226,6 @@ import { DexieStorage } from "./core/app"
 import bip39 from "bip39"
 import { ApiResponse } from "./types/base/apiresponse"
 import { md, mgf, pki } from "node-forge"
-import { AssetsIterable } from "./core"
 
 export class Chat
   extends Engine
@@ -2909,10 +2912,43 @@ export class Chat
         creatorsIds: args.creatorsIds,
         initializatorIds: args.initializatorIds,
         conversationId: args.conversationId,
-        operation: Crypto.encryptStringOrFail(
-          this.findPublicKeyById(args.conversationId),
-          JSON.stringify(args.operation)
-        ),
+        operation: JSON.stringify(args.operation),
+      },
+    })
+
+    if (response instanceof QIError) return response
+
+    return new ConversationTradingPool({
+      ...this._parentConfig!,
+      id: response.id,
+      conversationId: response.conversationId ? response.conversationId : null,
+      userId: response.userId ? response.userId : null,
+      creatorsIds: response.creatorsIds ? response.creatorsIds : null,
+      initializatorsIds: response.initializatorsIds
+        ? response.initializatorsIds
+        : null,
+      operation: response.operation ? response.operation : null,
+      status: response.status ? response.status : null,
+      type: response.type ? response.type : null,
+      createdAt: response.createdAt ? response.createdAt : null,
+      updatedAt: response.updatedAt ? response.updatedAt : null,
+      deletedAt: response.deletedAt ? response.deletedAt : null,
+      client: this._client!,
+    })
+  }
+
+  async updateRequestTrade(
+    args: UpdateRequestTradeArgs
+  ): Promise<QIError | ConversationTradingPool> {
+    const response = await this._mutation<
+      MutationUpdateRequestTradeArgs,
+      { updateRequestTrade: ConversationTradingPoolGraphQL },
+      ConversationTradingPoolGraphQL
+    >("requestTrade", requestTrade, "_mutation() -> updateRequestTrade()", {
+      input: {
+        conversationTradingPoolId: args.conversationTradingPoolId,
+        status: args.status,
+        orderId: args.orderId,
       },
     })
 
@@ -2940,12 +2976,8 @@ export class Chat
   async sendMessage(args: SendMessageArgs): Promise<QIError | Message> {
     let content: string
 
-    if (Array.isArray(args.content)) {
-      const assetsArray = new AssetsIterable(args.content)
-      content = JSON.stringify(assetsArray.toJSON())
-    } else {
-      content = args.content
-    }
+    if (typeof args.content === "object") content = JSON.stringify(args.content)
+    else content = args.content
 
     const response = await this._mutation<
       MutationSendMessageArgs,
@@ -5956,6 +5988,62 @@ export class Chat
     return { unsubscribe, uuid }
   }
 
+  onUpdateRequestTrade(
+    conversationTradingPoolId: string,
+    callback: (
+      response: QIError | ConversationTradingPool,
+      source: OperationResult<
+        { onUpdateRequestTrade: ConversationTradingPoolGraphQL },
+        SubscriptionOnUpdateRequestTradeArgs & { jwt: string }
+      >,
+      uuid: string
+    ) => void
+  ): QIError | SubscriptionGarbage {
+    const key = "onUpdateRequestTrade"
+    const metasubcription = this._subscription<
+      SubscriptionOnUpdateRequestTradeArgs,
+      { onUpdateRequestTrade: ConversationTradingPoolGraphQL }
+    >(onUpdateRequestTrade, key, { conversationTradingPoolId })
+
+    if (metasubcription instanceof QIError) return metasubcription
+
+    const { subscribe, uuid } = metasubcription
+    const { unsubscribe } = subscribe((result) => {
+      const r = this._handleResponse<
+        typeof key,
+        { onUpdateRequestTrade: ConversationTradingPoolGraphQL },
+        ConversationTradingPoolGraphQL
+      >("onUpdateRequestTrade", result)
+
+      if (r instanceof QIError) {
+        callback(r, result, uuid)
+        return
+      }
+
+      callback(
+        new ConversationTradingPool({
+          ...this._parentConfig!,
+          id: r.id,
+          conversationId: r.conversationId ? r.conversationId : null,
+          userId: r.userId ? r.userId : null,
+          creatorsIds: r.creatorsIds ? r.creatorsIds : null,
+          initializatorsIds: r.initializatorsIds ? r.initializatorsIds : null,
+          operation: r.operation ? r.operation : null,
+          status: r.status ? r.status : null,
+          type: r.type ? r.type : null,
+          createdAt: r.createdAt ? r.createdAt : null,
+          updatedAt: r.updatedAt ? r.updatedAt : null,
+          deletedAt: r.deletedAt ? r.deletedAt : null,
+          client: this._client!,
+        }),
+        result,
+        uuid
+      )
+    })
+
+    return { unsubscribe, uuid }
+  }
+
   /** Syncing methods */
 
   async sync(callback: Function) {
@@ -6869,6 +6957,8 @@ export class Chat
     })
   }
 
+  /** handling of "ability to chat" based on _canChat, a property that becomes false if the system notices the current user has done another signin in another device */
+
   clientCanChat(): boolean {
     return this._canChat === true
   }
@@ -6878,4 +6968,6 @@ export class Chat
     if (!this._canChat)
       console.warn("User needs to transfer private keys between devices.")
   }
+
+  /** combining messages (NFT & crypto) */
 }

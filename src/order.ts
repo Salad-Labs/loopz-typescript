@@ -497,25 +497,35 @@ export class Order extends Client {
       const order = await executeAllActions()
       const orderHash = this._seaport.getOrderHash(order.parameters)
 
-      await this._fetch(`${this.backendUrl()}/order/create`, {
-        method: "POST",
-        body: {
-          network: `${this._account.getCurrentNetwork(false)}`,
-          orderInit,
-          order: {
-            orderHash,
-            orderType: order.parameters.orderType,
-            ...order,
+      const { response } = await this._fetch<ApiResponse<{ orderId: number }>>(
+        `${this.backendUrl()}/order/create`,
+        {
+          method: "POST",
+          body: {
+            network: `${this._account.getCurrentNetwork(false)}`,
+            orderInit,
+            order: {
+              orderHash,
+              orderType: order.parameters.orderType,
+              ...order,
+            },
+            proposalId,
           },
-          proposalId,
-        },
-        headers: {
-          "x-api-key": `${this._apiKey}`,
-          Authorization: `Bearer ${this._authToken}`,
-        },
-      })
+          headers: {
+            "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
+          },
+        }
+      )
 
-      return { hash: orderHash, ...order }
+      if (!response || !response.data)
+        throw new Error(
+          "Order is created, but the system was not able to store it."
+        )
+
+      const { orderId } = response.data[0]
+
+      return { hash: orderHash, orderId, ...order }
     } catch (error) {
       console.log(error)
       return null

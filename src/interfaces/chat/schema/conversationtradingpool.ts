@@ -33,10 +33,7 @@ export interface ConversationTradingPoolSchema {
    * @property {Maybe<"TRADE_INITIALIZED" | "TRADE_CONFIRMED" | "TRADE_PROGRESS" | "TRADE_COMPLETED">} status - Represents a trade status.
    */
   status: Maybe<
-    | "TRADE_INITIALIZED"
-    | "TRADE_CONFIRMED"
-    | "TRADE_PROGRESS"
-    | "TRADE_COMPLETED"
+    "TRADE_INITIALIZED" | "TRADE_PROGRESS" | "TRADE_COMPLETED" | "TRADE_ALL"
   >
   /**
    * @property {Maybe<"TRADE" | "RENT">} type - Represents a type that can be either "TRADE" or "RENT", or may be undefined.

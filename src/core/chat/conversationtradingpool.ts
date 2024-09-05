@@ -5,7 +5,6 @@ import {
 import { ConversationTradingPoolSchema } from "../../interfaces/chat/schema"
 import { Maybe } from "../../types/base"
 import { Engine } from "./engine"
-import { Crypto } from "./crypto"
 
 /**
  * Represents a Conversation Trading Pool that extends the Engine class and implements the ConversationTradingPoolSchema interface.
@@ -43,13 +42,10 @@ export class ConversationTradingPool
    */
   readonly operation: Maybe<string>
   /**
-   * @property status - The current status of the operation (TRADE_INITIALIZED, TRADE_CONFIRMED, TRADE_PROGRESS, TRADE_COMPLETED).
+   * @property status - The current status of the operation ("TRADE_INITIALIZED" | "TRADE_PROGRESS" | "TRADE_COMPLETED" | "TRADE_ALL").
    */
   readonly status: Maybe<
-    | "TRADE_INITIALIZED"
-    | "TRADE_CONFIRMED"
-    | "TRADE_PROGRESS"
-    | "TRADE_COMPLETED"
+    "TRADE_INITIALIZED" | "TRADE_PROGRESS" | "TRADE_COMPLETED" | "TRADE_ALL"
   >
   /**
    * @property type - The type of operation (RENT or TRADE).
@@ -92,15 +88,5 @@ export class ConversationTradingPool
     this.updatedAt = config.updatedAt
     this.userId = config.userId
     this._client = config.client
-  }
-
-  getOperationDecrypted(): Maybe<JSON> {
-    if (!this.conversationId || !this.operation) return null
-    return JSON.parse(
-      Crypto.decryptStringOrFail(
-        this.findPrivateKeyById(this.conversationId),
-        this.operation
-      )
-    )
   }
 }

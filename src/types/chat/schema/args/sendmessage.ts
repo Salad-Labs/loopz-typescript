@@ -13,7 +13,7 @@ export type SendMessageArgs = {
   /**
    * @property {string} content - The content of the message to send.
    */
-  content: string | Asset[]
+  content: string | { assets: Asset[]; message: string }
   /**
    * @property {MessageType} type - The type of message being sent.
    */

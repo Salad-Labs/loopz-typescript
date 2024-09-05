@@ -5,6 +5,7 @@ import {
   ConversationTradingPool as ConversationTradingPoolGraphQL,
   SubscriptionOnDeleteRequestTradeArgs,
   SubscriptionOnRequestTradeArgs,
+  SubscriptionOnUpdateRequestTradeArgs,
 } from "../../../../graphql/generated/graphql"
 
 /**
@@ -31,6 +32,17 @@ export interface ConversationTradingPoolSubscriptionEngine {
       source: OperationResult<
         { onDeleteRequestTrade: ConversationTradingPoolGraphQL },
         SubscriptionOnDeleteRequestTradeArgs & { jwt: string }
+      >,
+      uuid: string
+    ) => void
+  ): QIError | SubscriptionGarbage
+  onUpdateRequestTrade(
+    conversationTradingPoolId: string,
+    callback: (
+      response: QIError | ConversationTradingPool,
+      source: OperationResult<
+        { onUpdateRequestTrade: ConversationTradingPoolGraphQL },
+        SubscriptionOnUpdateRequestTradeArgs & { jwt: string }
       >,
       uuid: string
     ) => void

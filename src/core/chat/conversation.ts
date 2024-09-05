@@ -812,12 +812,8 @@ export class Conversation
   ): Promise<QIError | Message> {
     let content: string
 
-    if (Array.isArray(args.content)) {
-      const assetsArray = new AssetsIterable(args.content)
-      content = JSON.stringify(assetsArray.toJSON())
-    } else {
-      content = args.content
-    }
+    if (typeof args.content === "object") content = JSON.stringify(args.content)
+    else content = args.content
 
     const response = await this._mutation<
       MutationSendMessageArgs,

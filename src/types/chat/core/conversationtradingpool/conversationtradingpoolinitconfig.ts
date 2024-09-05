@@ -31,13 +31,10 @@ export type ConversationTradingPoolInitConfig = {
    */
   operation: Maybe<string>
   /**
-   * @property {Maybe<"TRADE_INITIALIZED" | "TRADE_CONFIRMED" | "TRADE_PROGRESS" | "TRADE_COMPLETED">} status - The status of the trade.
+   * @property {Maybe<"TRADE_INITIALIZED" | "TRADE_PROGRESS" | "TRADE_COMPLETED" | "TRADE_ALL">} status - The status of the trade.
    */
   status: Maybe<
-    | "TRADE_INITIALIZED"
-    | "TRADE_CONFIRMED"
-    | "TRADE_PROGRESS"
-    | "TRADE_COMPLETED"
+    "TRADE_INITIALIZED" | "TRADE_PROGRESS" | "TRADE_COMPLETED" | "TRADE_ALL"
   >
   /**
    * @property {Maybe<"RENT" | "TRADE">} type - The type of trade.
