@@ -30,13 +30,9 @@ export class ConversationTradingPool
    */
   readonly userId: Maybe<string>
   /**
-   * @property creatorsIds - An array of IDs of the creators involved in the operation.
+   * @property involvedUsers - An array of IDs of the creators involved in the operation.
    */
-  readonly creatorsIds: Maybe<Array<string>>
-  /**
-   * @property initializatorsIds - An array of IDs of the initializers involved in the operation.
-   */
-  readonly initializatorsIds: Maybe<Array<string>>
+  readonly involvedUsers: Maybe<Array<string>>
   /**
    * @property operation - Additional JSON data related to the operation.
    */
@@ -79,8 +75,7 @@ export class ConversationTradingPool
     this.id = config.id
     this.conversationId = config.conversationId
     this.createdAt = config.createdAt
-    this.creatorsIds = config.creatorsIds
-    this.initializatorsIds = config.initializatorsIds
+    this.involvedUsers = config.involvedUsers
     this.deletedAt = config.deletedAt
     this.operation = config.operation
     this.status = config.status

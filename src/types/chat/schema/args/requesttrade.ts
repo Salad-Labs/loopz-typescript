@@ -1,16 +1,15 @@
+import { Asset } from "@src/index"
+import { AssetTypeName } from "@src/types/base/assettypename"
+
 /**
  * Represents the arguments needed to request a trade.
  * @type RequestTradeArgs
  */
 export type RequestTradeArgs = {
   /**
-   * @property {Array<string>} creatorsIds - The array of creator IDs involved in the trade.
+   * @property {Array<string>} creatorsIds - The array of users IDs involved in the trade.
    */
-  creatorsIds: Array<string>
-  /**
-   * @property {Array<string>} initializatorIds - The array of initializator IDs involved in the trade.
-   */
-  initializatorIds: Array<string>
+  involvedUsers: Array<string>
   /**
    * @property {string} conversationId - The ID of the conversation related to the trade.
    */
@@ -18,5 +17,18 @@ export type RequestTradeArgs = {
   /**
    * @property {JSON} operation - The JSON object representing the trade operation.
    */
-  operation: JSON
+  operation: {
+    operation: string
+    creatorDid: string
+    counterpartyDid: string
+    creatorAddress: string
+    counterpartyAddress: string
+    organizationId: string
+    networkId: string
+    assets: {
+      participantOne: Array<Asset>
+      participantTwo: Array<Asset>
+    }
+    orderId?: string
+  }
 }

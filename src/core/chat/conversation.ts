@@ -574,7 +574,7 @@ export class Conversation
               ? (response.messageRoot.type as
                   | "TEXTUAL"
                   | "ATTACHMENT"
-                  | "SWAP_PROPOSAL"
+                  | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
             createdAt: response.messageRoot.createdAt,
@@ -588,7 +588,11 @@ export class Conversation
           })
         : null,
       type: response.type
-        ? (response.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+        ? (response.type as
+            | "TEXTUAL"
+            | "ATTACHMENT"
+            | "TRADE_PROPOSAL"
+            | "RENT")
         : null,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -874,7 +878,7 @@ export class Conversation
               ? (response.messageRoot.type as
                   | "TEXTUAL"
                   | "ATTACHMENT"
-                  | "SWAP_PROPOSAL"
+                  | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
             createdAt: response.messageRoot.createdAt,
@@ -888,7 +892,11 @@ export class Conversation
           })
         : null,
       type: response.type
-        ? (response.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+        ? (response.type as
+            | "TEXTUAL"
+            | "ATTACHMENT"
+            | "TRADE_PROPOSAL"
+            | "RENT")
         : null,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -1371,7 +1379,7 @@ export class Conversation
                 ? (item!.messageRoot.type as
                     | "TEXTUAL"
                     | "ATTACHMENT"
-                    | "SWAP_PROPOSAL"
+                    | "TRADE_PROPOSAL"
                     | "RENT")
                 : null,
               createdAt: item!.messageRoot.createdAt,
@@ -1386,7 +1394,7 @@ export class Conversation
           : null,
         messageRootId: item!.messageRootId ? item!.messageRootId : null,
         type: item!.type
-          ? (item!.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+          ? (item!.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
           : null,
         createdAt: item!.createdAt,
         updatedAt: item!.updatedAt ? item!.updatedAt : null,

@@ -83,9 +83,9 @@ export class Message
    */
   readonly messageRootId: Maybe<string>
   /**
-   * @property {Maybe<"TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT">} type - The type of the message.
+   * @property {Maybe<"TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT">} type - The type of the message.
    */
-  readonly type: Maybe<"TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT">
+  readonly type: Maybe<"TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT">
   /**
    * @property {Date} createdAt - The creation date
    */
@@ -189,7 +189,7 @@ export class Message
               ? (response.messageRoot.type as
                   | "TEXTUAL"
                   | "ATTACHMENT"
-                  | "SWAP_PROPOSAL"
+                  | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
             createdAt: response.messageRoot.createdAt,
@@ -204,7 +204,11 @@ export class Message
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
       type: response.type
-        ? (response.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+        ? (response.type as
+            | "TEXTUAL"
+            | "ATTACHMENT"
+            | "TRADE_PROPOSAL"
+            | "RENT")
         : null,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -284,7 +288,7 @@ export class Message
               ? (response.messageRoot.type as
                   | "TEXTUAL"
                   | "ATTACHMENT"
-                  | "SWAP_PROPOSAL"
+                  | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
             createdAt: response.messageRoot.createdAt,
@@ -299,7 +303,11 @@ export class Message
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
       type: response.type
-        ? (response.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+        ? (response.type as
+            | "TEXTUAL"
+            | "ATTACHMENT"
+            | "TRADE_PROPOSAL"
+            | "RENT")
         : null,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -410,7 +418,7 @@ export class Message
               ? (response.messageRoot.type as
                   | "TEXTUAL"
                   | "ATTACHMENT"
-                  | "SWAP_PROPOSAL"
+                  | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
             createdAt: response.messageRoot.createdAt,
@@ -425,7 +433,11 @@ export class Message
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
       type: response.type
-        ? (response.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+        ? (response.type as
+            | "TEXTUAL"
+            | "ATTACHMENT"
+            | "TRADE_PROPOSAL"
+            | "RENT")
         : null,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -503,7 +515,7 @@ export class Message
               ? (response.messageRoot.type as
                   | "TEXTUAL"
                   | "ATTACHMENT"
-                  | "SWAP_PROPOSAL"
+                  | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
             createdAt: response.messageRoot.createdAt,
@@ -518,7 +530,11 @@ export class Message
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
       type: response.type
-        ? (response.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+        ? (response.type as
+            | "TEXTUAL"
+            | "ATTACHMENT"
+            | "TRADE_PROPOSAL"
+            | "RENT")
         : null,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -598,7 +614,7 @@ export class Message
               ? (response.messageRoot.type as
                   | "TEXTUAL"
                   | "ATTACHMENT"
-                  | "SWAP_PROPOSAL"
+                  | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
             createdAt: response.messageRoot.createdAt,
@@ -613,7 +629,11 @@ export class Message
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
       type: response.type
-        ? (response.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+        ? (response.type as
+            | "TEXTUAL"
+            | "ATTACHMENT"
+            | "TRADE_PROPOSAL"
+            | "RENT")
         : null,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -691,7 +711,7 @@ export class Message
               ? (response.messageRoot.type as
                   | "TEXTUAL"
                   | "ATTACHMENT"
-                  | "SWAP_PROPOSAL"
+                  | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
             createdAt: response.messageRoot.createdAt,
@@ -706,7 +726,11 @@ export class Message
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
       type: response.type
-        ? (response.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+        ? (response.type as
+            | "TEXTUAL"
+            | "ATTACHMENT"
+            | "TRADE_PROPOSAL"
+            | "RENT")
         : null,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -797,7 +821,7 @@ export class Message
               ? (response.messageRoot.type as
                   | "TEXTUAL"
                   | "ATTACHMENT"
-                  | "SWAP_PROPOSAL"
+                  | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
             createdAt: response.messageRoot.createdAt,
@@ -812,7 +836,11 @@ export class Message
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
       type: response.type
-        ? (response.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+        ? (response.type as
+            | "TEXTUAL"
+            | "ATTACHMENT"
+            | "TRADE_PROPOSAL"
+            | "RENT")
         : null,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,

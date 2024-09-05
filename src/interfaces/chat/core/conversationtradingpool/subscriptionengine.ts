@@ -37,7 +37,7 @@ export interface ConversationTradingPoolSubscriptionEngine {
     ) => void
   ): QIError | SubscriptionGarbage
   onUpdateRequestTrade(
-    conversationTradingPoolId: string,
+    conversationId: string,
     callback: (
       response: QIError | ConversationTradingPool,
       source: OperationResult<

@@ -19,13 +19,9 @@ export type ConversationTradingPoolInitConfig = {
    */
   userId: Maybe<string>
   /**
-   * @property {Maybe<Array<string>>} creatorsIds - An array of user IDs who are creators of the trading pool.
+   * @property {Maybe<Array<string>>} involvedUsers - An array of user IDs who are creators of the trading pool.
    */
-  creatorsIds: Maybe<Array<string>>
-  /**
-   * @property {Maybe<Array<string>>} initializatorsIds - An array of user IDs who are initializers of the trading pool.
-   */
-  initializatorsIds: Maybe<Array<string>>
+  involvedUsers: Maybe<Array<string>>
   /**
    * @property {Maybe<string>} operation - The JSON object representing the operation of the trading pool.
    */

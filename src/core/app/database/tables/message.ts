@@ -13,7 +13,7 @@ export interface LocalDBMessage {
     | "TEXTUAL"
     | "ATTACHMENT"
     | "NFT"
-    | "SWAP_PROPOSAL"
+    | "TRADE_PROPOSAL"
     | "RENT"
     | "EJECTED"
     | "LEFT"

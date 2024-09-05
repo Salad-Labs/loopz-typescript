@@ -185,7 +185,7 @@ import {
   UpdateRequestTradeArgs,
 } from "./types/chat/schema/args"
 import { UAMutationEngine, UAQueryEngine } from "./interfaces/chat/core/ua"
-import { Maybe } from "./types/base"
+import { Asset, Maybe } from "./types/base"
 import {
   onDeleteMessage,
   onEditMessage,
@@ -1649,7 +1649,7 @@ export class Chat
               ? (response.messageRoot.type as
                   | "TEXTUAL"
                   | "ATTACHMENT"
-                  | "SWAP_PROPOSAL"
+                  | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
             createdAt: response.messageRoot.createdAt,
@@ -1664,7 +1664,11 @@ export class Chat
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
       type: response.type
-        ? (response.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+        ? (response.type as
+            | "TEXTUAL"
+            | "ATTACHMENT"
+            | "TRADE_PROPOSAL"
+            | "RENT")
         : null,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -1739,7 +1743,7 @@ export class Chat
               ? (response.messageRoot.type as
                   | "TEXTUAL"
                   | "ATTACHMENT"
-                  | "SWAP_PROPOSAL"
+                  | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
             createdAt: response.messageRoot.createdAt,
@@ -1754,7 +1758,11 @@ export class Chat
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
       type: response.type
-        ? (response.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+        ? (response.type as
+            | "TEXTUAL"
+            | "ATTACHMENT"
+            | "TRADE_PROPOSAL"
+            | "RENT")
         : null,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -2172,7 +2180,7 @@ export class Chat
               ? (response.messageRoot.type as
                   | "TEXTUAL"
                   | "ATTACHMENT"
-                  | "SWAP_PROPOSAL"
+                  | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
             createdAt: response.messageRoot.createdAt,
@@ -2187,7 +2195,11 @@ export class Chat
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
       type: response.type
-        ? (response.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+        ? (response.type as
+            | "TEXTUAL"
+            | "ATTACHMENT"
+            | "TRADE_PROPOSAL"
+            | "RENT")
         : null,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -2219,10 +2231,7 @@ export class Chat
       id: response.id,
       conversationId: response.conversationId ? response.conversationId : null,
       userId: response.userId ? response.userId : null,
-      creatorsIds: response.creatorsIds ? response.creatorsIds : null,
-      initializatorsIds: response.initializatorsIds
-        ? response.initializatorsIds
-        : null,
+      involvedUsers: response.involvedUsers ? response.involvedUsers : null,
       operation: response.operation ? response.operation : null,
       status: response.status ? response.status : null,
       type: response.type ? response.type : null,
@@ -2292,7 +2301,7 @@ export class Chat
               ? (response.messageRoot.type as
                   | "TEXTUAL"
                   | "ATTACHMENT"
-                  | "SWAP_PROPOSAL"
+                  | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
             createdAt: response.messageRoot.createdAt,
@@ -2307,7 +2316,11 @@ export class Chat
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
       type: response.type
-        ? (response.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+        ? (response.type as
+            | "TEXTUAL"
+            | "ATTACHMENT"
+            | "TRADE_PROPOSAL"
+            | "RENT")
         : null,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -2786,7 +2799,7 @@ export class Chat
               ? (response.messageRoot.type as
                   | "TEXTUAL"
                   | "ATTACHMENT"
-                  | "SWAP_PROPOSAL"
+                  | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
             createdAt: response.messageRoot.createdAt,
@@ -2801,7 +2814,11 @@ export class Chat
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
       type: response.type
-        ? (response.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+        ? (response.type as
+            | "TEXTUAL"
+            | "ATTACHMENT"
+            | "TRADE_PROPOSAL"
+            | "RENT")
         : null,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -2876,7 +2893,7 @@ export class Chat
               ? (response.messageRoot.type as
                   | "TEXTUAL"
                   | "ATTACHMENT"
-                  | "SWAP_PROPOSAL"
+                  | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
             createdAt: response.messageRoot.createdAt,
@@ -2891,7 +2908,11 @@ export class Chat
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
       type: response.type
-        ? (response.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+        ? (response.type as
+            | "TEXTUAL"
+            | "ATTACHMENT"
+            | "TRADE_PROPOSAL"
+            | "RENT")
         : null,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -2909,8 +2930,7 @@ export class Chat
       ConversationTradingPoolGraphQL
     >("requestTrade", requestTrade, "_mutation() -> requestTrade()", {
       input: {
-        creatorsIds: args.creatorsIds,
-        initializatorIds: args.initializatorIds,
+        involvedUsers: args.involvedUsers,
         conversationId: args.conversationId,
         operation: JSON.stringify(args.operation),
       },
@@ -2923,10 +2943,7 @@ export class Chat
       id: response.id,
       conversationId: response.conversationId ? response.conversationId : null,
       userId: response.userId ? response.userId : null,
-      creatorsIds: response.creatorsIds ? response.creatorsIds : null,
-      initializatorsIds: response.initializatorsIds
-        ? response.initializatorsIds
-        : null,
+      involvedUsers: response.involvedUsers ? response.involvedUsers : null,
       operation: response.operation ? response.operation : null,
       status: response.status ? response.status : null,
       type: response.type ? response.type : null,
@@ -2959,10 +2976,7 @@ export class Chat
       id: response.id,
       conversationId: response.conversationId ? response.conversationId : null,
       userId: response.userId ? response.userId : null,
-      creatorsIds: response.creatorsIds ? response.creatorsIds : null,
-      initializatorsIds: response.initializatorsIds
-        ? response.initializatorsIds
-        : null,
+      involvedUsers: response.involvedUsers ? response.involvedUsers : null,
       operation: response.operation ? response.operation : null,
       status: response.status ? response.status : null,
       type: response.type ? response.type : null,
@@ -3037,7 +3051,7 @@ export class Chat
               ? (response.messageRoot.type as
                   | "TEXTUAL"
                   | "ATTACHMENT"
-                  | "SWAP_PROPOSAL"
+                  | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
             createdAt: response.messageRoot.createdAt,
@@ -3052,7 +3066,11 @@ export class Chat
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
       type: response.type
-        ? (response.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+        ? (response.type as
+            | "TEXTUAL"
+            | "ATTACHMENT"
+            | "TRADE_PROPOSAL"
+            | "RENT")
         : null,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -3425,7 +3443,7 @@ export class Chat
               ? (response.messageRoot.type as
                   | "TEXTUAL"
                   | "ATTACHMENT"
-                  | "SWAP_PROPOSAL"
+                  | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
             createdAt: response.messageRoot.createdAt,
@@ -3440,7 +3458,11 @@ export class Chat
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
       type: response.type
-        ? (response.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+        ? (response.type as
+            | "TEXTUAL"
+            | "ATTACHMENT"
+            | "TRADE_PROPOSAL"
+            | "RENT")
         : null,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -3527,7 +3549,7 @@ export class Chat
               ? (response.messageRoot.type as
                   | "TEXTUAL"
                   | "ATTACHMENT"
-                  | "SWAP_PROPOSAL"
+                  | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
             createdAt: response.messageRoot.createdAt,
@@ -3542,7 +3564,11 @@ export class Chat
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
       type: response.type
-        ? (response.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+        ? (response.type as
+            | "TEXTUAL"
+            | "ATTACHMENT"
+            | "TRADE_PROPOSAL"
+            | "RENT")
         : null,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -3930,7 +3956,7 @@ export class Chat
                   ? (item.messageRoot.type as
                       | "TEXTUAL"
                       | "ATTACHMENT"
-                      | "SWAP_PROPOSAL"
+                      | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
                 createdAt: item.messageRoot.createdAt,
@@ -3945,7 +3971,11 @@ export class Chat
             : null,
           messageRootId: item.messageRootId ? item.messageRootId : null,
           type: item.type
-            ? (item.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+            ? (item.type as
+                | "TEXTUAL"
+                | "ATTACHMENT"
+                | "TRADE_PROPOSAL"
+                | "RENT")
             : null,
           createdAt: item.createdAt,
           updatedAt: item.updatedAt ? item.updatedAt : null,
@@ -4039,7 +4069,7 @@ export class Chat
                     ? (item.message!.messageRoot.type as
                         | "TEXTUAL"
                         | "ATTACHMENT"
-                        | "SWAP_PROPOSAL"
+                        | "TRADE_PROPOSAL"
                         | "RENT")
                     : null,
                   createdAt: item.message!.messageRoot.createdAt,
@@ -4059,7 +4089,7 @@ export class Chat
               ? (item.message!.type as
                   | "TEXTUAL"
                   | "ATTACHMENT"
-                  | "SWAP_PROPOSAL"
+                  | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
             createdAt: item.message!.createdAt,
@@ -4410,7 +4440,7 @@ export class Chat
                   ? (r.messageRoot.type as
                       | "TEXTUAL"
                       | "ATTACHMENT"
-                      | "SWAP_PROPOSAL"
+                      | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
                 createdAt: r.messageRoot.createdAt,
@@ -4425,7 +4455,7 @@ export class Chat
             : null,
           messageRootId: r.messageRootId ? r.messageRootId : null,
           type: r.type
-            ? (r.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+            ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
@@ -4514,7 +4544,7 @@ export class Chat
                   ? (r.messageRoot.type as
                       | "TEXTUAL"
                       | "ATTACHMENT"
-                      | "SWAP_PROPOSAL"
+                      | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
                 createdAt: r.messageRoot.createdAt,
@@ -4529,7 +4559,7 @@ export class Chat
             : null,
           messageRootId: r.messageRootId ? r.messageRootId : null,
           type: r.type
-            ? (r.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+            ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
@@ -4664,7 +4694,7 @@ export class Chat
                   ? (r.messageRoot.type as
                       | "TEXTUAL"
                       | "ATTACHMENT"
-                      | "SWAP_PROPOSAL"
+                      | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
                 createdAt: r.messageRoot.createdAt,
@@ -4678,7 +4708,7 @@ export class Chat
               })
             : null,
           type: r.type
-            ? (r.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+            ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
@@ -4768,7 +4798,7 @@ export class Chat
                   ? (r.messageRoot.type as
                       | "TEXTUAL"
                       | "ATTACHMENT"
-                      | "SWAP_PROPOSAL"
+                      | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
                 createdAt: r.messageRoot.createdAt,
@@ -4782,7 +4812,7 @@ export class Chat
               })
             : null,
           type: r.type
-            ? (r.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+            ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
@@ -4872,7 +4902,7 @@ export class Chat
                   ? (r.messageRoot.type as
                       | "TEXTUAL"
                       | "ATTACHMENT"
-                      | "SWAP_PROPOSAL"
+                      | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
                 createdAt: r.messageRoot.createdAt,
@@ -4886,7 +4916,7 @@ export class Chat
               })
             : null,
           type: r.type
-            ? (r.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+            ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
@@ -4976,7 +5006,7 @@ export class Chat
                   ? (r.messageRoot.type as
                       | "TEXTUAL"
                       | "ATTACHMENT"
-                      | "SWAP_PROPOSAL"
+                      | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
                 createdAt: r.messageRoot.createdAt,
@@ -4990,7 +5020,7 @@ export class Chat
               })
             : null,
           type: r.type
-            ? (r.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+            ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
@@ -5079,7 +5109,7 @@ export class Chat
                   ? (r.messageRoot.type as
                       | "TEXTUAL"
                       | "ATTACHMENT"
-                      | "SWAP_PROPOSAL"
+                      | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
                 createdAt: r.messageRoot.createdAt,
@@ -5094,7 +5124,7 @@ export class Chat
             : null,
           messageRootId: r.messageRootId ? r.messageRootId : null,
           type: r.type
-            ? (r.type as "TEXTUAL" | "ATTACHMENT" | "SWAP_PROPOSAL" | "RENT")
+            ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
@@ -5914,8 +5944,7 @@ export class Chat
           id: r.id,
           conversationId: r.conversationId ? r.conversationId : null,
           userId: r.userId ? r.userId : null,
-          creatorsIds: r.creatorsIds ? r.creatorsIds : null,
-          initializatorsIds: r.initializatorsIds ? r.initializatorsIds : null,
+          involvedUsers: r.involvedUsers ? r.involvedUsers : null,
           operation: r.operation ? r.operation : null,
           status: r.status ? r.status : null,
           type: r.type ? r.type : null,
@@ -5970,8 +5999,7 @@ export class Chat
           id: r.id,
           conversationId: r.conversationId ? r.conversationId : null,
           userId: r.userId ? r.userId : null,
-          creatorsIds: r.creatorsIds ? r.creatorsIds : null,
-          initializatorsIds: r.initializatorsIds ? r.initializatorsIds : null,
+          involvedUsers: r.involvedUsers ? r.involvedUsers : null,
           operation: r.operation ? r.operation : null,
           status: r.status ? r.status : null,
           type: r.type ? r.type : null,
@@ -5989,7 +6017,7 @@ export class Chat
   }
 
   onUpdateRequestTrade(
-    conversationTradingPoolId: string,
+    conversationId: string,
     callback: (
       response: QIError | ConversationTradingPool,
       source: OperationResult<
@@ -6003,7 +6031,7 @@ export class Chat
     const metasubcription = this._subscription<
       SubscriptionOnUpdateRequestTradeArgs,
       { onUpdateRequestTrade: ConversationTradingPoolGraphQL }
-    >(onUpdateRequestTrade, key, { conversationTradingPoolId })
+    >(onUpdateRequestTrade, key, { conversationId })
 
     if (metasubcription instanceof QIError) return metasubcription
 
@@ -6026,8 +6054,7 @@ export class Chat
           id: r.id,
           conversationId: r.conversationId ? r.conversationId : null,
           userId: r.userId ? r.userId : null,
-          creatorsIds: r.creatorsIds ? r.creatorsIds : null,
-          initializatorsIds: r.initializatorsIds ? r.initializatorsIds : null,
+          involvedUsers: r.involvedUsers ? r.involvedUsers : null,
           operation: r.operation ? r.operation : null,
           status: r.status ? r.status : null,
           type: r.type ? r.type : null,
@@ -6970,4 +6997,88 @@ export class Chat
   }
 
   /** combining messages (NFT & crypto) */
+  async combineOffers({
+    initializator,
+    counterparty,
+    messageInitializator,
+    messageCounterparty,
+  }: {
+    initializator: User
+    counterparty: User
+    messageInitializator: Message
+    messageCounterparty: Message
+  }) {
+    if (!this._account) throw new Error("Account is not setup correctly.")
+    if (messageInitializator.type !== "TRADE_PROPOSAL")
+      throw new Error("messageInitializator is not of type `TRADE_PROPOSAL`.")
+    if (messageCounterparty.type !== "TRADE_PROPOSAL")
+      throw new Error("messageCounterparty is not of type `TRADE_PROPOSAL`.")
+    if (
+      messageInitializator.conversationId !== messageCounterparty.conversationId
+    )
+      throw new Error("Messages must be of the same conversation.")
+
+    const counterpartyId = counterparty.id
+    const initializatorId = initializator.id
+    const involvedUsers = [counterpartyId, initializatorId]
+
+    const {
+      assets: assetsInitializator,
+    }: { assets: Array<Asset>; message: string } = JSON.parse(
+      messageInitializator.content
+    )
+    const {
+      assets: assetsCounterparty,
+    }: { assets: Array<Asset>; message: string } = JSON.parse(
+      messageCounterparty.content
+    )
+
+    //let's check if the assets contains crypto
+    let cryptoParticipantOne = 0
+    let cryptoParticipantTwo = 0
+
+    assetsInitializator.forEach((asset) => {
+      if (asset.itemType === "NATIVE" || asset.itemType === "ERC20")
+        cryptoParticipantOne++
+    })
+
+    assetsCounterparty.forEach((asset) => {
+      if (asset.itemType === "NATIVE" || asset.itemType === "ERC20")
+        cryptoParticipantTwo++
+    })
+
+    if (cryptoParticipantOne > 1)
+      throw new Error(
+        "You cannot add more than one crypto on the first participant side."
+      )
+    if (cryptoParticipantTwo > 1)
+      throw new Error(
+        "You cannot add more than one crypto on the second participant side."
+      )
+    if (cryptoParticipantOne > 0 && cryptoParticipantTwo > 0)
+      throw new Error(
+        "Both participants cannot add a token (ERC20 or NATIVE) in the order. Only one side is allowed to add a token in the trade."
+      )
+
+    const operation = {
+      operation: "trade",
+      creatorDid: "",
+      counterpartyDid: "",
+      creatorAddress: "",
+      counterpartyAddress: "",
+      organizationId: this._account.organizationId,
+      networkId: this._account.getCurrentNetwork(false),
+      assets: {
+        participantOne: assetsInitializator,
+        participantTwo: assetsCounterparty,
+      },
+      orderId: "",
+    }
+
+    await this.requestTrade({
+      involvedUsers,
+      conversationId: messageInitializator.conversationId,
+      operation,
+    })
+  }
 }

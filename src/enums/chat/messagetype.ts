@@ -2,6 +2,6 @@ export enum MessageType {
   Attachment = "ATTACHMENT",
   Nft = "NFT",
   Rent = "RENT",
-  SwapProposal = "SWAP_PROPOSAL",
+  TradeProposal = "TRADE_PROPOSAL",
   Textual = "TEXTUAL",
 }
