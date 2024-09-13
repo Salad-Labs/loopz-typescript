@@ -54,13 +54,11 @@ export class Proposal extends Client {
 
   /**
    * Creates a new proposal object and inserts it into the backend.
-   * @param {P} proposal - The proposal object to be inserted, which can be either a ProposalObject or ProposalReplyObject.
+   * @param {CreateProposal} proposal - The proposal object to be inserted, which must be a CreateProposal.
    * @returns A Promise that resolves to a string or null.
    * @throws {Error} If signedMessage is required but not provided.
    */
-  private async _createProposal<
-    P extends CreateProposal & Partial<Pick<IProposal, "parentId">>
-  >(proposal: P): Promise<boolean> {
+  private async _createProposal(proposal: CreateProposal): Promise<boolean> {
     try {
       const { response, statusCode } = await this._fetch<ApiResponse<boolean>>(
         `${this.backendUrl()}/proposal/insert`,
