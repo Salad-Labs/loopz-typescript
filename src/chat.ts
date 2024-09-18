@@ -149,6 +149,7 @@ import {
   unarchiveConversations,
   unmuteConversation,
   updateConversationGroup,
+  updateRequestTrade,
   updateUserInfo,
 } from "./constants/chat/mutations"
 import {
@@ -2971,14 +2972,19 @@ export class Chat
       MutationUpdateRequestTradeArgs,
       { updateRequestTrade: ConversationTradingPoolGraphQL },
       ConversationTradingPoolGraphQL
-    >("requestTrade", requestTrade, "_mutation() -> updateRequestTrade()", {
-      input: {
-        conversationTradingPoolId: args.conversationTradingPoolId,
-        status: args.status,
-        orderId: args.orderId,
-        counterparties: args.counterparties,
-      },
-    })
+    >(
+      "requestTrade",
+      updateRequestTrade,
+      "_mutation() -> updateRequestTrade()",
+      {
+        input: {
+          conversationTradingPoolId: args.conversationTradingPoolId,
+          status: args.status,
+          orderId: args.orderId,
+          counterparties: args.counterparties,
+        },
+      }
+    )
 
     if (response instanceof QIError) return response
 
