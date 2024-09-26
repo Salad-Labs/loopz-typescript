@@ -4100,6 +4100,7 @@ export class Chat
           }),
           conversationId: item.conversationId,
           createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
           client: this._client!,
         })
       }),

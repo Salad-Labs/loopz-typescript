@@ -31,6 +31,10 @@ export type MessageImportantInitConfig = {
    */
   createdAt: Date
   /**
+   * @property {Date} updatedAt - The date and time when the message was marked as important.
+   */
+  updatedAt: Date
+  /**
    * @property {Client} client - The URQL client used for communication.
    */
   client: Client

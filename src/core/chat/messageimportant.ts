@@ -34,6 +34,10 @@ export class MessageImportant extends Engine implements MessageImportantSchema {
    */
   readonly createdAt: Date
   /**
+   * @property {Date} updatedAt - The date and time when the message was updated.
+   */
+  readonly updatedAt: Date
+  /**
    * @property {Message} message - The content of the message.
    */
   readonly message: Message
@@ -56,6 +60,7 @@ export class MessageImportant extends Engine implements MessageImportantSchema {
     this.message = config.message
     this.conversationId = config.conversationId
     this.createdAt = config.createdAt
+    this.updatedAt = config.updatedAt
     this._client = config.client
   }
 }

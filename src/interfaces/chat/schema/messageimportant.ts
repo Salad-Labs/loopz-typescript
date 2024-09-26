@@ -29,4 +29,8 @@ export interface MessageImportantSchema {
    * @property {Date} createdAt - The date and time when the message was marked as important.
    */
   createdAt: Date
+  /**
+   * @property {Date} updatedAt - The date and time when the message was marked as important.
+   */
+  updatedAt: Date
 }
