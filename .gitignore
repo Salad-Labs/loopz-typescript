@@ -113,3 +113,7 @@ src/graphql
 src/graphql/*
 
 src/constants/chat
+
+docs/
+.code-narrator/
+code-narrator.config.js
