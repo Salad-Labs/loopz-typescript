@@ -27,6 +27,10 @@ export type ConversationPinInitConfig = {
    */
   createdAt: Date
   /**
+   * @property {Date} updatedAt - The date and time when the pin was updated.
+   */
+  updatedAt: Date
+  /**
    * @property {Client} client - The client associated with the conversation pin.
    */
   client: Client

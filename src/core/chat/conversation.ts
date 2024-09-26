@@ -348,6 +348,7 @@ export class Conversation
           encryptedConversationPublicKey: item.encryptedConversationPublicKey,
           encryptedConversationPrivateKey: item.encryptedConversationPrivateKey,
           createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
           client: this._client!,
         })
       }),
@@ -394,6 +395,7 @@ export class Conversation
       encryptedConversationPrivateKey:
         response.item.encryptedConversationPrivateKey,
       createdAt: response.item.createdAt,
+      updatedAt: response.item.updatedAt,
       client: this._client!,
     })
   }
@@ -1310,6 +1312,7 @@ export class Conversation
           encryptedConversationPrivateKey:
             item!.encryptedConversationPrivateKey,
           createdAt: item!.createdAt,
+          updatedAt: item!.updatedAt,
           client: this._client!,
         })
       })

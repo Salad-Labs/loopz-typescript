@@ -29,6 +29,10 @@ export class ConversationPin extends Engine implements ConversationPinSchema {
    */
   readonly createdAt: Date
   /**
+   * @property updatedAt - The date and time when the pin was updated.
+   */
+  readonly updatedAt: Date
+  /**
    * @property conversation - The conversation object that the pin is a part of.
    */
   readonly conversation: Conversation
@@ -50,6 +54,7 @@ export class ConversationPin extends Engine implements ConversationPinSchema {
     this.conversationId = config.conversationId
     this.conversation = config.conversation
     this.createdAt = config.createdAt
+    this.updatedAt = config.updatedAt
     this._client = config.client
   }
 }

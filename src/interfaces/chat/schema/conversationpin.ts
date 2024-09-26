@@ -25,4 +25,8 @@ export interface ConversationPinSchema {
    * @property {Date} createdAt - The date and time when the conversation pin was created.
    */
   createdAt: Date
+  /**
+   * @property {Date} updatedAt - The date and time when the conversation pin was updated.
+   */
+  updatedAt: Date
 }

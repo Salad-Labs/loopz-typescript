@@ -4200,6 +4200,7 @@ export class Chat
             client: this._client!,
           }),
           createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
           client: this._client!,
         })
       }),
