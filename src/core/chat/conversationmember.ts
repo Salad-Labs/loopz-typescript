@@ -43,6 +43,10 @@ export class ConversationMember
    * @property {Date} createdAt - The date and time when the conversation was
    */
   readonly createdAt: Date
+  /**
+   * @property {Date} createdAt - The date and time when the conversation was
+   */
+  readonly updatedAt: Date
 
   /**
    * Constructor for creating a ConversationMember object with the given configuration.
@@ -64,6 +68,7 @@ export class ConversationMember
       config.encryptedConversationPrivateKey
     this.encryptedConversationPublicKey = config.encryptedConversationPublicKey
     this.createdAt = config.createdAt
+    this.updatedAt = config.updatedAt
     this._client = config.client
   }
 }

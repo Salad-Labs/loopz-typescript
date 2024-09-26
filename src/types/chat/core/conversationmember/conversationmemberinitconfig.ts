@@ -35,6 +35,10 @@ export type ConversationMemberInitConfig = {
    */
   createdAt: Date
   /**
+   * @property { Date} updatedAt - The updated date of the current object.
+   */
+  updatedAt: Date
+  /**
    * @property {Client} client - The client object.
    */
   client: Client

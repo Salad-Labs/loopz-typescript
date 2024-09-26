@@ -33,4 +33,8 @@ export interface ConversationMemberSchema {
    * @property { Date} createdAt - The creation date of the current object.
    */
   createdAt: Date
+  /**
+   * @property { Date} updatedAt - The updated date of the current object.
+   */
+  updatedAt: Date
 }

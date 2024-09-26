@@ -1556,6 +1556,7 @@ export class Chat
           encryptedConversationPublicKey: item.encryptedConversationPublicKey,
           encryptedConversationPrivateKey: item.encryptedConversationPrivateKey,
           createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
           client: this._client!,
         })
       }),
@@ -1596,6 +1597,7 @@ export class Chat
       encryptedConversationPrivateKey:
         response.item.encryptedConversationPrivateKey,
       createdAt: response.item.createdAt,
+      updatedAt: response.item.updatedAt,
       client: this._client!,
     })
   }
@@ -3772,6 +3774,7 @@ export class Chat
           encryptedConversationPrivateKey: item.encryptedConversationPrivateKey,
           encryptedConversationPublicKey: item.encryptedConversationPublicKey,
           createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
           client: this._client!,
         })
       }),
@@ -5857,6 +5860,7 @@ export class Chat
               encryptedConversationPrivateKey:
                 item.encryptedConversationPrivateKey,
               createdAt: item.createdAt,
+              updatedAt: item.updatedAt,
               client: this._client!,
             })
           }),
@@ -5922,6 +5926,7 @@ export class Chat
             encryptedConversationPrivateKey:
               r.item.encryptedConversationPrivateKey,
             createdAt: r.item.createdAt,
+            updatedAt: r.item.updatedAt,
             client: this._client!,
           }),
         },
