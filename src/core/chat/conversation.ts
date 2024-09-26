@@ -1155,9 +1155,9 @@ export class Conversation
    * If an id is provided, it throws an error.
    * @returns {Promise<Conversation | QIError>} A Promise that resolves to the unpinned conversation or an error.
    */
-  async unpinConversation(): Promise<Conversation | QIError>
-  async unpinConversation(id: string): Promise<Conversation | QIError>
-  async unpinConversation(id?: unknown): Promise<Conversation | QIError> {
+  async unpinConversation(): Promise<boolean | QIError>
+  async unpinConversation(id: string): Promise<boolean | QIError>
+  async unpinConversation(id?: unknown): Promise<boolean | QIError> {
     if (id)
       throw new Error(
         "id argument can not be defined. Consider to use unpinConversation() instead."
@@ -1178,26 +1178,7 @@ export class Conversation
 
     if (response instanceof QIError) return response
 
-    return new Conversation({
-      ...this._parentConfig!,
-      id: response.id,
-      name: response.name,
-      description: response.description ? response.description : null,
-      imageURL: response.imageURL ? response.imageURL : null,
-      bannerImageURL: response.bannerImageURL ? response.bannerImageURL : null,
-      settings: response.settings ? response.settings : null,
-      membersIds: response.membersIds ? response.membersIds : null,
-      mutedBy: response.mutedBy ? response.mutedBy : null,
-      type: response.type,
-      lastMessageSentAt: response.lastMessageSentAt
-        ? response.lastMessageSentAt
-        : null,
-      ownerId: response.ownerId ? response.ownerId : null,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt ? response.updatedAt : null,
-      deletedAt: response.deletedAt ? response.deletedAt : null,
-      client: this._client!,
-    })
+    return true
   }
 
   /**

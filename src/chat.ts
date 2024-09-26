@@ -3655,9 +3655,9 @@ export class Chat
     })
   }
 
-  async unpinConversation(): Promise<QIError | Conversation>
-  async unpinConversation(id: string): Promise<QIError | Conversation>
-  async unpinConversation(id?: unknown): Promise<QIError | Conversation> {
+  async unpinConversation(): Promise<QIError | boolean>
+  async unpinConversation(id: string): Promise<QIError | boolean>
+  async unpinConversation(id?: unknown): Promise<QIError | boolean> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unpinConversation(id : string) instead."
@@ -3679,26 +3679,7 @@ export class Chat
 
     if (response instanceof QIError) return response
 
-    return new Conversation({
-      ...this._parentConfig!,
-      id: response.id,
-      name: response.name,
-      description: response.description ? response.description : null,
-      imageURL: response.imageURL ? response.imageURL : null,
-      bannerImageURL: response.bannerImageURL ? response.bannerImageURL : null,
-      settings: response.settings ? response.settings : null,
-      membersIds: response.membersIds ? response.membersIds : null,
-      mutedBy: response.mutedBy ? response.mutedBy : null,
-      type: response.type,
-      lastMessageSentAt: response.lastMessageSentAt
-        ? response.lastMessageSentAt
-        : null,
-      ownerId: response.ownerId ? response.ownerId : null,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt ? response.updatedAt : null,
-      deletedAt: response.deletedAt ? response.deletedAt : null,
-      client: this._client!,
-    })
+    return true
   }
 
   /*

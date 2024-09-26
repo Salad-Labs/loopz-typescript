@@ -62,6 +62,6 @@ export interface ConversationMutationEngine {
   ): Promise<Conversation | QIError>
   pinConversation(): Promise<Conversation | QIError>
   pinConversation(id: string): Promise<Conversation | QIError>
-  unpinConversation(): Promise<Conversation | QIError>
-  unpinConversation(id: string): Promise<Conversation | QIError>
+  unpinConversation(): Promise<boolean | QIError>
+  unpinConversation(id: string): Promise<boolean | QIError>
 }
