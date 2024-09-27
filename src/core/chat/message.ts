@@ -348,6 +348,7 @@ export class Message
       description: response.description,
       userId: response.userId ? response.userId : null,
       createdAt: response.createdAt,
+      updatedAt: response.updatedAt,
       client: this._client!,
     })
   }

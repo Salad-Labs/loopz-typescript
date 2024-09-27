@@ -28,6 +28,10 @@ export class MessageReport extends Engine implements MessageReportSchema {
    * @property createdAt - The date and time when the item was created.
    */
   readonly createdAt: Date
+  /**
+   * @property updatedAt - The date and time when the item was updated.
+   */
+  readonly updatedAt: Date
 
   /**
    * Constructor for creating a new instance of a MessageReportInitConfig & EngineInitConfig object.
@@ -45,6 +49,7 @@ export class MessageReport extends Engine implements MessageReportSchema {
     this.description = config.description
     this.userId = config.userId
     this.createdAt = config.createdAt
+    this.updatedAt = config.updatedAt
     this._client = config.client
   }
 }

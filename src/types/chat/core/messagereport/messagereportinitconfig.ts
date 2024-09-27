@@ -23,6 +23,10 @@ export type MessageReportInitConfig = {
    */
   createdAt: Date
   /**
+   * @property {Date} updatedAt - The date and time when the message report was updated.
+   */
+  updatedAt: Date
+  /**
    * @property {Client} client - The URQL client used for sending the message report.
    */
   client: Client

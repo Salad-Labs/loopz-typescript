@@ -21,4 +21,8 @@ export interface MessageReportSchema {
    * @property {Date} createdAt - The date and time when the message report was created.
    */
   createdAt: Date
+  /**
+   * @property {Date} updatedAt - The date and time when the message report was updated.
+   */
+  updatedAt: Date
 }
