@@ -21,4 +21,8 @@ export interface ConversationReportSchema {
    *  @property {Date} createdAt - The date and time when the conversation report was created.
    */
   createdAt: Date
+  /**
+   *  @property {Date} updatedAt - The date and time when the conversation report was updated.
+   */
+  updatedAt: Date
 }

@@ -1811,6 +1811,7 @@ export class Chat
       description: response.description ? response.description : null,
       userId: response.userId ? response.userId : null,
       createdAt: response.createdAt,
+      updatedAt: response.updatedAt,
       client: this._client!,
     })
   }

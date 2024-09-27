@@ -31,6 +31,10 @@ export class ConversationReport
    * @property createdAt - The timestamp when the item was created.
    */
   readonly createdAt: Date
+  /**
+   * @property updatedAt - The timestamp when the item was updated.
+   */
+  readonly updatedAt: Date
 
   /**
    * Constructor for creating a ConversationReport object with the given configuration.
@@ -48,6 +52,7 @@ export class ConversationReport
     this.description = config.description
     this.userId = config.userId
     this.createdAt = config.createdAt
+    this.updatedAt = config.updatedAt
     this._client = config.client
   }
 }

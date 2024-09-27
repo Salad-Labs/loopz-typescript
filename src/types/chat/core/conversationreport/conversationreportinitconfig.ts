@@ -23,6 +23,10 @@ export type ConversationReportInitConfig = {
    */
   createdAt: Date
   /**
+   *  @property {Date} updatedAt - The date and time when the conversation report was updated.
+   */
+  updatedAt: Date
+  /**
    * @property {Client} client - The client object associated with the conversation report.
    */
   client: Client
