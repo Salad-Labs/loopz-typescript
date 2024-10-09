@@ -1523,7 +1523,7 @@ export class Chat
   ): Promise<
     { conversationId: string; items: Array<ConversationMember> } | QIError
   > {
-    const response = await this._query<
+    const response = await this._mutation<
       MutationAddMembersToConversationArgs,
       { addMembersToConversation: ListConversationMembersGraphQL },
       ListConversationMembersGraphQL
@@ -1568,7 +1568,7 @@ export class Chat
   async addMemberToConversation(
     args: AddMemberToConversationArgs
   ): Promise<ConversationMember | QIError> {
-    const response = await this._query<
+    const response = await this._mutation<
       MutationAddMemberToConversationArgs,
       { addMemberToConversation: AddMemberToConversationResultGraphQL },
       AddMemberToConversationResultGraphQL

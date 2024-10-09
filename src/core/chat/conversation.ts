@@ -65,7 +65,6 @@ import {
 } from "../../constants/chat/queries"
 import { EngineInitConfig } from "../../types"
 import { Reaction } from "./reaction"
-import { AssetsIterable } from "../utilities"
 
 /**
  * Represents a conversation in a chat application.
@@ -315,7 +314,7 @@ export class Conversation
   ): Promise<
     QIError | { conversationId: string; items: ConversationMember[] }
   > {
-    const response = await this._query<
+    const response = await this._mutation<
       MutationAddMembersToConversationArgs,
       { addMembersToConversation: ListConversationMembersGraphQL },
       ListConversationMembersGraphQL
@@ -366,7 +365,7 @@ export class Conversation
   async addMemberToConversation(
     args: AddMemberToConversationArgs
   ): Promise<ConversationMember | QIError> {
-    const response = await this._query<
+    const response = await this._mutation<
       MutationAddMemberToConversationArgs,
       { addMemberToConversation: AddMemberToConversationResultGraphQL },
       AddMemberToConversationResultGraphQL
