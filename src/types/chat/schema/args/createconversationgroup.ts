@@ -19,4 +19,15 @@ export type CreateConversationGroupArgs = {
    * @property {string} bannerImageURL - The URL of the banner image for the conversation group.
    */
   bannerImageURL: string
+  /**
+   *  @property {Maybe<string>} imageSettings - The images property of the conversation (bannerImage and image).
+   */
+  imageSettings: {
+    imageX: number
+    imageY: number
+    imageZoom: number
+    bannerImageX: number
+    bannerImageY: number
+    bannerImageZoom: number
+  }
 }

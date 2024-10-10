@@ -101,6 +101,10 @@ export class Conversation
    */
   readonly bannerImageURL: Maybe<string>
   /**
+   * @property {Maybe<string>} imageSettings - The images property of the conversation (bannerImage and image).
+   */
+  readonly imageSettings: Maybe<string>
+  /**
    * @property {Maybe<string>} settings - The settings of the chat entity, if available.
    */
   readonly settings: Maybe<string>
@@ -154,6 +158,7 @@ export class Conversation
     this.description = config.description
     this.imageURL = config.imageURL
     this.bannerImageURL = config.bannerImageURL
+    this.imageSettings = config.imageSettings
     this.settings = config.settings
     this.membersIds = config.membersIds
     this.mutedBy = config.mutedBy
@@ -211,6 +216,9 @@ export class Conversation
           : null,
         bannerImageURL: response.conversation.bannerImageURL
           ? response.conversation.bannerImageURL
+          : null,
+        imageSettings: response.conversation.imageSettings
+          ? response.conversation.imageSettings
           : null,
         settings: response.conversation.settings
           ? response.conversation.settings
@@ -671,6 +679,9 @@ export class Conversation
         bannerImageURL: response.conversation.bannerImageURL
           ? response.conversation.bannerImageURL
           : null,
+        imageSettings: response.conversation.imageSettings
+          ? response.conversation.imageSettings
+          : null,
         settings: response.conversation.settings
           ? response.conversation.settings
           : null,
@@ -793,6 +804,7 @@ export class Conversation
       description: response.description ? response.description : null,
       imageURL: response.imageURL ? response.imageURL : null,
       bannerImageURL: response.bannerImageURL ? response.bannerImageURL : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       settings: response.settings ? response.settings : null,
       membersIds: response.membersIds ? response.membersIds : null,
       mutedBy: response.mutedBy ? response.mutedBy : null,
@@ -1014,6 +1026,7 @@ export class Conversation
       description: response.description ? response.description : null,
       imageURL: response.imageURL ? response.imageURL : null,
       bannerImageURL: response.bannerImageURL ? response.bannerImageURL : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       settings: response.settings ? response.settings : null,
       membersIds: response.membersIds ? response.membersIds : null,
       mutedBy: response.mutedBy ? response.mutedBy : null,
@@ -1085,6 +1098,7 @@ export class Conversation
       description: response.description ? response.description : null,
       imageURL: response.imageURL ? response.imageURL : null,
       bannerImageURL: response.bannerImageURL ? response.bannerImageURL : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       settings: response.settings ? response.settings : null,
       membersIds: response.membersIds ? response.membersIds : null,
       mutedBy: response.mutedBy ? response.mutedBy : null,
@@ -1135,6 +1149,7 @@ export class Conversation
       description: response.description ? response.description : null,
       imageURL: response.imageURL ? response.imageURL : null,
       bannerImageURL: response.bannerImageURL ? response.bannerImageURL : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       settings: response.settings ? response.settings : null,
       membersIds: response.membersIds ? response.membersIds : null,
       mutedBy: response.mutedBy ? response.mutedBy : null,

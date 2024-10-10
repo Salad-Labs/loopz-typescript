@@ -1999,6 +1999,10 @@ export class Chat
             args.bannerImageURL
           ),
           imageURL: Crypto.encrypt(keypair!.publicKey, args.imageURL),
+          imageSettings: Crypto.encrypt(
+            keypair!.publicKey,
+            JSON.stringify(args.imageSettings)
+          ),
         },
       }
     )
@@ -2027,6 +2031,7 @@ export class Chat
         bannerImageURL: response.bannerImageURL
           ? response.bannerImageURL
           : null,
+        imageSettings: response.imageSettings ? response.imageSettings : null,
         settings: response.settings ? response.settings : null,
         membersIds: response.membersIds ? response.membersIds : null,
         mutedBy: response.mutedBy ? response.mutedBy : null,
@@ -2091,6 +2096,7 @@ export class Chat
         bannerImageURL: response.bannerImageURL
           ? response.bannerImageURL
           : null,
+        imageSettings: response.imageSettings ? response.imageSettings : null,
         settings: response.settings ? response.settings : null,
         membersIds: response.membersIds ? response.membersIds : null,
         mutedBy: response.mutedBy ? response.mutedBy : null,
@@ -2378,6 +2384,9 @@ export class Chat
         bannerImageURL: response.conversation.bannerImageURL
           ? response.conversation.bannerImageURL
           : null,
+        imageSettings: response.conversation.imageSettings
+          ? response.conversation.imageSettings
+          : null,
         settings: response.conversation.settings
           ? response.conversation.settings
           : null,
@@ -2553,6 +2562,9 @@ export class Chat
         bannerImageURL: response.conversation.bannerImageURL
           ? response.conversation.bannerImageURL
           : null,
+        imageSettings: response.conversation.imageSettings
+          ? response.conversation.imageSettings
+          : null,
         settings: response.conversation.settings
           ? response.conversation.settings
           : null,
@@ -2671,6 +2683,7 @@ export class Chat
       description: response.description ? response.description : null,
       imageURL: response.imageURL ? response.imageURL : null,
       bannerImageURL: response.bannerImageURL ? response.bannerImageURL : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       settings: response.settings ? response.settings : null,
       membersIds: response.membersIds ? response.membersIds : null,
       mutedBy: response.mutedBy ? response.mutedBy : null,
@@ -3259,6 +3272,7 @@ export class Chat
       description: response.description ? response.description : null,
       imageURL: response.imageURL ? response.imageURL : null,
       bannerImageURL: response.bannerImageURL ? response.bannerImageURL : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       settings: response.settings ? response.settings : null,
       membersIds: response.membersIds ? response.membersIds : null,
       mutedBy: response.mutedBy ? response.mutedBy : null,
@@ -3318,6 +3332,7 @@ export class Chat
       description: response.description ? response.description : null,
       imageURL: response.imageURL ? response.imageURL : null,
       bannerImageURL: response.bannerImageURL ? response.bannerImageURL : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       settings: response.settings ? response.settings : null,
       membersIds: response.membersIds ? response.membersIds : null,
       mutedBy: response.mutedBy ? response.mutedBy : null,
@@ -3642,6 +3657,7 @@ export class Chat
       description: response.description ? response.description : null,
       imageURL: response.imageURL ? response.imageURL : null,
       bannerImageURL: response.bannerImageURL ? response.bannerImageURL : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       settings: response.settings ? response.settings : null,
       membersIds: response.membersIds ? response.membersIds : null,
       mutedBy: response.mutedBy ? response.mutedBy : null,
@@ -3870,6 +3886,7 @@ export class Chat
           description: item.description ? item.description : null,
           imageURL: item.imageURL ? item.imageURL : null,
           bannerImageURL: item.bannerImageURL ? item.bannerImageURL : null,
+          imageSettings: item.imageSettings ? item.imageSettings : null,
           settings: item.settings ? item.settings : null,
           membersIds: item.membersIds ? item.membersIds : null,
           mutedBy: item.mutedBy ? item.mutedBy : null,
@@ -4158,6 +4175,9 @@ export class Chat
             bannerImageURL: item.conversation!.bannerImageURL
               ? item.conversation!.bannerImageURL
               : null,
+            imageSettings: item.conversation!.imageSettings
+              ? item.conversation!.imageSettings
+              : null,
             settings: item.conversation!.settings
               ? item.conversation!.settings
               : null,
@@ -4348,6 +4368,7 @@ export class Chat
       description: response.description ? response.description : null,
       imageURL: response.imageURL ? response.imageURL : null,
       bannerImageURL: response.bannerImageURL ? response.bannerImageURL : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       settings: response.settings ? response.settings : null,
       membersIds: response.membersIds ? response.membersIds : null,
       mutedBy: response.mutedBy ? response.mutedBy : null,
@@ -5273,6 +5294,7 @@ export class Chat
           description: r.description ? r.description : null,
           imageURL: r.imageURL ? r.imageURL : null,
           bannerImageURL: r.bannerImageURL ? r.bannerImageURL : null,
+          imageSettings: r.imageSettings ? r.imageSettings : null,
           settings: r.settings ? r.settings : null,
           membersIds: r.membersIds ? r.membersIds : null,
           mutedBy: r.mutedBy ? r.mutedBy : null,
@@ -5343,6 +5365,9 @@ export class Chat
             imageURL: r.conversation.imageURL ? r.conversation.imageURL : null,
             bannerImageURL: r.conversation.bannerImageURL
               ? r.conversation.bannerImageURL
+              : null,
+            imageSettings: r.conversation.imageSettings
+              ? r.conversation.imageSettings
               : null,
             settings: r.conversation.settings ? r.conversation.settings : null,
             membersIds: r.conversation.membersIds
@@ -5479,6 +5504,9 @@ export class Chat
               ? r.conversation.bannerImageURL
               : null,
             settings: r.conversation.settings ? r.conversation.settings : null,
+            imageSettings: r.conversation.imageSettings
+              ? r.conversation.imageSettings
+              : null,
             membersIds: r.conversation.membersIds
               ? r.conversation.membersIds
               : null,
@@ -5600,6 +5628,7 @@ export class Chat
           description: r.description ? r.description : null,
           imageURL: r.imageURL ? r.imageURL : null,
           bannerImageURL: r.bannerImageURL ? r.bannerImageURL : null,
+          imageSettings: r.imageSettings ? r.imageSettings : null,
           settings: r.settings ? r.settings : null,
           membersIds: r.membersIds ? r.membersIds : null,
           mutedBy: r.mutedBy ? r.mutedBy : null,
@@ -5659,6 +5688,7 @@ export class Chat
           description: r.description ? r.description : null,
           imageURL: r.imageURL ? r.imageURL : null,
           bannerImageURL: r.bannerImageURL ? r.bannerImageURL : null,
+          imageSettings: r.imageSettings ? r.imageSettings : null,
           settings: r.settings ? r.settings : null,
           membersIds: r.membersIds ? r.membersIds : null,
           mutedBy: r.mutedBy ? r.mutedBy : null,
@@ -5718,6 +5748,7 @@ export class Chat
           description: r.description ? r.description : null,
           imageURL: r.imageURL ? r.imageURL : null,
           bannerImageURL: r.bannerImageURL ? r.bannerImageURL : null,
+          imageSettings: r.imageSettings ? r.imageSettings : null,
           settings: r.settings ? r.settings : null,
           membersIds: r.membersIds ? r.membersIds : null,
           mutedBy: r.mutedBy ? r.mutedBy : null,
@@ -5777,6 +5808,7 @@ export class Chat
           description: r.description ? r.description : null,
           imageURL: r.imageURL ? r.imageURL : null,
           bannerImageURL: r.bannerImageURL ? r.bannerImageURL : null,
+          imageSettings: r.imageSettings ? r.imageSettings : null,
           settings: r.settings ? r.settings : null,
           membersIds: r.membersIds ? r.membersIds : null,
           mutedBy: r.mutedBy ? r.mutedBy : null,

@@ -27,6 +27,10 @@ export type ConversationInitConfig = {
    */
   bannerImageURL: Maybe<string>
   /**
+   *  @property {Maybe<string>} imageSettings - The images property of the conversation (bannerImage and image).
+   */
+  imageSettings: Maybe<string>
+  /**
    * @property {Maybe<string>} settings - Additional settings for the conversation.
    */
   settings: Maybe<string>
