@@ -170,6 +170,7 @@ export class Client {
     options.headers = {
       ...options.headers,
       "Content-Type": "application/json",
+      mode: "loopz",
     }
 
     return globalThis.document
@@ -205,30 +206,30 @@ export class Client {
   protected backendUrl(): string {
     return `https://${
       this._devMode === "development" ? `develop.api.` : `api.`
-    }nfttrader.io/v1`
+    }loopz.xyz/v1`
   }
 
   protected backendChatUrl(): string {
     return `${
       this._devMode === "development"
-        ? `https://z47gatqqyraabhwztl7jqvhsgi.appsync-api.eu-west-1.amazonaws.com/graphql`
-        : `` //url server chat graphql production
+        ? `https://develop.api.loopz.xyz/graphql`
+        : `https://api.loopz.xyz/graphql`
     }`
   }
 
   protected backendNotificationUrl(): string {
     return `${
       this._devMode === "development"
-        ? `wss://develop.wss.nfttrader.io`
-        : `wss://wss.nfttrader.io`
+        ? `wss://develop.wss.loopz.xyz`
+        : `wss://wss.loopz.xyz`
     }`
   }
 
   protected backendChatRealtimeUrl(): string {
     return `${
       this._devMode === "development"
-        ? `wss://z47gatqqyraabhwztl7jqvhsgi.appsync-realtime-api.eu-west-1.amazonaws.com/graphql` //url server chat graphql development
-        : `` //url server chat graphql production
+        ? `wss://develop.api.graphql.loopz.xyz/graphql/realtime` //url server chat graphql development
+        : `wss://api.graphql.loopz.xyz/graphql/realtime` //url server chat graphql production
     }`
   }
 

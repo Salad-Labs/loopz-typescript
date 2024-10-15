@@ -895,6 +895,9 @@ export class Message
       bannerImageURL: response.conversation!.bannerImageURL
         ? response.conversation!.bannerImageURL
         : null,
+      imageSettings: response.conversation!.imageSettings
+        ? response.conversation!.imageSettings
+        : null,
       settings: response.conversation!.settings
         ? JSON.parse(response.conversation!.settings)
         : null,
