@@ -55,6 +55,8 @@ export class ConversationPin extends Engine implements ConversationPinSchema {
     this.conversation = config.conversation
     this.createdAt = config.createdAt
     this.updatedAt = config.updatedAt
+
     this._client = config.client
+    this._realtimeClient = config.realtimeClient
   }
 }

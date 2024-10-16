@@ -170,6 +170,7 @@ export class Conversation
     this.deletedAt = config.deletedAt
 
     this._client = config.client
+    this._realtimeClient = config.realtimeClient
   }
 
   /**
@@ -244,6 +245,7 @@ export class Conversation
           ? response.conversation.deletedAt
           : null,
         client: this._client!,
+        realtimeClient: this._realtimeClient!,
       }),
       memberOut: new User({
         ...this._parentConfig!,
@@ -308,6 +310,7 @@ export class Conversation
           ? new Date(response.memberOut.updatedAt)
           : null,
         client: this._client!,
+        realtimeClient: this._realtimeClient!,
       }),
     }
   }
@@ -357,6 +360,7 @@ export class Conversation
           createdAt: item.createdAt,
           updatedAt: item.updatedAt,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
         })
       }),
     }
@@ -404,6 +408,7 @@ export class Conversation
       createdAt: response.item.createdAt,
       updatedAt: response.item.updatedAt,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -441,6 +446,7 @@ export class Conversation
       createdAt: response.createdAt,
       updatedAt: response.updatedAt,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -515,6 +521,7 @@ export class Conversation
       createdAt: new Date(response.createdAt),
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -555,6 +562,7 @@ export class Conversation
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -574,6 +582,7 @@ export class Conversation
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -595,6 +604,7 @@ export class Conversation
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
           })
         : null,
       type: response.type
@@ -608,6 +618,7 @@ export class Conversation
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -706,6 +717,7 @@ export class Conversation
           ? response.conversation.deletedAt
           : null,
         client: this._client!,
+        realtimeClient: this._realtimeClient!,
       }),
       memberOut: new User({
         ...this._parentConfig!,
@@ -770,6 +782,7 @@ export class Conversation
           ? new Date(response.memberOut.updatedAt)
           : null,
         client: this._client!,
+        realtimeClient: this._realtimeClient!,
       }),
     }
   }
@@ -817,6 +830,7 @@ export class Conversation
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -863,6 +877,7 @@ export class Conversation
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -882,6 +897,7 @@ export class Conversation
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -903,6 +919,7 @@ export class Conversation
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
           })
         : null,
       type: response.type
@@ -916,6 +933,7 @@ export class Conversation
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -988,6 +1006,7 @@ export class Conversation
       createdAt: new Date(response.createdAt),
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -1039,6 +1058,7 @@ export class Conversation
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -1111,6 +1131,7 @@ export class Conversation
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -1162,6 +1183,7 @@ export class Conversation
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -1273,6 +1295,7 @@ export class Conversation
         ? new Date(response.owner!.updatedAt)
         : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -1310,6 +1333,7 @@ export class Conversation
           createdAt: item!.createdAt,
           updatedAt: item!.updatedAt,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
         })
       })
 
@@ -1350,6 +1374,7 @@ export class Conversation
                 content: reaction.content,
                 createdAt: reaction.createdAt,
                 client: this._client!,
+                realtimeClient: this._realtimeClient!,
               })
             })
           : null,
@@ -1368,6 +1393,7 @@ export class Conversation
                       content: reaction.content,
                       createdAt: reaction.createdAt,
                       client: this._client!,
+                      realtimeClient: this._realtimeClient!,
                     })
                   })
                 : null,
@@ -1389,6 +1415,7 @@ export class Conversation
                 ? item!.messageRoot.deletedAt
                 : null,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           : null,
         messageRootId: item!.messageRootId ? item!.messageRootId : null,
@@ -1399,6 +1426,7 @@ export class Conversation
         updatedAt: item!.updatedAt ? item!.updatedAt : null,
         deletedAt: item!.deletedAt ? item!.deletedAt : null,
         client: this._client!,
+        realtimeClient: this._realtimeClient!,
       })
     })
 

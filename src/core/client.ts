@@ -17,9 +17,11 @@ export class Client {
   /**
    * @type {Maybe<string>} _authToken - The JWT token, which may be null.
    */
-
   protected _authToken: Maybe<string> = null
 
+  /**
+   * @type {Maybe<Account>} accout - The account object, which may be null.
+   */
   protected _account: Maybe<Account> = null
 
   constructor(enableDevMode: boolean) {

@@ -82,6 +82,8 @@ export class ConversationTradingPool
     this.type = config.type
     this.updatedAt = config.updatedAt
     this.userId = config.userId
+
     this._client = config.client
+    this._realtimeClient = config.realtimeClient
   }
 }

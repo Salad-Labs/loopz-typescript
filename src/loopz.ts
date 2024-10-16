@@ -178,6 +178,7 @@ export class Loopz {
     proposal: Proposal
     oracle: Oracle
     chat: Chat
+    notification: Notification
   } {
     Loopz._auth.on("__tryRebuildAccountOnRefresh", async () => {
       await Loopz._auth.recoverAccountFromLocalDB()
@@ -189,6 +190,7 @@ export class Loopz {
       proposal: Loopz._proposal,
       oracle: Loopz._oracle,
       chat: Loopz._chat,
+      notification: Loopz._notification,
     }
   }
 }

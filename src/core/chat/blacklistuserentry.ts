@@ -56,5 +56,6 @@ export class BlacklistUserEntry
     this.blockedId = config.blockedId
     this.blockedUser = config.blockedUser
     this._client = config.client
+    this._realtimeClient = config.realtimeClient
   }
 }

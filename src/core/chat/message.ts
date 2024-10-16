@@ -122,7 +122,9 @@ export class Message
     this.createdAt = config.createdAt
     this.updatedAt = config.updatedAt
     this.deletedAt = config.deletedAt
+
     this._client = config.client
+    this._realtimeClient = config.realtimeClient
   }
 
   /**
@@ -161,6 +163,7 @@ export class Message
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -179,6 +182,7 @@ export class Message
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -200,6 +204,7 @@ export class Message
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -214,6 +219,7 @@ export class Message
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -260,6 +266,7 @@ export class Message
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -278,6 +285,7 @@ export class Message
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -299,6 +307,7 @@ export class Message
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -313,6 +322,7 @@ export class Message
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -350,6 +360,7 @@ export class Message
       createdAt: response.createdAt,
       updatedAt: response.updatedAt,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -391,6 +402,7 @@ export class Message
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -409,6 +421,7 @@ export class Message
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -430,6 +443,7 @@ export class Message
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -444,6 +458,7 @@ export class Message
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -488,6 +503,7 @@ export class Message
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -506,6 +522,7 @@ export class Message
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -527,6 +544,7 @@ export class Message
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -541,6 +559,7 @@ export class Message
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -587,6 +606,7 @@ export class Message
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -605,6 +625,7 @@ export class Message
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -626,6 +647,7 @@ export class Message
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -640,6 +662,7 @@ export class Message
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -684,6 +707,7 @@ export class Message
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -702,6 +726,7 @@ export class Message
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -723,6 +748,7 @@ export class Message
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -737,6 +763,7 @@ export class Message
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
 
     this._storage.insertBulkSafe("message", [
@@ -794,6 +821,7 @@ export class Message
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -812,6 +840,7 @@ export class Message
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -833,6 +862,7 @@ export class Message
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -847,6 +877,7 @@ export class Message
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
 
     this._storage.insertBulkSafe("message", [
@@ -918,6 +949,7 @@ export class Message
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -989,6 +1021,7 @@ export class Message
         ? new Date(response.user!.updatedAt)
         : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 

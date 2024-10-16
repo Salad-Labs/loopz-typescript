@@ -1,3 +1,4 @@
+import UUIDSubscriptionClient from "@src/core/chat/uuidsubscriptionclient"
 import { Client } from "@urql/core"
 
 /**
@@ -21,4 +22,8 @@ export type ReactionInitConfig = {
    * @property {Client} client - The client associated with the reaction.
    */
   client: Client
+  /**
+   * @property {UUIDSubscriptionClient} realtimeClient - The real time client associated with the entry.
+   */
+  realtimeClient: UUIDSubscriptionClient
 }

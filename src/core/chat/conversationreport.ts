@@ -53,6 +53,8 @@ export class ConversationReport
     this.userId = config.userId
     this.createdAt = config.createdAt
     this.updatedAt = config.updatedAt
+
     this._client = config.client
+    this._realtimeClient = config.realtimeClient
   }
 }
