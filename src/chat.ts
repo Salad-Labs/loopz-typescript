@@ -6218,36 +6218,41 @@ export class Chat
         "This client cannot start to chat. Are you missing to pairing the keys?"
       )
 
-    this._on("sync", () => {
-      this._isSyncing = false
-      callback()
-    })
-
-    await this._sync(this._syncingCounter)
-
-    //add member to conversation. This event is global, basically the user is always listening if
-    //someone wants to add him into a conversation.
-    const onAddMemberToConversation = this.onAddMemberToConversation(
-      this._account!.dynamoDBUserID,
-      this._onAddMemberToConversationSync
-    )
-
-    if (!(onAddMemberToConversation instanceof QIError)) {
-      const { unsubscribe, uuid } = onAddMemberToConversation
-      this._unsubscribeSyncSet.push({
-        type: "onAddMemberToConversation",
-        unsubscribe,
-        uuid,
-        conversationId: "", //this value is updated inside the callback fired by the subscription
+    //in order to run the queries, mutations or subscriptions we need to call connect() in order to establish a connection between
+    //the client and the server otherwise the internal _client instance of the Engine class cannot be created because one of the requirement
+    //is to create a _realtimeClient that use the websocket protocol to communicate with the server.
+    this.connect(async () => {
+      this._on("sync", () => {
+        this._isSyncing = false
+        callback()
       })
-    }
 
-    //now that we have a _conversationsMap array filled, we can add subscription for every conversation that is currently active
-    for (const { conversationId } of this._conversationsMap.filter(
-      (conversation) => conversation.type === "ACTIVE"
-    )) {
-      this._addSubscriptionsSync(conversationId)
-    }
+      await this._sync(this._syncingCounter)
+
+      //add member to conversation. This event is global, basically the user is always listening if
+      //someone wants to add him into a conversation.
+      const onAddMemberToConversation = this.onAddMemberToConversation(
+        this._account!.dynamoDBUserID,
+        this._onAddMemberToConversationSync
+      )
+
+      if (!(onAddMemberToConversation instanceof QIError)) {
+        const { unsubscribe, uuid } = onAddMemberToConversation
+        this._unsubscribeSyncSet.push({
+          type: "onAddMemberToConversation",
+          unsubscribe,
+          uuid,
+          conversationId: "", //this value is updated inside the callback fired by the subscription
+        })
+      }
+
+      //now that we have a _conversationsMap array filled, we can add subscription for every conversation that is currently active
+      for (const { conversationId } of this._conversationsMap.filter(
+        (conversation) => conversation.type === "ACTIVE"
+      )) {
+        this._addSubscriptionsSync(conversationId)
+      }
+    })
   }
 
   syncing(callback: (isSyncing: boolean, syncingCounter: number) => void) {
@@ -7415,5 +7420,10 @@ export class Chat
     } catch (error) {
       console.log(error)
     }
+  }
+
+  setAuthToken(authToken: Maybe<string>): void {
+    this._authToken = authToken
+    this._realtimeAuthorizationToken = `${this._apiKey}##${authToken}`
   }
 }

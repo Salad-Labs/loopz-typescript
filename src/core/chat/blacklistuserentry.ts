@@ -40,7 +40,7 @@ export class BlacklistUserEntry
   /**
    * Constructs a new instance of BlacklistUserEntry with the provided configuration.
    * @param {BlacklistUserEntryInitConfig & EngineInitConfig} config - The configuration object containing
-   *   jwtToken, apiKey, apiUrl, realtimeApiUrl, userKeyPair, keyPairsMap, id, createdAt, blockerId, blockedId,
+   *   apiKey, apiUrl, realtimeApiUrl, userKeyPair, keyPairsMap, id, createdAt, blockerId, blockedId,
    *   blockedUser, and client.
    * @returns None
    */

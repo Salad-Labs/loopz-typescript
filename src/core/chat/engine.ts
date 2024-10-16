@@ -31,10 +31,6 @@ import { Account, DexieStorage } from "../app"
 
 export class Engine extends ClientEngine implements IEngine {
   /**
-   * @property {Maybe<string>} _jwtToken - The JWT token for authentication.
-   */
-  protected _jwtToken: Maybe<string> = null
-  /**
    * @property {Maybe<string>} _apiKey - The API key for authentication.
    */
   protected _apiKey: Maybe<string> = null
@@ -97,7 +93,7 @@ export class Engine extends ClientEngine implements IEngine {
 
     this._apiKey = config.apiKey
     this._storage = config.storage
-    this._realtimeAuthorizationToken = `${this._apiKey}##${this._jwtToken}`
+    this._realtimeAuthorizationToken = `${this._apiKey}##${this._authToken}`
     this._parentConfig = config
     this._connectionParams = {
       Authorization: null,
@@ -272,7 +268,7 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns {Maybe<Client>} A client object for making API requests or null if any required parameter is missing.
    */
   private _makeClient(): Maybe<Client> {
-    if (!this._jwtToken) return null
+    if (!this._authToken) return null
     if (!this._apiKey) return null
     if (!this._realtimeClient) return null
     if (!this._client) {
@@ -427,7 +423,7 @@ export class Engine extends ClientEngine implements IEngine {
       const subscription = client.subscription<
         TSubscriptionResult,
         TArgs & { jwt: string }
-      >(node, { ...args, jwt: `${this._jwtToken}` })
+      >(node, { ...args, jwt: `${this._authToken}` })
 
       return {
         subscribe: subscription.subscribe,
@@ -469,7 +465,7 @@ export class Engine extends ClientEngine implements IEngine {
       const response = await client
         .mutation<TMutationResult, TArgs & { jwt: string }>(node, {
           ...args,
-          jwt: `${this._jwtToken}`,
+          jwt: `${this._authToken}`,
         })
         .toPromise()
 
@@ -512,7 +508,7 @@ export class Engine extends ClientEngine implements IEngine {
       const response = await client
         .query<TQueryResult, TArgs & { jwt: string }>(node, {
           ...args,
-          jwt: `${this._jwtToken}`,
+          jwt: `${this._authToken}`,
         })
         .toPromise()
 
@@ -535,8 +531,8 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns void
    */
   refreshJWTToken(jwt: string): void {
-    this._jwtToken = jwt
-    this._realtimeAuthorizationToken = `${this._apiKey}##${this._jwtToken}`
+    this._authToken = jwt
+    this._realtimeAuthorizationToken = `${this._apiKey}##${this._authToken}`
   }
 
   /**
@@ -602,7 +598,7 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns The JWT token as a string, or null if it is not set.
    */
   getJWTToken(): Maybe<string> {
-    return this._jwtToken
+    return this._authToken
   }
 
   /**
