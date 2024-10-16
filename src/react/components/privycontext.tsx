@@ -1,3 +1,5 @@
+"use client"
+
 import { PrivyProvider } from "@privy-io/react-auth"
 import { PrivyAdapterProps } from "@src/interfaces"
 import { PrivyWrapper } from "./privywrapper"

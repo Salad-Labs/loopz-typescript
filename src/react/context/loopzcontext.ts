@@ -1,3 +1,5 @@
+"use client"
+
 import { ILoopzContext } from "@src/interfaces"
 import { createContext } from "react"
 

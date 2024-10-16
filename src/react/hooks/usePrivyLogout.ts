@@ -1,3 +1,5 @@
+"use client"
+
 import { useLogout, usePrivy } from "@privy-io/react-auth"
 import { Auth } from "@src/auth"
 import { useEffect, useRef } from "react"
