@@ -1,3 +1,5 @@
+"use client"
+
 import { Auth } from "@src/auth"
 import { useEffect, useRef } from "react"
 import { useLinkAccount, usePrivy } from "@privy-io/react-auth"

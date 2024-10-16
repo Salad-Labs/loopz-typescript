@@ -1,9 +1,12 @@
+"use client"
+
 import React, { useEffect, useRef, useState } from "react"
 import { Loopz } from "../../loopz"
 import { Auth } from "@src/auth"
 import { Order } from "@src/order"
 import { Oracle } from "@src/oracle"
 import { Proposal } from "@src/proposal"
+import { Notification } from "@src/notification"
 import { PrivyProvider as PrivyProviderDesktop } from "@privy-io/react-auth"
 import { PrivyWrapper } from "./privywrapper"
 import {
@@ -13,7 +16,6 @@ import {
 } from "@src/interfaces"
 import { LoopzContext } from "../context"
 import { Chat } from "@src/chat"
-import { Notification } from "@src/notification"
 
 export const LoopzProvider: React.FC<LoopzProviderProps> = ({
   config,

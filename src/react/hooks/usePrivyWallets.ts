@@ -1,3 +1,5 @@
+"use client"
+
 import { useWallets, getEmbeddedConnectedWallet } from "@privy-io/react-auth"
 import { Order } from "@src/order"
 import { useEffect } from "react"

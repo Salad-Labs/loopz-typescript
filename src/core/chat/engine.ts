@@ -58,9 +58,13 @@ export class Engine extends ClientEngine implements IEngine {
    * @property {Maybe<Array<KeyPairItem>>} _keyPairsMap - An array of key pair items.
    */
   protected _keyPairsMap: Maybe<Array<KeyPairItem>> = null
-
+  /**
+   * @property {DexieStorage} _storage - The storage of the application.
+   */
   protected _storage: DexieStorage
-
+  /**
+   * @property {Maybe<Account>} _account - The account connected to the application.
+   */
   protected _account: Maybe<Account> = null
   /**
    * @property {Maybe<Function>} _connectCallback - The callback function for connecting to real-time services.
