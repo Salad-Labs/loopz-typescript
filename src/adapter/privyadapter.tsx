@@ -1,38 +1,38 @@
-import React from "react"
-import { Maybe } from "@src/types"
-import { PrivyAdapterOptions } from "@src/types/adapter"
-import { createRoot, Root } from "react-dom/client"
-import { v4 as uuid } from "uuid"
-import { PrivyClientConfig } from "@privy-io/react-auth"
-import { Auth } from "@src/auth"
-import { Order } from "@src/order"
-import { PrivyContext } from "../react/components"
+import React from "react";
+import { Maybe } from "@src/types";
+import { PrivyAdapterOptions } from "@src/types/adapter";
+import { createRoot, Root } from "react-dom/client";
+import { v4 as uuid } from "uuid";
+import { PrivyClientConfig } from "@privy-io/react-auth";
+import { Auth } from "@src/auth";
+import { Order } from "@src/order";
+import { PrivyContext } from "../react/components/privycontext";
 
 export class PrivyAdapter {
-  private _container: Maybe<HTMLElement> = null
+  private _container: Maybe<HTMLElement> = null;
 
-  private _root: Maybe<Root> = null
+  private _root: Maybe<Root> = null;
 
-  private _privyAppId: string
+  private _privyAppId: string;
 
-  private _privyConfig?: PrivyClientConfig
+  private _privyConfig?: PrivyClientConfig;
 
   constructor(privyAdapterOptions: PrivyAdapterOptions) {
-    this._privyAppId = privyAdapterOptions.appId
+    this._privyAppId = privyAdapterOptions.appId;
 
-    this._container = document.createElement("div")
-    this._container.id = uuid()
+    this._container = document.createElement("div");
+    this._container.id = uuid();
 
-    document.body.appendChild(this._container)
+    document.body.appendChild(this._container);
 
-    this._root = createRoot(this._container!)
-    this._privyConfig = privyAdapterOptions.options!
+    this._root = createRoot(this._container!);
+    this._privyConfig = privyAdapterOptions.options!;
   }
 
   render(auth: Auth, order: Order) {
-    if (!this._root) throw new Error("Root object must be initializated.")
+    if (!this._root) throw new Error("Root object must be initializated.");
     if (!this._privyConfig)
-      throw new Error("Privy configuration must be setup.")
+      throw new Error("Privy configuration must be setup.");
 
     this._root.render(
       <PrivyContext
@@ -41,13 +41,13 @@ export class PrivyAdapter {
         appId={this._privyAppId}
         config={this._privyConfig}
       />
-    )
+    );
   }
 
   cleanup() {
     if (this._container && this._root) {
-      this._root.unmount()
-      document.body.removeChild(this._container)
+      this._root.unmount();
+      document.body.removeChild(this._container);
     }
   }
 }

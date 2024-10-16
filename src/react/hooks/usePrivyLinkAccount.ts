@@ -1,12 +1,10 @@
-"use client"
-
-import { Auth } from "@src/auth"
-import { useEffect, useRef } from "react"
-import { useLinkAccount, usePrivy } from "@privy-io/react-auth"
+import { Auth } from "@src/auth";
+import { useEffect, useRef } from "react";
+import { useLinkAccount, usePrivy } from "@privy-io/react-auth";
 
 export const usePrivyLinkAccount = (auth: Auth) => {
-  const initialized = useRef<boolean>(false)
-  const { ready, authenticated, user } = usePrivy()
+  const initialized = useRef<boolean>(false);
+  const { ready, authenticated, user } = usePrivy();
 
   const {
     linkApple,
@@ -25,16 +23,20 @@ export const usePrivyLinkAccount = (auth: Auth) => {
     linkTelegram,
   } = useLinkAccount({
     onSuccess: (user, linkMethod, linkedAccount) => {
-      auth._emit("__onLinkAccountComplete", { user, linkMethod, linkedAccount })
+      auth._emit("__onLinkAccountComplete", {
+        user,
+        linkMethod,
+        linkedAccount,
+      });
     },
     onError: (error, details) => {
-      auth._emit("__onLinkAccountError", { error, details })
+      auth._emit("__onLinkAccountError", { error, details });
     },
-  })
+  });
 
   useEffect(() => {
     if (!initialized.current && ready && authenticated && user) {
-      initialized.current = true
+      initialized.current = true;
 
       auth.on(
         "__link",
@@ -55,22 +57,22 @@ export const usePrivyLinkAccount = (auth: Auth) => {
             | "wallet"
             | "telegram"
         ) => {
-          if (method === "apple" && !user.apple) linkApple()
-          if (method === "discord" && !user.discord) linkDiscord()
-          if (method === "email" && !user.email) linkEmail()
-          if (method === "farcaster" && !user.farcaster) linkFarcaster()
-          if (method === "github" && !user.github) linkGithub()
-          if (method === "google" && !user.google) linkGoogle()
-          if (method === "instagram" && !user.instagram) linkInstagram()
-          if (method === "linkedin" && !user.linkedin) linkLinkedIn()
-          if (method === "phone" && !user.phone) linkPhone()
-          if (method === "spotify" && !user.spotify) linkSpotify()
-          if (method === "tiktok" && !user.tiktok) linkTiktok()
-          if (method === "twitter" && !user.twitter) linkTwitter()
-          if (method === "wallet" && !user.wallet) linkWallet()
-          if (method === "telegram" && !user.telegram) linkTelegram()
+          if (method === "apple" && !user.apple) linkApple();
+          if (method === "discord" && !user.discord) linkDiscord();
+          if (method === "email" && !user.email) linkEmail();
+          if (method === "farcaster" && !user.farcaster) linkFarcaster();
+          if (method === "github" && !user.github) linkGithub();
+          if (method === "google" && !user.google) linkGoogle();
+          if (method === "instagram" && !user.instagram) linkInstagram();
+          if (method === "linkedin" && !user.linkedin) linkLinkedIn();
+          if (method === "phone" && !user.phone) linkPhone();
+          if (method === "spotify" && !user.spotify) linkSpotify();
+          if (method === "tiktok" && !user.tiktok) linkTiktok();
+          if (method === "twitter" && !user.twitter) linkTwitter();
+          if (method === "wallet" && !user.wallet) linkWallet();
+          if (method === "telegram" && !user.telegram) linkTelegram();
         }
-      )
+      );
     }
-  }, [ready, authenticated, user])
-}
+  }, [ready, authenticated, user]);
+};

@@ -1,6 +1,7 @@
-"use client"
+"use client";
 
-import { ILoopzContext } from "@src/interfaces"
-import { createContext } from "react"
+import { ILoopzContext } from "@src/interfaces/react/iloopzcontext";
+import { Maybe } from "@src/types";
+import { createContext } from "react";
 
-export const LoopzContext = createContext<ILoopzContext | undefined>(undefined)
+export const LoopzContext = createContext<Maybe<ILoopzContext>>(null);
