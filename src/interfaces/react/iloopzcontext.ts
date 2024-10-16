@@ -4,6 +4,7 @@ import { Loopz } from "@src/loopz"
 import { Oracle } from "@src/oracle"
 import { Proposal } from "@src/proposal"
 import { Order } from "@src/order"
+import { Notification } from "@src/notification"
 
 export interface ILoopzContext {
   loopz: Loopz
@@ -12,4 +13,5 @@ export interface ILoopzContext {
   proposal: Proposal
   oracle: Oracle
   chat: Chat
+  notification: Notification
 }

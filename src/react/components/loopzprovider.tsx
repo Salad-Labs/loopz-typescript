@@ -13,6 +13,7 @@ import {
 } from "@src/interfaces"
 import { LoopzContext } from "../context"
 import { Chat } from "@src/chat"
+import { Notification } from "@src/notification"
 
 export const LoopzProvider: React.FC<LoopzProviderProps> = ({
   config,
@@ -24,6 +25,7 @@ export const LoopzProvider: React.FC<LoopzProviderProps> = ({
   const oracleRef = useRef<Oracle>()
   const proposalRef = useRef<Proposal>()
   const chatRef = useRef<Chat>()
+  const notificationRef = useRef<Notification>()
 
   const [loopzContext, setLoopzContext] = useState<ILoopzContext | null>(null)
   const [loopzInitialized, setLoopzInitialized] = useState<boolean>(false)
@@ -38,15 +40,25 @@ export const LoopzProvider: React.FC<LoopzProviderProps> = ({
       Loopz.boot(config, {
         runAdapter: false,
       }).then(async (loopz: Loopz) => {
-        const { auth, order, oracle, proposal, chat } = await loopz.init()
+        const { auth, order, oracle, proposal, chat, notification } =
+          loopz.init()
 
         authRef.current = auth
         orderRef.current = order
         oracleRef.current = oracle
         proposalRef.current = proposal
         chatRef.current = chat
+        notificationRef.current = notification
 
-        setLoopzContext({ auth, order, oracle, proposal, chat, loopz })
+        setLoopzContext({
+          auth,
+          order,
+          oracle,
+          proposal,
+          chat,
+          notification,
+          loopz,
+        })
       })
     }
   }, [config])
