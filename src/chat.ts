@@ -10,25 +10,25 @@ import {
   MessageImportant,
   ConversationPin,
   Crypto,
-} from "./core/chat"
+} from "./core/chat";
 import {
   ConversationMutationEngine,
   ConversationSubscriptionEngine,
-} from "./interfaces/chat/core/conversation"
+} from "./interfaces/chat/core/conversation";
 import {
   MessageMutationEngine,
   MessageQueryEngine,
   MessageSubscriptionEngine,
-} from "./interfaces/chat/core/message"
+} from "./interfaces/chat/core/message";
 import {
   ConversationTradingPoolMutationEngine,
   ConversationTradingPoolQueryEngine,
   ConversationTradingPoolSubscriptionEngine,
-} from "./interfaces/chat/core/conversationtradingpool"
+} from "./interfaces/chat/core/conversationtradingpool";
 import {
   UserMutationEngine,
   UserSubscriptionEngine,
-} from "./interfaces/chat/core/user"
+} from "./interfaces/chat/core/user";
 import {
   Conversation as ConversationGraphQL,
   ConversationReport as ConversationReportGraphQL,
@@ -116,7 +116,7 @@ import {
   QueryListTradesByConversationIdArgs,
   ListTradesByConversationIdResult as ListTradesByConversationIdResultGraphQL,
   QueryGetConversationTradingPoolByIdArgs,
-} from "./graphql/generated/graphql"
+} from "./graphql/generated/graphql";
 import {
   addBlockedUser,
   addImportantToMessage,
@@ -151,7 +151,7 @@ import {
   updateConversationGroup,
   updateRequestTrade,
   updateUserInfo,
-} from "./constants/chat/mutations"
+} from "./constants/chat/mutations";
 import {
   findUsersByUsernameOrAddress,
   getConversationById,
@@ -165,8 +165,8 @@ import {
   listUsersByIds,
   listTradesByConversationId,
   getConversationTradingPoolById,
-} from "./constants/chat/queries"
-import { ConversationMember } from "./core/chat/conversationmember"
+} from "./constants/chat/queries";
+import { ConversationMember } from "./core/chat/conversationmember";
 import {
   AddReactionToMessageArgs,
   AddReportToConversationArgs,
@@ -190,9 +190,9 @@ import {
   AddMemberToConversationArgs,
   UpdateRequestTradeArgs,
   ListTradesByConversationIdArgs,
-} from "./types/chat/schema/args"
-import { UAMutationEngine, UAQueryEngine } from "./interfaces/chat/core/ua"
-import { Asset, Maybe } from "./types/base"
+} from "./types/chat/schema/args";
+import { UAMutationEngine, UAQueryEngine } from "./interfaces/chat/core/ua";
+import { Asset, Maybe } from "./types/base";
 import {
   onDeleteMessage,
   onEditMessage,
@@ -215,29 +215,29 @@ import {
   onAddMembersToConversation,
   onAddMemberToConversation,
   onBatchDeleteMessages,
-} from "./constants/chat/subscriptions"
-import { OperationResult } from "@urql/core"
-import { SubscriptionGarbage } from "./types/chat/subscriptiongarbage"
-import { KeyPairItem } from "./types/chat/keypairitem"
+} from "./constants/chat/subscriptions";
+import { OperationResult } from "@urql/core";
+import { SubscriptionGarbage } from "./types/chat/subscriptiongarbage";
+import { KeyPairItem } from "./types/chat/keypairitem";
 import {
   ActiveUserConversationType,
   ConversationTradingPoolStatus,
-} from "./enums"
+} from "./enums";
 import {
   LocalDBConversation,
   LocalDBMessage,
   LocalDBUser,
-} from "./core/app/database"
-import { Converter, findAddedAndRemovedConversation } from "./core"
-import Dexie, { Table } from "dexie"
-import { Reaction } from "./core/chat/reaction"
-import { v4 as uuidv4 } from "uuid"
-import { DexieStorage } from "./core/app"
-import * as bip39 from "@scure/bip39"
-import { wordlist } from "@scure/bip39/wordlists/english"
-import { ApiResponse } from "./types/base/apiresponse"
-import { md, mgf, pki } from "node-forge"
-import { Order } from "./order"
+} from "./core/app/database";
+import { Converter, findAddedAndRemovedConversation } from "./core";
+import Dexie, { Table } from "dexie";
+import { Reaction } from "./core/chat/reaction";
+import { v4 as uuidv4 } from "uuid";
+import { DexieStorage } from "./core/app";
+import * as bip39 from "@scure/bip39";
+import { wordlist } from "@scure/bip39/wordlists/english";
+import { ApiResponse } from "./types/base/apiresponse";
+import { md, mgf, pki } from "node-forge";
+import { Order } from "./order";
 
 export class Chat
   extends Engine
@@ -255,14 +255,14 @@ export class Chat
     UAMutationEngine,
     UAQueryEngine
 {
-  private _isSyncing: boolean = false
+  private _isSyncing: boolean = false;
 
-  private _syncingCounter: number = 0
+  private _syncingCounter: number = 0;
 
   private _eventsCallback: Array<{
-    event: "sync" | "syncing" | "syncError" | "syncUpdate"
-    callbacks: Array<Function>
-  }> = []
+    event: "sync" | "syncing" | "syncError" | "syncUpdate";
+    callbacks: Array<Function>;
+  }> = [];
 
   private _unsubscribeSyncSet: Array<{
     type:
@@ -278,43 +278,43 @@ export class Chat
       | "onAddReaction"
       | "onRemoveReaction"
       | "onBatchDeleteMessages"
-      | "onUpdateConversationGroup"
+      | "onUpdateConversationGroup";
 
-    unsubscribe: Function
-    uuid: string
-    conversationId: string
-  }> = []
+    unsubscribe: Function;
+    uuid: string;
+    conversationId: string;
+  }> = [];
 
   private _conversationsMap: Array<{
-    type: "CANCELED" | "ACTIVE"
-    conversationId: string
-    conversation: Conversation
-  }> = []
+    type: "CANCELED" | "ACTIVE";
+    conversationId: string;
+    conversation: Conversation;
+  }> = [];
 
   private _keyPairingObject: Maybe<{
-    publicKey: Maybe<pki.rsa.PublicKey>
-    privateKey: Maybe<pki.rsa.PrivateKey>
-    md: Maybe<md.sha256.MessageDigest>
-    mgf1: Maybe<string>
-  }> = null
+    publicKey: Maybe<pki.rsa.PublicKey>;
+    privateKey: Maybe<pki.rsa.PrivateKey>;
+    md: Maybe<md.sha256.MessageDigest>;
+    mgf1: Maybe<string>;
+  }> = null;
 
-  private _canChat: boolean = true
+  private _canChat: boolean = true;
 
-  static readonly SYNCING_TIME = 60000
+  static readonly SYNCING_TIME = 60000;
 
   private _emit(
     event: "sync" | "syncing" | "syncError" | "syncUpdate",
     args?: any
   ) {
     const index = this._eventsCallback.findIndex((item) => {
-      return item.event === event
-    })
+      return item.event === event;
+    });
 
     if (index > -1)
       this,
         this._eventsCallback[index].callbacks.forEach((callback) => {
-          callback(args)
-        })
+          callback(args);
+        });
   }
 
   private _on(
@@ -322,23 +322,23 @@ export class Chat
     callback: Function
   ) {
     const index = this._eventsCallback.findIndex((item) => {
-      return item.event === event
-    })
+      return item.event === event;
+    });
 
-    if (index > -1) this._eventsCallback[index].callbacks.push(callback)
+    if (index > -1) this._eventsCallback[index].callbacks.push(callback);
     else
       this._eventsCallback.push({
         event,
         callbacks: [callback],
-      })
+      });
   }
 
   private _off(event: "sync" | "syncing" | "syncError" | "syncUpdate") {
     const index = this._eventsCallback.findIndex((item) => {
-      return item.event === event
-    })
+      return item.event === event;
+    });
 
-    if (index > -1) this._eventsCallback[index].callbacks = []
+    if (index > -1) this._eventsCallback[index].callbacks = [];
   }
 
   /** syncing data with backend*/
@@ -349,68 +349,68 @@ export class Chat
     try {
       let AUCfirstSet = await this.listAllActiveUserConversationIds({
         type,
-      })
+      });
 
       if (AUCfirstSet instanceof QIError)
-        throw new Error(JSON.stringify(AUCfirstSet))
+        throw new Error(JSON.stringify(AUCfirstSet));
 
-      let { nextToken, items } = AUCfirstSet
-      let activeIds = [...items]
+      let { nextToken, items } = AUCfirstSet;
+      let activeIds = [...items];
 
       while (nextToken) {
         const set = await this.listAllActiveUserConversationIds({
           type,
           nextToken,
-        })
+        });
 
-        if (set instanceof QIError) break
+        if (set instanceof QIError) break;
 
-        const { nextToken: token, items } = set
+        const { nextToken: token, items } = set;
 
-        activeIds = [...activeIds, ...items]
+        activeIds = [...activeIds, ...items];
 
-        if (token) nextToken = token
-        else break
+        if (token) nextToken = token;
+        else break;
       }
 
-      let conversationfirstSet = await this.listConversationsByIds(activeIds)
+      let conversationfirstSet = await this.listConversationsByIds(activeIds);
 
       if (conversationfirstSet instanceof QIError)
-        throw new Error(JSON.stringify(conversationfirstSet))
+        throw new Error(JSON.stringify(conversationfirstSet));
 
-      let { unprocessedKeys, items: conversations } = conversationfirstSet
-      let conversationsItems = [...conversations]
+      let { unprocessedKeys, items: conversations } = conversationfirstSet;
+      let conversationsItems = [...conversations];
 
       while (unprocessedKeys) {
-        const set = await this.listConversationsByIds(unprocessedKeys)
+        const set = await this.listConversationsByIds(unprocessedKeys);
 
-        if (set instanceof QIError) break
+        if (set instanceof QIError) break;
 
-        const { unprocessedKeys: ids, items } = set
+        const { unprocessedKeys: ids, items } = set;
 
-        conversationsItems = [...conversationsItems, ...items]
+        conversationsItems = [...conversationsItems, ...items];
 
-        if (ids) unprocessedKeys = ids
-        else break
+        if (ids) unprocessedKeys = ids;
+        else break;
       }
 
-      const currentUser = await this.getCurrentUser()
+      const currentUser = await this.getCurrentUser();
 
       if (currentUser instanceof QIError)
-        throw new Error(JSON.stringify(currentUser))
+        throw new Error(JSON.stringify(currentUser));
 
       //stores/update the conversations into the local db
       await this._storage.insertBulkSafe<LocalDBConversation>(
         "conversation",
         conversationsItems.map((conversation: Conversation) => {
-          let isConversationArchived = false
+          let isConversationArchived = false;
 
           if (currentUser.archivedConversations) {
             const index = currentUser.archivedConversations.findIndex((id) => {
-              return id === conversation.id
-            })
+              return id === conversation.id;
+            });
 
-            if (index > -1) isConversationArchived = true
+            if (index > -1) isConversationArchived = true;
           }
 
           return Converter.fromConversationToLocalDBConversation(
@@ -418,40 +418,40 @@ export class Chat
             this._account!.did,
             this._account!.organizationId,
             isConversationArchived
-          )
+          );
         })
-      )
+      );
 
-      return conversationsItems
+      return conversationsItems;
     } catch (error) {
-      console.log("[ERROR]: recoverUserConversations() -> ", error)
+      console.log("[ERROR]: recoverUserConversations() -> ", error);
     }
 
-    return null
+    return null;
   }
 
   private async recoverKeysFromConversations(): Promise<boolean> {
     try {
       let firstConversationMemberSet =
-        await this.listConversationMemberByUserId()
+        await this.listConversationMemberByUserId();
 
       if (firstConversationMemberSet instanceof QIError)
-        throw new Error(JSON.stringify(firstConversationMemberSet))
+        throw new Error(JSON.stringify(firstConversationMemberSet));
 
-      let { nextToken, items } = firstConversationMemberSet
-      let conversationMemberItems = [...items]
+      let { nextToken, items } = firstConversationMemberSet;
+      let conversationMemberItems = [...items];
 
       while (nextToken) {
-        const set = await this.listConversationMemberByUserId(nextToken)
+        const set = await this.listConversationMemberByUserId(nextToken);
 
-        if (set instanceof QIError) break
+        if (set instanceof QIError) break;
 
-        const { nextToken: token, items } = set
+        const { nextToken: token, items } = set;
 
-        conversationMemberItems = [...conversationMemberItems, ...items]
+        conversationMemberItems = [...conversationMemberItems, ...items];
 
-        if (token) nextToken = token
-        else break
+        if (token) nextToken = token;
+        else break;
       }
 
       //let's take all the information related to our keys into _userKeyPair object. These are the public and private key of the current user.
@@ -460,74 +460,74 @@ export class Chat
         let user = (await this._storage.get("user", "[did+organizationId]", [
           this._account!.did,
           this._account!.organizationId,
-        ])) as LocalDBUser
+        ])) as LocalDBUser;
 
-        const { e2eEncryptedPrivateKey, e2ePublicKey: e2ePublicKeyPem } = user!
-        const { e2eSecret } = this._account!
-        const { e2eSecretIV } = this._account!
+        const { e2eEncryptedPrivateKey, e2ePublicKey: e2ePublicKeyPem } = user!;
+        const { e2eSecret } = this._account!;
+        const { e2eSecretIV } = this._account!;
 
         const e2ePrivateKeyPem = Crypto.decryptAES_CBC(
           e2eEncryptedPrivateKey,
           Buffer.from(e2eSecret, "hex").toString("base64"),
           Buffer.from(e2eSecretIV, "hex").toString("base64")
-        )
+        );
 
         const userKeyPair = await Crypto.generateKeyPairFromPem(
           e2ePublicKeyPem,
           e2ePrivateKeyPem
-        )
+        );
 
         if (!userKeyPair)
-          throw new Error("Impossible to recover the user key pair.")
+          throw new Error("Impossible to recover the user key pair.");
 
-        this.setUserKeyPair(userKeyPair)
+        this.setUserKeyPair(userKeyPair);
       }
 
       //now, from the private key of the user, we will decrypt all the information about the conversation member.
       //we will store these decrypted pairs public keys/private keys into the _keyPairsMap array.
-      const _keyPairsMap: Array<KeyPairItem> = []
-      let isError: boolean = false
+      const _keyPairsMap: Array<KeyPairItem> = [];
+      let isError: boolean = false;
 
       for (const conversationMember of conversationMemberItems) {
         const {
           encryptedConversationPrivateKey,
           encryptedConversationPublicKey,
-        } = conversationMember
+        } = conversationMember;
         const privateKeyPem = Crypto.decryptStringOrFail(
           this.getUserKeyPair()!.privateKey,
           encryptedConversationPrivateKey
-        )
+        );
         const publicKeyPem = Crypto.decryptStringOrFail(
           this.getUserKeyPair()!.privateKey,
           encryptedConversationPublicKey
-        )
+        );
         const keypair = await Crypto.generateKeyPairFromPem(
           privateKeyPem,
           publicKeyPem
-        )
+        );
 
         if (!keypair) {
-          isError = true
-          break
+          isError = true;
+          break;
         }
 
         _keyPairsMap.push({
           id: conversationMember.conversationId,
           keypair,
-        })
+        });
       }
 
       if (isError)
-        throw new Error("Failed to convert a public/private key pair.")
+        throw new Error("Failed to convert a public/private key pair.");
 
-      this.setKeyPairMap(_keyPairsMap)
+      this.setKeyPairMap(_keyPairsMap);
 
-      return true
+      return true;
     } catch (error) {
-      console.log("[ERROR]: recoverKeysFromConversations() -> ", error)
+      console.log("[ERROR]: recoverKeysFromConversations() -> ", error);
     }
 
-    return false
+    return false;
   }
 
   private async recoverMessagesFromConversations(
@@ -535,10 +535,10 @@ export class Chat
   ): Promise<boolean> {
     try {
       for (const conversation of conversations) {
-        const { id, lastMessageSentAt } = conversation
+        const { id, lastMessageSentAt } = conversation;
 
         //if the conversation hasn't any message it's useless to download the messages.
-        if (!lastMessageSentAt) continue
+        if (!lastMessageSentAt) continue;
 
         //let's see if the last message sent into the conversation is more recent than the last message stored in the database
 
@@ -546,28 +546,28 @@ export class Chat
         const messagesImportantFirstSet =
           await this.listMessagesImportantByUserConversationId({
             conversationId: id,
-          })
+          });
 
         if (messagesImportantFirstSet instanceof QIError)
-          throw new Error(JSON.stringify(messagesImportantFirstSet))
+          throw new Error(JSON.stringify(messagesImportantFirstSet));
 
-        let { nextToken, items } = messagesImportantFirstSet
-        let messagesImportant = [...items]
+        let { nextToken, items } = messagesImportantFirstSet;
+        let messagesImportant = [...items];
 
         while (nextToken) {
           const set = await this.listMessagesImportantByUserConversationId({
             conversationId: id,
             nextToken,
-          })
+          });
 
-          if (set instanceof QIError) break
+          if (set instanceof QIError) break;
 
-          const { nextToken: token, items } = set
+          const { nextToken: token, items } = set;
 
-          messagesImportant = [...messagesImportant, ...items]
+          messagesImportant = [...messagesImportant, ...items];
 
-          if (token) nextToken = token
-          else break
+          if (token) nextToken = token;
+          else break;
         }
 
         //messages handling
@@ -576,7 +576,7 @@ export class Chat
           LocalDBMessage,
           string,
           LocalDBMessage
-        >
+        >;
         let lastMessageStored = await messageTable
           .orderBy("createdAt")
           .filter(
@@ -585,40 +585,40 @@ export class Chat
               element.userDid === this._account!.did
           )
           .reverse()
-          .first()
+          .first();
 
         const canDownloadMessages =
           !lastMessageStored ||
           (lastMessageStored &&
-            lastMessageStored.createdAt! < lastMessageSentAt)
+            lastMessageStored.createdAt! < lastMessageSentAt);
 
         //the check of history message is already done on backend side
 
         if (canDownloadMessages) {
           const messagesFirstSet = await this.listMessagesByConversationId({
             id,
-          })
+          });
 
           if (messagesFirstSet instanceof QIError)
-            throw new Error(JSON.stringify(messagesFirstSet))
+            throw new Error(JSON.stringify(messagesFirstSet));
 
-          let { nextToken, items } = messagesFirstSet
-          let messages = [...items]
+          let { nextToken, items } = messagesFirstSet;
+          let messages = [...items];
 
           while (nextToken) {
             const set = await this.listMessagesByConversationId({
               id,
               nextToken,
-            })
+            });
 
-            if (set instanceof QIError) break
+            if (set instanceof QIError) break;
 
-            const { nextToken: token, items } = set
+            const { nextToken: token, items } = set;
 
-            messages = [...messages, ...items]
+            messages = [...messages, ...items];
 
-            if (token) nextToken = token
-            else break
+            if (token) nextToken = token;
+            else break;
           }
 
           //let's store the messages without create duplicates
@@ -629,8 +629,8 @@ export class Chat
               messages.map((message) => {
                 const isMessageImportant =
                   messagesImportant.findIndex((important) => {
-                    return important.messageId === message.id
-                  }) > -1
+                    return important.messageId === message.id;
+                  }) > -1;
 
                 return Converter.fromMessageToLocalDBMessage(
                   message,
@@ -638,45 +638,45 @@ export class Chat
                   this._account!.organizationId,
                   isMessageImportant,
                   "USER"
-                )
+                );
               })
-            )
+            );
         }
       }
 
-      return true
+      return true;
     } catch (error) {
-      console.log("[ERROR]: recoverMessagesFromConversations() -> ", error)
+      console.log("[ERROR]: recoverMessagesFromConversations() -> ", error);
     }
 
-    return false
+    return false;
   }
 
   private async _sync(syncingCounter: number): Promise<void> {
-    this._isSyncing = true
-    this._emit("syncing", this._syncingCounter)
+    this._isSyncing = true;
+    this._emit("syncing", this._syncingCounter);
 
     //first operation. Recover the list of the conversations in which the user is a member.
     //unactive conversations are the convos in which the user left the group or has been ejected
     const activeConversations = await this.recoverUserConversations(
       ActiveUserConversationType.Active
-    )
+    );
     const unactiveConversations = await this.recoverUserConversations(
       ActiveUserConversationType.Canceled
-    )
+    );
 
     if (!activeConversations || !unactiveConversations) {
-      this._emit("syncError", { error: `error during conversation sincying.` })
-      return
+      this._emit("syncError", { error: `error during conversation sincying.` });
+      return;
     }
 
     //second operation. Recover the list of conversation member objects, in order to retrieve the public & private keys of all conversations.
-    const keysRecovered = await this.recoverKeysFromConversations()
+    const keysRecovered = await this.recoverKeysFromConversations();
     if (!keysRecovered) {
       this._emit("syncError", {
         error: `error during recovering of the keys from conversations.`,
-      })
-      return
+      });
+      return;
     }
 
     //third operation. For each conversation, we need to download the messages if the lastMessageSentAt of the conversation is != null
@@ -684,12 +684,12 @@ export class Chat
     const messagesRecovered = await this.recoverMessagesFromConversations([
       ...activeConversations,
       ...unactiveConversations,
-    ])
+    ]);
     if (!messagesRecovered) {
       this._emit("syncError", {
         error: `error during recovering of the messages from conversations.`,
-      })
-      return
+      });
+      return;
     }
 
     //let's setup an array of the conversations in the first sync cycle.
@@ -700,14 +700,14 @@ export class Chat
           type: "ACTIVE",
           conversationId: activeConversation.id,
           conversation: activeConversation,
-        })
+        });
 
       for (const unactiveConversation of unactiveConversations)
         this._conversationsMap.push({
           type: "CANCELED",
           conversationId: unactiveConversation.id,
           conversation: unactiveConversation,
-        })
+        });
     } else {
       //this situation happens when a subscription between onAddMemberToConversation, onEjectMember, onLeaveConversation doesn't fire properly.
       //here we can check if there are differences between the previous sync and the current one
@@ -716,49 +716,49 @@ export class Chat
       //But it can be also the opposite. So inside this block we will check if there are conversations that need
       //subscriptions to be added or the opposite (so subscriptions that need to be removed)
 
-      const conversations = [...activeConversations, ...unactiveConversations]
+      const conversations = [...activeConversations, ...unactiveConversations];
       const flatConversationMap = this._conversationsMap.map(
         (item) => item.conversation
-      )
+      );
 
       const { added, removed } = findAddedAndRemovedConversation(
         conversations,
         flatConversationMap
-      )
+      );
 
       if (added.length > 0)
         for (const conversation of added)
-          this._addSubscriptionsSync(conversation.id)
+          this._addSubscriptionsSync(conversation.id);
 
       if (removed.length > 0)
         for (const conversation of removed)
-          this._removeSubscribtionsSync(conversation.id)
+          this._removeSubscribtionsSync(conversation.id);
     }
 
-    if (syncingCounter === 0) this._emit("sync")
-    else this._emit("syncUpdate", this._syncingCounter)
+    if (syncingCounter === 0) this._emit("sync");
+    else this._emit("syncUpdate", this._syncingCounter);
 
-    this._syncingCounter++
+    this._syncingCounter++;
 
     setTimeout(async () => {
-      await this._sync(this._syncingCounter)
-    }, Chat.SYNCING_TIME)
+      await this._sync(this._syncingCounter);
+    }, Chat.SYNCING_TIME);
   }
 
   private async _onAddMemberToConversationSync(
     response:
       | QIError
       | {
-          conversationId: string
-          memberId: string
-          item: ConversationMember
+          conversationId: string;
+          memberId: string;
+          item: ConversationMember;
         },
     source: OperationResult<
       {
-        onAddMemberToConversation: AddMemberToConversationResultGraphQL
+        onAddMemberToConversation: AddMemberToConversationResultGraphQL;
       },
       SubscriptionOnAddMemberToConversationArgs & {
-        jwt: string
+        jwt: string;
       }
     >,
     uuid: string
@@ -766,90 +766,90 @@ export class Chat
     try {
       if (!(response instanceof QIError)) {
         //we need to update the _keyPairsMap with the new keys of the new conversation
-        const { conversationId } = response
+        const { conversationId } = response;
         const {
           encryptedConversationPrivateKey,
           encryptedConversationPublicKey,
-        } = response.item
+        } = response.item;
         //these pair is encrypted with the public key of the current user, so we need to decrypt them
         const conversationPrivateKeyPem = Crypto.decryptStringOrFail(
           this._userKeyPair!.privateKey,
           encryptedConversationPrivateKey
-        )
+        );
         const conversationPublicKeyPem = Crypto.decryptStringOrFail(
           this._userKeyPair!.privateKey,
           encryptedConversationPublicKey
-        )
+        );
         const keypair = await Crypto.generateKeyPairFromPem(
           conversationPublicKeyPem,
           conversationPrivateKeyPem
-        )
+        );
 
         //this add a key pair only if it doesn't exist. if it does, then internally skip this operation
         this.addKeyPairItem({
           id: conversationId,
           keypair: keypair!,
-        })
+        });
 
         //we update also the _unsubscribeSyncSet array using the uuid emitted by the subscription
         //in order to map the unsubscribe function with the conversation
         const index = this._unsubscribeSyncSet.findIndex((item) => {
-          return item.uuid === uuid
-        })
+          return item.uuid === uuid;
+        });
 
         if (index > -1)
-          this._unsubscribeSyncSet[index].conversationId = conversationId
+          this._unsubscribeSyncSet[index].conversationId = conversationId;
 
         //now we store the conversation in the local database
         const responseConversation = await this.listConversationsByIds([
           conversationId,
-        ])
+        ]);
 
         if (!(responseConversation instanceof QIError)) {
-          const { items } = responseConversation
-          const conversation = items[0]
+          const { items } = responseConversation;
+          const conversation = items[0];
 
           //we need to check if the conversation was already inside the _conversationsMap array. If it exists then we update the array
           //otherwise we add a new element
           const index = this._conversationsMap.findIndex((conversationItem) => {
-            return conversationItem.conversationId === conversation.id
-          })
+            return conversationItem.conversationId === conversation.id;
+          });
 
           //this is an additional check that it's used to avoid to add the subscriptions to a conversation that potentially
           //could have them already. This could happen potentially if the _sync() is executed
           //immediately before the _onAddMemberToConversationSync() in the javascript event loop
           const subscriptionConversationCheck = {
             conversationWasActive: false,
-          }
+          };
 
           if (index > -1) {
             //it should never be ACTIVE at this point, but this is for more safety
             if (this._conversationsMap[index].type === "ACTIVE")
-              subscriptionConversationCheck.conversationWasActive = true
+              subscriptionConversationCheck.conversationWasActive = true;
 
-            this._conversationsMap[index].type = "ACTIVE"
-            this._conversationsMap[index].conversation = conversation
+            this._conversationsMap[index].type = "ACTIVE";
+            this._conversationsMap[index].conversation = conversation;
           } else
             this._conversationsMap.push({
               conversation,
               conversationId: conversation.id,
               type: "ACTIVE",
-            })
+            });
 
-          const currentUser = await this.getCurrentUser()
+          const currentUser = await this.getCurrentUser();
 
           if (currentUser instanceof QIError)
-            throw new Error(JSON.stringify(currentUser))
+            throw new Error(JSON.stringify(currentUser));
 
           //stores/update the conversations into the local db
-          let isConversationArchived = false
+          let isConversationArchived = false;
 
           if (currentUser.archivedConversations) {
             const index = currentUser.archivedConversations.findIndex((id) => {
-              return id === conversationId
-            })
+              return id === conversationId;
+            });
 
-            if (index > -1) isConversationArchived = true
+            if (index > -1) isConversationArchived = true;
           }
 
           this._storage.insertBulkSafe<LocalDBConversation>("conversation", [
@@ -859,20 +859,20 @@ export class Chat
               this._account!.organizationId,
               isConversationArchived
             ),
-          ])
+          ]);
 
           //let's remove all the subscriptions previously added
           if (subscriptionConversationCheck.conversationWasActive) {
-            this._removeSubscribtionsSync(conversationId)
-            this._conversationsMap[index].type = "ACTIVE" //assign again "type" the value "ACTIVE" because _removeSubscribtionsSync() turns type to "CANCELED"
+            this._removeSubscribtionsSync(conversationId);
+            this._conversationsMap[index].type = "ACTIVE"; //assign again "type" the value "ACTIVE" because _removeSubscribtionsSync() turns type to "CANCELED"
           }
 
           //let's add the subscriptions in order to keep synchronized this conversation
-          this._addSubscriptionsSync(conversationId)
+          this._addSubscriptionsSync(conversationId);
         }
       }
     } catch (error) {
-      console.log("[ERROR]: _onAddMemberToConversationSync() -> ", error)
+      console.log("[ERROR]: _onAddMemberToConversationSync() -> ", error);
     }
   }
 
@@ -880,10 +880,10 @@ export class Chat
     response: QIError | Message,
     source: OperationResult<
       {
-        onAddReaction: MessageGraphQL
+        onAddReaction: MessageGraphQL;
       },
       SubscriptionOnAddReactionArgs & {
-        jwt: string
+        jwt: string;
       }
     >,
     uuid: string
@@ -898,10 +898,10 @@ export class Chat
             false,
             "USER"
           ),
-        ])
+        ]);
       }
     } catch (error) {
-      console.log("[ERROR]: _onAddReactionSync() -> ", error)
+      console.log("[ERROR]: _onAddReactionSync() -> ", error);
     }
   }
 
@@ -909,10 +909,10 @@ export class Chat
     response: QIError | Message,
     source: OperationResult<
       {
-        onRemoveReaction: MessageGraphQL
+        onRemoveReaction: MessageGraphQL;
       },
       SubscriptionOnRemoveReactionArgs & {
-        jwt: string
+        jwt: string;
       }
     >,
     uuid: string
@@ -927,10 +927,10 @@ export class Chat
             false,
             "USER"
           ),
-        ])
+        ]);
       }
     } catch (error) {
-      console.log("[ERROR]: _onRemoveReactionSync() -> ", error)
+      console.log("[ERROR]: _onRemoveReactionSync() -> ", error);
     }
   }
 
@@ -938,10 +938,10 @@ export class Chat
     response: Message | QIError,
     source: OperationResult<
       {
-        onSendMessage: MessageGraphQL
+        onSendMessage: MessageGraphQL;
       },
       SubscriptionOnSendMessageArgs & {
-        jwt: string
+        jwt: string;
       }
     >,
     uuid: string
@@ -957,7 +957,7 @@ export class Chat
             false,
             "USER"
           ),
-        ])
+        ]);
 
         //let's update the conversation in the case it was deleted locally by the user.
         //the conversation if it is deleted, returns visible for the user.
@@ -971,16 +971,16 @@ export class Chat
               "conversation",
               "[conversationId+userDid]",
               [response.conversationId, this._account!.did]
-            )
+            );
             table.update(conversation, {
               deletedAt: null,
-            })
+            });
           },
           "conversation"
-        )
+        );
       }
     } catch (error) {
-      console.log("[ERROR]: _onSendMessageSync() -> ", error)
+      console.log("[ERROR]: _onSendMessageSync() -> ", error);
     }
   }
 
@@ -988,10 +988,10 @@ export class Chat
     response: QIError | Message,
     source: OperationResult<
       {
-        onEditMessage: MessageGraphQL
+        onEditMessage: MessageGraphQL;
       },
       SubscriptionOnEditMessageArgs & {
-        jwt: string
+        jwt: string;
       }
     >,
     uuid: string
@@ -1006,10 +1006,10 @@ export class Chat
             false,
             "USER"
           ),
-        ])
+        ]);
       }
     } catch (error) {
-      console.log("[ERROR]: _onEditMessageSync() -> ", error)
+      console.log("[ERROR]: _onEditMessageSync() -> ", error);
     }
   }
 
@@ -1017,10 +1017,10 @@ export class Chat
     response: QIError | Message,
     source: OperationResult<
       {
-        onDeleteMessage: MessageGraphQL
+        onDeleteMessage: MessageGraphQL;
       },
       SubscriptionOnDeleteMessageArgs & {
-        jwt: string
+        jwt: string;
       }
     >,
     uuid: string
@@ -1033,10 +1033,10 @@ export class Chat
           this._storage instanceof DexieStorage
             ? [response.id, this._account!.did]
             : `${response.id}-${this._account!.did}`
-        )
+        );
       }
     } catch (error) {
-      console.log("[ERROR]: _onDeleteMessageSync() -> ", error)
+      console.log("[ERROR]: _onDeleteMessageSync() -> ", error);
     }
   }
 
@@ -1044,15 +1044,15 @@ export class Chat
     response:
       | QIError
       | {
-          conversationId: string
-          messagesIds: string[]
+          conversationId: string;
+          messagesIds: string[];
         },
     source: OperationResult<
       {
-        onBatchDeleteMessages: BatchDeleteMessagesResultGraphQL
+        onBatchDeleteMessages: BatchDeleteMessagesResultGraphQL;
       },
       SubscriptionOnBatchDeleteMessagesArgs & {
-        jwt: string
+        jwt: string;
       }
     >,
     uuid: string
@@ -1066,11 +1066,11 @@ export class Chat
             this._storage instanceof DexieStorage
               ? [id, this._account!.did]
               : `${id}-${this._account!.did}`
-          )
+          );
         }
       }
     } catch (error) {
-      console.log("[ERROR]: _onBatchDeleteMessagesSync() -> ", error)
+      console.log("[ERROR]: _onBatchDeleteMessagesSync() -> ", error);
     }
   }
 
@@ -1078,10 +1078,10 @@ export class Chat
     response: QIError | Conversation,
     source: OperationResult<
       {
-        onUpdateConversationGroup: ConversationGraphQL
+        onUpdateConversationGroup: ConversationGraphQL;
       },
       SubscriptionOnUpdateConversationGroupArgs & {
-        jwt: string
+        jwt: string;
       }
     >,
     uuid: string
@@ -1096,7 +1096,7 @@ export class Chat
           this._storage instanceof DexieStorage
             ? [response.id, this._account!.did]
             : `${response.id}-${this._account!.did}`
-        )) as Maybe<LocalDBConversation>
+        )) as Maybe<LocalDBConversation>;
 
         this._storage.insertBulkSafe("conversation", [
           Converter.fromConversationToLocalDBConversation(
@@ -1105,10 +1105,10 @@ export class Chat
             this._account!.organizationId,
             conversationStored ? conversationStored.isArchived : false
           ),
-        ])
+        ]);
       }
     } catch (error) {
-      console.log("[ERROR]: _onUpdateConversationGroupSync() -> ", error)
+      console.log("[ERROR]: _onUpdateConversationGroupSync() -> ", error);
     }
   }
 
@@ -1118,18 +1118,18 @@ export class Chat
       | { conversationId: string; conversation: Conversation; memberOut: User },
     source: OperationResult<
       {
-        onEjectMember: MemberOutResultGraphQL
+        onEjectMember: MemberOutResultGraphQL;
       },
       SubscriptionOnEjectMemberArgs & {
-        jwt: string
+        jwt: string;
       }
     >,
     uuid: string
   ) {
     try {
       if (!(response instanceof QIError)) {
-        const conversationId = response.conversationId
-        this._removeSubscribtionsSync(conversationId)
+        const conversationId = response.conversationId;
+        this._removeSubscribtionsSync(conversationId);
 
         this._storage.insertBulkSafe("message", [
           {
@@ -1149,10 +1149,10 @@ export class Chat
             updateAt: null,
             deletedAt: null,
           },
-        ])
+        ]);
       }
     } catch (error) {
-      console.log("[ERROR]: _onEjectMemberSync() -> ", error)
+      console.log("[ERROR]: _onEjectMemberSync() -> ", error);
     }
   }
 
@@ -1162,10 +1162,10 @@ export class Chat
       | { conversationId: string; conversation: Conversation; memberOut: User },
     source: OperationResult<
       {
-        onLeaveConversation: MemberOutResultGraphQL
+        onLeaveConversation: MemberOutResultGraphQL;
       },
       SubscriptionOnLeaveConversationArgs & {
-        jwt: string
+        jwt: string;
       }
     >,
     uuid: string
@@ -1173,8 +1173,8 @@ export class Chat
     //TODO handling system messages that shows the user left the conversation
     try {
       if (!(response instanceof QIError)) {
-        const conversationId = response.conversationId
-        this._removeSubscribtionsSync(conversationId)
+        const conversationId = response.conversationId;
+        this._removeSubscribtionsSync(conversationId);
 
         //handling system messages that shows the user left the conversation
         this._storage.insertBulkSafe("message", [
@@ -1195,10 +1195,10 @@ export class Chat
             updateAt: null,
             deletedAt: null,
           },
-        ])
+        ]);
       }
     } catch (error) {
-      console.log("[ERROR]: _onLeaveConversationSync() -> ", error)
+      console.log("[ERROR]: _onLeaveConversationSync() -> ", error);
     }
   }
 
@@ -1206,10 +1206,10 @@ export class Chat
     response: QIError | Conversation,
     source: OperationResult<
       {
-        onMuteConversation: ConversationGraphQL
+        onMuteConversation: ConversationGraphQL;
       },
       SubscriptionOnMuteConversationArgs & {
-        jwt: string
+        jwt: string;
       }
     >,
     uuid: string
@@ -1219,7 +1219,7 @@ export class Chat
       if (!(response instanceof QIError)) {
       }
     } catch (error) {
-      console.log("[ERROR]: _onMuteConversationSync() -> ", error)
+      console.log("[ERROR]: _onMuteConversationSync() -> ", error);
     }
   }
 
@@ -1227,10 +1227,10 @@ export class Chat
     response: QIError | Conversation,
     source: OperationResult<
       {
-        onUnmuteConversation: ConversationGraphQL
+        onUnmuteConversation: ConversationGraphQL;
       },
       SubscriptionOnUnmuteConversationArgs & {
-        jwt: string
+        jwt: string;
       }
     >,
     uuid: string
@@ -1240,7 +1240,7 @@ export class Chat
       if (!(response instanceof QIError)) {
       }
     } catch (error) {
-      console.log("[ERROR]: _onUnmuteConversationSync() -> ", error)
+      console.log("[ERROR]: _onUnmuteConversationSync() -> ", error);
     }
   }
 
@@ -1249,204 +1249,204 @@ export class Chat
     const onAddReaction = this.onAddReaction(
       conversationId,
       this._onAddReactionSync
-    )
+    );
 
     if (!(onAddReaction instanceof QIError)) {
-      const { unsubscribe, uuid } = onAddReaction
+      const { unsubscribe, uuid } = onAddReaction;
       this._unsubscribeSyncSet.push({
         type: "onAddReaction",
         unsubscribe,
         uuid,
         conversationId,
-      })
+      });
     }
 
     //remove reaction(conversationId)
     const onRemoveReaction = this.onRemoveReaction(
       conversationId,
       this._onRemoveReactionSync
-    )
+    );
 
     if (!(onRemoveReaction instanceof QIError)) {
-      const { unsubscribe, uuid } = onRemoveReaction
+      const { unsubscribe, uuid } = onRemoveReaction;
       this._unsubscribeSyncSet.push({
         type: "onRemoveReaction",
         unsubscribe,
         uuid,
         conversationId,
-      })
+      });
     }
 
     //send message(conversationId)
     const onSendMessage = this.onSendMessage(
       conversationId,
       this._onSendMessageSync
-    )
+    );
 
     if (!(onSendMessage instanceof QIError)) {
-      const { unsubscribe, uuid } = onSendMessage
+      const { unsubscribe, uuid } = onSendMessage;
       this._unsubscribeSyncSet.push({
         type: "onSendMessage",
         unsubscribe,
         uuid,
         conversationId,
-      })
+      });
     }
 
     //edit message(conversationId)
     const onEditMessage = this.onEditMessage(
       conversationId,
       this._onEditMessageSync
-    )
+    );
 
     if (!(onEditMessage instanceof QIError)) {
-      const { unsubscribe, uuid } = onEditMessage
+      const { unsubscribe, uuid } = onEditMessage;
       this._unsubscribeSyncSet.push({
         type: "onEditMessage",
         unsubscribe,
         uuid,
         conversationId,
-      })
+      });
     }
 
     //delete message(conversationId)
     const onDeleteMessage = this.onDeleteMessage(
       conversationId,
       this._onDeleteMessageSync
-    )
+    );
 
     if (!(onDeleteMessage instanceof QIError)) {
-      const { unsubscribe, uuid } = onDeleteMessage
+      const { unsubscribe, uuid } = onDeleteMessage;
       this._unsubscribeSyncSet.push({
         type: "onDeleteMessage",
         unsubscribe,
         uuid,
         conversationId,
-      })
+      });
     }
 
     //delete batch messages(conversationId)
     const onBatchDeleteMessages = this.onBatchDeleteMessages(
       conversationId,
       this._onBatchDeleteMessagesSync
-    )
+    );
 
     if (!(onBatchDeleteMessages instanceof QIError)) {
-      const { unsubscribe, uuid } = onBatchDeleteMessages
+      const { unsubscribe, uuid } = onBatchDeleteMessages;
       this._unsubscribeSyncSet.push({
         type: "onBatchDeleteMessages",
         unsubscribe,
         uuid,
         conversationId,
-      })
+      });
     }
 
     //update settings group(conversationId)
     const onUpdateConversationGroup = this.onUpdateConversationGroup(
       conversationId,
       this._onUpdateConversationGroupSync
-    )
+    );
 
     if (!(onUpdateConversationGroup instanceof QIError)) {
-      const { unsubscribe, uuid } = onUpdateConversationGroup
+      const { unsubscribe, uuid } = onUpdateConversationGroup;
       this._unsubscribeSyncSet.push({
         type: "onUpdateConversationGroup",
         unsubscribe,
         uuid,
         conversationId,
-      })
+      });
     }
 
     //eject member(conversationId)
     const onEjectMember = this.onEjectMember(
       conversationId,
       this._onEjectMemberSync
-    )
+    );
 
     if (!(onEjectMember instanceof QIError)) {
-      const { unsubscribe, uuid } = onEjectMember
+      const { unsubscribe, uuid } = onEjectMember;
       this._unsubscribeSyncSet.push({
         type: "onEjectMember",
         unsubscribe,
         uuid,
         conversationId,
-      })
+      });
     }
 
     //leave group/conversation(conversationId)
     const onLeaveConversation = this.onLeaveConversation(
       conversationId,
       this._onLeaveConversationSync
-    )
+    );
 
     if (!(onLeaveConversation instanceof QIError)) {
-      const { unsubscribe, uuid } = onLeaveConversation
+      const { unsubscribe, uuid } = onLeaveConversation;
       this._unsubscribeSyncSet.push({
         type: "onLeaveConversation",
         unsubscribe,
         uuid,
         conversationId,
-      })
+      });
     }
 
     //mute conversation(conversationId)
     const onMuteConversation = this.onMuteConversation(
       conversationId,
       this._onMuteConversationSync
-    )
+    );
 
     if (!(onMuteConversation instanceof QIError)) {
-      const { unsubscribe, uuid } = onMuteConversation
+      const { unsubscribe, uuid } = onMuteConversation;
       this._unsubscribeSyncSet.push({
         type: "onMuteConversation",
         unsubscribe,
         uuid,
         conversationId,
-      })
+      });
     }
 
     //unmute conversation(conversationId)
     const onUnmuteConversation = this.onUnmuteConversation(
       conversationId,
       this._onUnmuteConversationSync
-    )
+    );
 
     if (!(onUnmuteConversation instanceof QIError)) {
-      const { unsubscribe, uuid } = onUnmuteConversation
+      const { unsubscribe, uuid } = onUnmuteConversation;
       this._unsubscribeSyncSet.push({
         type: "onUnmuteConversation",
         unsubscribe,
         uuid,
         conversationId,
-      })
+      });
     }
   }
 
   private _removeSubscribtionsSync(conversationId: string) {
     //let's remove first the subscriptions
     const unsubscribeItems = this._unsubscribeSyncSet.filter((item) => {
-      return item.conversationId === conversationId
-    })
+      return item.conversationId === conversationId;
+    });
 
     unsubscribeItems.forEach((item) => {
       try {
-        item.unsubscribe()
+        item.unsubscribe();
       } catch (error) {
-        console.log("[ERROR]: unsubscribe() -> ", item.uuid, item.type)
+        console.log("[ERROR]: unsubscribe() -> ", item.uuid, item.type);
       }
-    })
+    });
 
     //let's remove the unsubscriptions functions from the _unsubscribeSyncSet since we have unsubscribed everything
     this._unsubscribeSyncSet = this._unsubscribeSyncSet.filter((item) => {
-      return item.conversationId !== conversationId
-    })
+      return item.conversationId !== conversationId;
+    });
 
     //let's update also the _conversationsMap and turn this conversation as unactive
     const index = this._conversationsMap.findIndex((conversation) => {
-      return conversation.conversationId === conversationId
-    })
+      return conversation.conversationId === conversationId;
+    });
 
-    if (index > -1) this._conversationsMap[index].type = "CANCELED"
+    if (index > -1) this._conversationsMap[index].type = "CANCELED";
   }
 
   /** Mutations */
@@ -1456,14 +1456,15 @@ export class Chat
    * @param {string} [id] - The ID of the user to block.
    * @returns {Promise<User | QIError>} A promise that resolves to a User object if successful, or a QIError object if there was an error.
    */
-  async blockUser(): Promise<User | QIError>
-  async blockUser(id: string): Promise<User | QIError>
+  async blockUser(): Promise<User | QIError>;
+  async blockUser(id: string): Promise<User | QIError>;
   async blockUser(id?: unknown): Promise<User | QIError> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use blockUser(id : string) instead."
-      )
-    if (typeof id !== "string") throw new Error("id argument must be a string.")
+      );
+    if (typeof id !== "string")
+      throw new Error("id argument must be a string.");
 
     const response = await this._mutation<
       MutationAddBlockedUserArgs,
@@ -1471,9 +1472,9 @@ export class Chat
       UserGraphQL
     >("addBlockedUser", addBlockedUser, "_mutation() -> blockUser()", {
       blockId: id,
-    })
+    });
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new User({
       ...this._parentConfig!,
@@ -1517,7 +1518,7 @@ export class Chat
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
   async addMembersToConversation(
@@ -1539,13 +1540,13 @@ export class Chat
           members: (args as AddMembersToConversationArgs).members,
         },
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     const listConversationMembers: {
-      conversationId: string
-      items: Array<ConversationMember>
+      conversationId: string;
+      items: Array<ConversationMember>;
     } = {
       conversationId: response.conversationId,
       items: response.items.map((item) => {
@@ -1561,11 +1562,11 @@ export class Chat
           updatedAt: item.updatedAt,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
-        })
+        });
       }),
-    }
+    };
 
-    return listConversationMembers
+    return listConversationMembers;
   }
 
   async addMemberToConversation(
@@ -1585,9 +1586,9 @@ export class Chat
           member: (args as AddMemberToConversationArgs).member,
         },
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new ConversationMember({
       ...this._parentConfig!,
@@ -1603,17 +1604,18 @@ export class Chat
       updatedAt: response.item.updatedAt,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
-  async pinMessage(): Promise<Message | QIError>
-  async pinMessage(id: string): Promise<Message | QIError>
+  async pinMessage(): Promise<Message | QIError>;
+  async pinMessage(id: string): Promise<Message | QIError>;
   async pinMessage(id?: unknown): Promise<Message | QIError> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use pinMessage(id : string) instead."
-      )
-    if (typeof id !== "string") throw new Error("id argument must be a string.")
+      );
+    if (typeof id !== "string")
+      throw new Error("id argument must be a string.");
 
     const response = await this._mutation<
       MutationAddPinToMessageArgs,
@@ -1621,9 +1623,9 @@ export class Chat
       MessageGraphQL
     >("addPinToMessage", addPinToMessage, "_mutation() -> pinMessage()", {
       messageId: id,
-    })
+    });
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new Message({
       ...this._parentConfig!,
@@ -1639,7 +1641,7 @@ export class Chat
               createdAt: reaction.createdAt,
               client: this._client!,
               realtimeClient: this._realtimeClient!,
-            })
+            });
           })
         : null,
       userId: response.userId,
@@ -1658,7 +1660,7 @@ export class Chat
                     createdAt: reaction.createdAt,
                     client: this._client!,
                     realtimeClient: this._realtimeClient!,
-                  })
+                  });
                 })
               : null,
             userId: response.messageRoot.userId,
@@ -1695,7 +1697,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
   async addReactionToMessage(
@@ -1719,9 +1721,9 @@ export class Chat
           conversationId: args.conversationId,
         },
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new Message({
       ...this._parentConfig!,
@@ -1737,7 +1739,7 @@ export class Chat
               createdAt: reaction.createdAt,
               client: this._client!,
               realtimeClient: this._realtimeClient!,
-            })
+            });
           })
         : null,
       userId: response.userId,
@@ -1756,7 +1758,7 @@ export class Chat
                     createdAt: reaction.createdAt,
                     client: this._client!,
                     realtimeClient: this._realtimeClient!,
-                  })
+                  });
                 })
               : null,
             userId: response.messageRoot.userId,
@@ -1793,7 +1795,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
   async addReportToConversation(
@@ -1813,9 +1815,9 @@ export class Chat
           description: args.description,
         },
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new ConversationReport({
       ...this._parentConfig!,
@@ -1826,7 +1828,7 @@ export class Chat
       updatedAt: response.updatedAt,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
   async addReportToMessage(
@@ -1846,9 +1848,9 @@ export class Chat
           description: args.description,
         },
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new MessageReport({
       ...this._parentConfig!,
@@ -1859,17 +1861,18 @@ export class Chat
       updatedAt: response.updatedAt,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
-  async archiveConversation(): Promise<User | QIError>
-  async archiveConversation(id: string): Promise<User | QIError>
+  async archiveConversation(): Promise<User | QIError>;
+  async archiveConversation(id: string): Promise<User | QIError>;
   async archiveConversation(id?: unknown): Promise<User | QIError> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use archiveConversation(id : string) instead."
-      )
-    if (typeof id !== "string") throw new Error("id argument must be a string.")
+      );
+    if (typeof id !== "string")
+      throw new Error("id argument must be a string.");
 
     const response = await this._mutation<
       MutationArchiveConversationArgs,
@@ -1882,9 +1885,9 @@ export class Chat
       {
         conversationId: id,
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new User({
       ...this._parentConfig!,
@@ -1928,7 +1931,7 @@ export class Chat
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
   async archiveConversations(ids: Array<string>): Promise<User | QIError> {
@@ -1943,9 +1946,9 @@ export class Chat
       {
         conversationIds: ids,
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new User({
       ...this._parentConfig!,
@@ -1989,7 +1992,7 @@ export class Chat
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
   async createConversationGroup(
@@ -1997,7 +2000,7 @@ export class Chat
   ): Promise<
     { keypairItem: KeyPairItem | null; conversation: Conversation } | QIError
   > {
-    const keypair = await Crypto.generateKeys("HIGH")
+    const keypair = await Crypto.generateKeys("HIGH");
     const response = await this._mutation<
       MutationCreateConversationGroupArgs,
       { createConversationGroup: ConversationGraphQL },
@@ -2021,18 +2024,18 @@ export class Chat
           ),
         },
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     this.addKeyPairItem({
       id: response.id,
       keypair: keypair!,
-    })
+    });
 
     const conversationGroup: {
-      keypairItem: KeyPairItem
-      conversation: Conversation
+      keypairItem: KeyPairItem;
+      conversation: Conversation;
     } = {
       keypairItem: {
         id: response.id,
@@ -2062,9 +2065,9 @@ export class Chat
         client: this._client!,
         realtimeClient: this._realtimeClient!,
       }),
-    }
+    };
 
-    return conversationGroup
+    return conversationGroup;
   }
 
   async createConversationOneToOne(
@@ -2072,7 +2075,7 @@ export class Chat
   ): Promise<
     QIError | { keypairItem: KeyPairItem | null; conversation: Conversation }
   > {
-    const keypair = await Crypto.generateKeys("HIGH")
+    const keypair = await Crypto.generateKeys("HIGH");
     const response = await this._mutation<
       MutationCreateConversationOneToOneArgs,
       { createConversationOneToOne: ConversationGraphQL },
@@ -2092,13 +2095,13 @@ export class Chat
           imageURL: Crypto.encrypt(keypair!.publicKey, args.imageURL),
         },
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     const conversationItem: {
-      keypairItem: KeyPairItem | null
-      conversation: Conversation
+      keypairItem: KeyPairItem | null;
+      conversation: Conversation;
     } = {
       keypairItem: {
         id: response.id,
@@ -2128,9 +2131,9 @@ export class Chat
         client: this._client!,
         realtimeClient: this._realtimeClient!,
       }),
-    }
+    };
 
-    return conversationItem
+    return conversationItem;
   }
 
   async deleteBatchConversationMessages(
@@ -2150,14 +2153,14 @@ export class Chat
           messagesIds: args.messagesIds,
         },
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return {
       conversationId: response.conversationId,
       messagesIds: response.messagesIds,
-    }
+    };
   }
 
   async deleteMessage(id: string): Promise<Message | QIError> {
@@ -2174,9 +2177,9 @@ export class Chat
           messageId: id,
         },
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new Message({
       ...this._parentConfig!,
@@ -2192,7 +2195,7 @@ export class Chat
               createdAt: reaction.createdAt,
               client: this._client!,
               realtimeClient: this._realtimeClient!,
-            })
+            });
           })
         : null,
       userId: response.userId,
@@ -2211,7 +2214,7 @@ export class Chat
                     createdAt: reaction.createdAt,
                     client: this._client!,
                     realtimeClient: this._realtimeClient!,
-                  })
+                  });
                 })
               : null,
             userId: response.messageRoot.userId,
@@ -2248,7 +2251,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
   async deleteRequestTrade(
@@ -2265,9 +2268,9 @@ export class Chat
       {
         requestTradeId: id,
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new ConversationTradingPool({
       ...this._parentConfig!,
@@ -2283,7 +2286,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
   async editMessage(args: EditMessageArgs): Promise<QIError | Message> {
@@ -2300,9 +2303,9 @@ export class Chat
         ),
         conversationId: args.conversationId,
       },
-    })
+    });
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new Message({
       ...this._parentConfig!,
@@ -2318,7 +2321,7 @@ export class Chat
               createdAt: reaction.createdAt,
               client: this._client!,
               realtimeClient: this._realtimeClient!,
-            })
+            });
           })
         : null,
       userId: response.userId,
@@ -2337,7 +2340,7 @@ export class Chat
                     createdAt: reaction.createdAt,
                     client: this._client!,
                     realtimeClient: this._realtimeClient!,
-                  })
+                  });
                 })
               : null,
             userId: response.messageRoot.userId,
@@ -2374,7 +2377,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
   async ejectMember(
@@ -2392,9 +2395,9 @@ export class Chat
         conversationId: args.id,
         userId: args.userId,
       },
-    })
+    });
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return {
       conversationId: response.conversationId,
@@ -2505,7 +2508,7 @@ export class Chat
         client: this._client!,
         realtimeClient: this._realtimeClient!,
       }),
-    }
+    };
   }
 
   async eraseConversationByAdmin(
@@ -2524,31 +2527,31 @@ export class Chat
       {
         conversationId: id,
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     const listConversations: {
-      conversationId: string
-      items: Array<{ id: string }>
+      conversationId: string;
+      items: Array<{ id: string }>;
     } = {
       conversationId: response.conversationId,
       items: response.items,
-    }
+    };
 
-    return listConversations
+    return listConversations;
   }
 
   async leaveConversation(): Promise<
     | { conversationId: string; conversation: Conversation; memberOut: User }
     | QIError
-  >
+  >;
   async leaveConversation(
     id: string
   ): Promise<
     | { conversationId: string; conversation: Conversation; memberOut: User }
     | QIError
-  >
+  >;
   async leaveConversation(
     id?: unknown
   ): Promise<
@@ -2558,8 +2561,9 @@ export class Chat
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use leaveConversation(id : string) instead."
-      )
-    if (typeof id !== "string") throw new Error("id argument must be a string.")
+      );
+    if (typeof id !== "string")
+      throw new Error("id argument must be a string.");
 
     const response = await this._mutation<
       MutationLeaveConversationArgs,
@@ -2572,9 +2576,9 @@ export class Chat
       {
         conversationId: id,
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return {
       conversationId: response.conversationId,
@@ -2685,12 +2689,12 @@ export class Chat
         client: this._client!,
         realtimeClient: this._realtimeClient!,
       }),
-    }
+    };
   }
 
   async muteConversation(
     args: MuteConversationArgs
-  ): Promise<QIError | Conversation>
+  ): Promise<QIError | Conversation>;
   async muteConversation(args: unknown): Promise<Conversation | QIError> {
     const response = await this._mutation<
       MutationMuteConversationArgs,
@@ -2703,9 +2707,9 @@ export class Chat
       {
         conversationId: (args as MuteConversationArgs).id,
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new Conversation({
       ...this._parentConfig!,
@@ -2728,17 +2732,18 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
-  async unlockUser(): Promise<QIError | User>
-  async unlockUser(id: string): Promise<QIError | User>
+  async unlockUser(): Promise<QIError | User>;
+  async unlockUser(id: string): Promise<QIError | User>;
   async unlockUser(id?: unknown): Promise<QIError | User> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unlockUser(id : string) instead."
-      )
-    if (typeof id !== "string") throw new Error("id argument must be a string.")
+      );
+    if (typeof id !== "string")
+      throw new Error("id argument must be a string.");
 
     const response = await this._mutation<
       MutationRemoveBlockedUserArgs,
@@ -2746,9 +2751,9 @@ export class Chat
       UserGraphQL
     >("removeBlockedUser", removeBlockedUser, "_mutation() -> unlockUser()", {
       blockId: id,
-    })
+    });
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new User({
       ...this._parentConfig!,
@@ -2792,17 +2797,18 @@ export class Chat
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
-  async unpinMessage(): Promise<QIError | Message>
-  async unpinMessage(id: string): Promise<QIError | Message>
+  async unpinMessage(): Promise<QIError | Message>;
+  async unpinMessage(id: string): Promise<QIError | Message>;
   async unpinMessage(id?: unknown): Promise<QIError | Message> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unpinMessage(id : string) instead."
-      )
-    if (typeof id !== "string") throw new Error("id argument must be a string.")
+      );
+    if (typeof id !== "string")
+      throw new Error("id argument must be a string.");
 
     const response = await this._mutation<
       MutationRemovePinFromMessageArgs,
@@ -2815,9 +2821,9 @@ export class Chat
       {
         messageId: id,
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new Message({
       ...this._parentConfig!,
@@ -2833,7 +2839,7 @@ export class Chat
               createdAt: reaction.createdAt,
               client: this._client!,
               realtimeClient: this._realtimeClient!,
-            })
+            });
           })
         : null,
       userId: response.userId,
@@ -2852,7 +2858,7 @@ export class Chat
                     createdAt: reaction.createdAt,
                     client: this._client!,
                     realtimeClient: this._realtimeClient!,
-                  })
+                  });
                 })
               : null,
             userId: response.messageRoot.userId,
@@ -2889,7 +2895,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
   async removeReactionFromMessage(
@@ -2913,9 +2919,9 @@ export class Chat
           conversationId: args.conversationId,
         },
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new Message({
       ...this._parentConfig!,
@@ -2931,7 +2937,7 @@ export class Chat
               createdAt: reaction.createdAt,
               client: this._client!,
               realtimeClient: this._realtimeClient!,
-            })
+            });
           })
         : null,
       userId: response.userId,
@@ -2950,7 +2956,7 @@ export class Chat
                     createdAt: reaction.createdAt,
                     client: this._client!,
                     realtimeClient: this._realtimeClient!,
-                  })
+                  });
                 })
               : null,
             userId: response.messageRoot.userId,
@@ -2987,7 +2993,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
   async requestTrade(
@@ -3003,9 +3009,9 @@ export class Chat
         conversationId: args.conversationId,
         operation: JSON.stringify(args.operation),
       },
-    })
+    });
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new ConversationTradingPool({
       ...this._parentConfig!,
@@ -3021,7 +3027,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
   async updateRequestTrade(
@@ -3043,9 +3049,9 @@ export class Chat
           counterparties: args.counterparties,
         },
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new ConversationTradingPool({
       ...this._parentConfig!,
@@ -3061,14 +3067,15 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
   async sendMessage(args: SendMessageArgs): Promise<QIError | Message> {
-    let content: string
+    let content: string;
 
-    if (typeof args.content === "object") content = JSON.stringify(args.content)
-    else content = args.content
+    if (typeof args.content === "object")
+      content = JSON.stringify(args.content);
+    else content = args.content;
 
     const response = await this._mutation<
       MutationSendMessageArgs,
@@ -3083,9 +3090,9 @@ export class Chat
         conversationId: (args as SendMessageArgs).conversationId,
         type: (args as SendMessageArgs).type,
       },
-    })
+    });
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new Message({
       ...this._parentConfig!,
@@ -3101,7 +3108,7 @@ export class Chat
               createdAt: reaction.createdAt,
               client: this._client!,
               realtimeClient: this._realtimeClient!,
-            })
+            });
           })
         : null,
       userId: response.userId,
@@ -3120,7 +3127,7 @@ export class Chat
                     createdAt: reaction.createdAt,
                     client: this._client!,
                     realtimeClient: this._realtimeClient!,
-                  })
+                  });
                 })
               : null,
             userId: response.messageRoot.userId,
@@ -3157,17 +3164,18 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
-  async unarchiveConversation(): Promise<QIError | User>
-  async unarchiveConversation(id: string): Promise<QIError | User>
+  async unarchiveConversation(): Promise<QIError | User>;
+  async unarchiveConversation(id: string): Promise<QIError | User>;
   async unarchiveConversation(id?: unknown): Promise<QIError | User> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unarchiveConversation(id : string) instead."
-      )
-    if (typeof id !== "string") throw new Error("id argument must be a string.")
+      );
+    if (typeof id !== "string")
+      throw new Error("id argument must be a string.");
 
     const response = await this._mutation<
       MutationUnarchiveConversationArgs,
@@ -3180,9 +3188,9 @@ export class Chat
       {
         conversationId: id,
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new User({
       ...this._parentConfig!,
@@ -3226,7 +3234,7 @@ export class Chat
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
   async unarchiveConversations(ids: Array<string>): Promise<User | QIError> {
@@ -3241,9 +3249,9 @@ export class Chat
       {
         conversationIds: ids,
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new User({
       ...this._parentConfig!,
@@ -3287,17 +3295,18 @@ export class Chat
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
-  async unmuteConversation(): Promise<QIError | Conversation>
-  async unmuteConversation(id: string): Promise<QIError | Conversation>
+  async unmuteConversation(): Promise<QIError | Conversation>;
+  async unmuteConversation(id: string): Promise<QIError | Conversation>;
   async unmuteConversation(id?: unknown): Promise<QIError | Conversation> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unmuteConversation(id : string) instead."
-      )
-    if (typeof id !== "string") throw new Error("id argument must be a string.")
+      );
+    if (typeof id !== "string")
+      throw new Error("id argument must be a string.");
 
     const response = await this._mutation<
       MutationUnmuteConversationArgs,
@@ -3310,9 +3319,9 @@ export class Chat
       {
         conversationId: id,
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new Conversation({
       ...this._parentConfig!,
@@ -3335,7 +3344,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
   async updateConversationGroup(
@@ -3371,9 +3380,9 @@ export class Chat
           settings: JSON.stringify(args.settings),
         },
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new Conversation({
       ...this._parentConfig!,
@@ -3396,7 +3405,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
   async updateUser(args: UpdateUserArgs): Promise<QIError | User> {
@@ -3417,9 +3426,9 @@ export class Chat
         allowAddToGroupsFrom: args.allowAddToGroupsFrom,
         allowGroupsSuggestion: args.allowGroupsSuggestion,
       },
-    })
+    });
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new User({
       ...this._parentConfig!,
@@ -3463,17 +3472,18 @@ export class Chat
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
-  async markImportantMessage(): Promise<Message | QIError>
-  async markImportantMessage(id: string): Promise<Message | QIError>
+  async markImportantMessage(): Promise<Message | QIError>;
+  async markImportantMessage(id: string): Promise<Message | QIError>;
   async markImportantMessage(id?: unknown): Promise<Message | QIError> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use markImportantMessage(id : string) instead."
-      )
-    if (typeof id !== "string") throw new Error("id argument must be a string.")
+      );
+    if (typeof id !== "string")
+      throw new Error("id argument must be a string.");
 
     const response = await this._mutation<
       MutationAddImportantToMessageArgs,
@@ -3486,9 +3496,9 @@ export class Chat
       {
         messageId: id,
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     const message = new Message({
       ...this._parentConfig!,
@@ -3504,7 +3514,7 @@ export class Chat
               createdAt: reaction.createdAt,
               client: this._client!,
               realtimeClient: this._realtimeClient!,
-            })
+            });
           })
         : null,
       userId: response.userId,
@@ -3523,7 +3533,7 @@ export class Chat
                     createdAt: reaction.createdAt,
                     client: this._client!,
                     realtimeClient: this._realtimeClient!,
-                  })
+                  });
                 })
               : null,
             userId: response.messageRoot.userId,
@@ -3560,7 +3570,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
 
     //let's update the local db
     this._storage.insertBulkSafe("message", [
@@ -3571,19 +3581,20 @@ export class Chat
         true,
         "USER"
       ),
-    ])
+    ]);
 
-    return message
+    return message;
   }
 
-  async unmarkImportantMessage(): Promise<QIError | Message>
-  async unmarkImportantMessage(id: string): Promise<QIError | Message>
+  async unmarkImportantMessage(): Promise<QIError | Message>;
+  async unmarkImportantMessage(id: string): Promise<QIError | Message>;
   async unmarkImportantMessage(id?: unknown): Promise<QIError | Message> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unmarkImportantMessage(id : string) instead."
-      )
-    if (typeof id !== "string") throw new Error("id argument must be a string.")
+      );
+    if (typeof id !== "string")
+      throw new Error("id argument must be a string.");
 
     const response = await this._mutation<
       MutationRemoveImportantFromMessageArgs,
@@ -3596,9 +3607,9 @@ export class Chat
       {
         messageId: id,
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     const message = new Message({
       ...this._parentConfig!,
@@ -3614,7 +3625,7 @@ export class Chat
               createdAt: reaction.createdAt,
               client: this._client!,
               realtimeClient: this._realtimeClient!,
-            })
+            });
           })
         : null,
       userId: response.userId,
@@ -3633,7 +3644,7 @@ export class Chat
                     createdAt: reaction.createdAt,
                     client: this._client!,
                     realtimeClient: this._realtimeClient!,
-                  })
+                  });
                 })
               : null,
             userId: response.messageRoot.userId,
@@ -3670,7 +3681,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
 
     //let's update the local db
     this._storage.insertBulkSafe("message", [
@@ -3681,19 +3692,20 @@ export class Chat
         false,
         "USER"
       ),
-    ])
+    ]);
 
-    return message
+    return message;
   }
 
-  async pinConversation(): Promise<Conversation | QIError>
-  async pinConversation(id: string): Promise<Conversation | QIError>
+  async pinConversation(): Promise<Conversation | QIError>;
+  async pinConversation(id: string): Promise<Conversation | QIError>;
   async pinConversation(id?: unknown): Promise<Conversation | QIError> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use pinConversation(id : string) instead."
-      )
-    if (typeof id !== "string") throw new Error("id argument must be a string.")
+      );
+    if (typeof id !== "string")
+      throw new Error("id argument must be a string.");
 
     const response = await this._mutation<
       MutationAddPinToConversationArgs,
@@ -3706,9 +3718,9 @@ export class Chat
       {
         conversationId: id,
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new Conversation({
       ...this._parentConfig!,
@@ -3731,17 +3743,18 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
-  async unpinConversation(): Promise<QIError | boolean>
-  async unpinConversation(id: string): Promise<QIError | boolean>
+  async unpinConversation(): Promise<QIError | boolean>;
+  async unpinConversation(id: string): Promise<QIError | boolean>;
   async unpinConversation(id?: unknown): Promise<QIError | boolean> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unpinConversation(id : string) instead."
-      )
-    if (typeof id !== "string") throw new Error("id argument must be a string.")
+      );
+    if (typeof id !== "string")
+      throw new Error("id argument must be a string.");
 
     const response = await this._mutation<
       MutationRemovePinFromConversationArgs,
@@ -3754,11 +3767,11 @@ export class Chat
       {
         conversationId: id,
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
-    return true
+    return true;
   }
 
   /*
@@ -3771,7 +3784,7 @@ export class Chat
     const response = await this._query<
       QueryListAllActiveUserConversationIdsArgs,
       {
-        listAllActiveUserConversationIds: ListAllActiveUserConversationIdsResultGraphQL
+        listAllActiveUserConversationIds: ListAllActiveUserConversationIdsResultGraphQL;
       },
       ListAllActiveUserConversationIdsResultGraphQL
     >(
@@ -3784,16 +3797,16 @@ export class Chat
           nextToken: args.nextToken,
         },
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     const activeUserConversationIds = {
       items: response.items,
       nextToken: response.nextToken ? response.nextToken : undefined,
-    }
+    };
 
-    return activeUserConversationIds
+    return activeUserConversationIds;
   }
 
   async listConversationMemberByUserId(
@@ -3805,7 +3818,7 @@ export class Chat
     const response = await this._query<
       QueryListConversationMemberByUserIdArgs,
       {
-        listConversationMemberByUserId: ListConversationMemberByUserIdResultGraphQL
+        listConversationMemberByUserId: ListConversationMemberByUserIdResultGraphQL;
       },
       ListConversationMemberByUserIdResultGraphQL
     >(
@@ -3815,13 +3828,13 @@ export class Chat
       {
         nextToken,
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     const listConversationMember: {
-      nextToken?: string
-      items: Array<ConversationMember>
+      nextToken?: string;
+      items: Array<ConversationMember>;
     } = {
       nextToken: response.nextToken ? response.nextToken : undefined,
       items: response.items.map((item) => {
@@ -3837,18 +3850,18 @@ export class Chat
           updatedAt: item.updatedAt,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
-        })
+        });
       }),
-    }
+    };
 
-    return listConversationMember
+    return listConversationMember;
   }
 
   async listUsersByIds(ids: string[]): Promise<
     | QIError
     | {
-        items: User[]
-        unprocessedKeys?: Maybe<string[]> | undefined
+        items: User[];
+        unprocessedKeys?: Maybe<string[]> | undefined;
       }
   > {
     const response = await this._query<
@@ -3857,13 +3870,13 @@ export class Chat
       ListUsersByIdsResultGraphQL
     >("listUsersByIds", listUsersByIds, "_query() -> listUsersByIds()", {
       usersIds: ids,
-    })
+    });
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     const listUsers: {
-      unprocessedKeys?: Maybe<string[]>
-      items: Array<User>
+      unprocessedKeys?: Maybe<string[]>;
+      items: Array<User>;
     } = {
       unprocessedKeys: response.unprocessedKeys,
       items: response.items.map((item) => {
@@ -3909,18 +3922,18 @@ export class Chat
           updatedAt: item.updatedAt ? new Date(item.updatedAt) : null,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
-        })
+        });
       }),
-    }
+    };
 
-    return listUsers
+    return listUsers;
   }
 
   async listConversationsByIds(ids: string[]): Promise<
     | QIError
     | {
-        items: Conversation[]
-        unprocessedKeys?: Maybe<string[]> | undefined
+        items: Conversation[];
+        unprocessedKeys?: Maybe<string[]> | undefined;
       }
   > {
     const response = await this._query<
@@ -3932,13 +3945,13 @@ export class Chat
       listConversationsByIds,
       "_query() -> listConversationsByIds()",
       { conversationsIds: ids }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     const listConversations: {
-      unprocessedKeys?: Maybe<string[]>
-      items: Array<Conversation>
+      unprocessedKeys?: Maybe<string[]>;
+      items: Array<Conversation>;
     } = {
       unprocessedKeys: response.unprocessedKeys,
       items: response.items.map((item) => {
@@ -3963,11 +3976,11 @@ export class Chat
           deletedAt: item.deletedAt ? item.deletedAt : null,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
-        })
+        });
       }),
-    }
+    };
 
-    return listConversations
+    return listConversations;
   }
 
   async listMessagesByConversationId(
@@ -3989,13 +4002,13 @@ export class Chat
           nextToken: args.nextToken,
         },
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     const listMessages: {
-      nextToken?: string
-      items: Array<Message>
+      nextToken?: string;
+      items: Array<Message>;
     } = {
       nextToken: response.nextToken ? response.nextToken : undefined,
       items: response.items.map((item) => {
@@ -4013,7 +4026,7 @@ export class Chat
                   createdAt: reaction.createdAt,
                   client: this._client!,
                   realtimeClient: this._realtimeClient!,
-                })
+                });
               })
             : null,
           userId: item.userId,
@@ -4032,7 +4045,7 @@ export class Chat
                         createdAt: reaction.createdAt,
                         client: this._client!,
                         realtimeClient: this._realtimeClient!,
-                      })
+                      });
                     })
                   : null,
                 userId: item.messageRoot.userId,
@@ -4069,26 +4082,26 @@ export class Chat
           deletedAt: item.deletedAt ? item.deletedAt : null,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
-        })
+        });
       }),
-    }
+    };
 
-    return listMessages
+    return listMessages;
   }
 
   async listMessagesImportantByUserConversationId(
     args: ListMessagesImportantByUserConversationIdArgs
   ): Promise<
     | {
-        items: MessageImportant[]
-        nextToken?: Maybe<string> | undefined
+        items: MessageImportant[];
+        nextToken?: Maybe<string> | undefined;
       }
     | QIError
   > {
     const response = await this._query<
       QueryListMessagesImportantByUserConversationIdArgs,
       {
-        listMessagesImportantByUserConversationId: ListMessagesImportantByUserConversationIdResultGraphQL
+        listMessagesImportantByUserConversationId: ListMessagesImportantByUserConversationIdResultGraphQL;
       },
       ListMessagesImportantByUserConversationIdResultGraphQL
     >(
@@ -4101,13 +4114,13 @@ export class Chat
           nextToken: args.nextToken,
         },
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     const listMessagesImportant: {
-      nextToken?: string
-      items: Array<MessageImportant>
+      nextToken?: string;
+      items: Array<MessageImportant>;
     } = {
       nextToken: response.nextToken ? response.nextToken : undefined,
       items: response.items.map((item) => {
@@ -4130,7 +4143,7 @@ export class Chat
                     createdAt: reaction.createdAt,
                     client: this._client!,
                     realtimeClient: this._realtimeClient!,
-                  })
+                  });
                 })
               : null,
             userId: item.message!.userId,
@@ -4149,7 +4162,7 @@ export class Chat
                           createdAt: reaction.createdAt,
                           client: this._client!,
                           realtimeClient: this._realtimeClient!,
-                        })
+                        });
                       })
                     : null,
                   userId: item.message!.messageRoot.userId,
@@ -4194,11 +4207,11 @@ export class Chat
           updatedAt: item.updatedAt,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
-        })
+        });
       }),
-    }
+    };
 
-    return listMessagesImportant
+    return listMessagesImportant;
   }
 
   async listConversationsPinnedByCurrentUser(
@@ -4210,7 +4223,7 @@ export class Chat
     const response = await this._query<
       QueryListConversationsPinnedByCurrentUserArgs,
       {
-        listConversationsPinnedByCurrentUser: ListConversationsPinnedByUserIdResultGraphQL
+        listConversationsPinnedByCurrentUser: ListConversationsPinnedByUserIdResultGraphQL;
       },
       ListConversationsPinnedByUserIdResultGraphQL
     >(
@@ -4220,13 +4233,13 @@ export class Chat
       {
         nextToken,
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     const listConversationsPinned: {
-      nextToken?: string
-      items: Array<ConversationPin>
+      nextToken?: string;
+      items: Array<ConversationPin>;
     } = {
       nextToken: response.nextToken ? response.nextToken : undefined,
       items: response.items.map((item) => {
@@ -4281,11 +4294,11 @@ export class Chat
           updatedAt: item.updatedAt,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
-        })
+        });
       }),
-    }
+    };
 
-    return listConversationsPinned
+    return listConversationsPinned;
   }
 
   async findUsersByUsernameOrAddress(
@@ -4294,7 +4307,7 @@ export class Chat
     const response = await this._query<
       QueryFindUsersByUsernameOrAddressArgs,
       {
-        findUsersByUsernameOrAddress: FindUsersByUsernameOrAddressResultGraphQL
+        findUsersByUsernameOrAddress: FindUsersByUsernameOrAddressResultGraphQL;
       },
       FindUsersByUsernameOrAddressResultGraphQL
     >(
@@ -4307,13 +4320,13 @@ export class Chat
           nextToken: args.nextToken,
         },
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     const listUsers: {
-      nextToken?: string
-      items: Array<User>
+      nextToken?: string;
+      items: Array<User>;
     } = {
       nextToken: response.nextToken ? response.nextToken : undefined,
       items: response.items.map((item) => {
@@ -4359,23 +4372,23 @@ export class Chat
           updatedAt: item.updatedAt ? new Date(item.updatedAt) : null,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
-        })
+        });
       }),
-    }
+    };
 
-    return listUsers
+    return listUsers;
   }
 
   async getCurrentUser(): Promise<QIError | User> {
     const response = await this._query<
       null,
       {
-        getCurrentUser: UserGraphQL
+        getCurrentUser: UserGraphQL;
       },
       UserGraphQL
-    >("getCurrentUser", getCurrentUser, "_query() -> getCurrentUser()", null)
+    >("getCurrentUser", getCurrentUser, "_query() -> getCurrentUser()", null);
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new User({
       ...this._parentConfig!,
@@ -4419,7 +4432,7 @@ export class Chat
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
   async getConversationById(id: string): Promise<Conversation | QIError> {
@@ -4434,9 +4447,9 @@ export class Chat
       {
         conversationId: id,
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new Conversation({
       ...this._parentConfig!,
@@ -4459,7 +4472,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
   async listTradesByConversationId(
@@ -4471,7 +4484,7 @@ export class Chat
     const response = await this._query<
       QueryListTradesByConversationIdArgs,
       {
-        listTradesByConversationId: ListTradesByConversationIdResultGraphQL
+        listTradesByConversationId: ListTradesByConversationIdResultGraphQL;
       },
       ListTradesByConversationIdResultGraphQL
     >(
@@ -4485,13 +4498,13 @@ export class Chat
           nextToken: args.nextToken,
         },
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     const listTrades: {
-      nextToken?: string
-      items: Array<ConversationTradingPool>
+      nextToken?: string;
+      items: Array<ConversationTradingPool>;
     } = {
       nextToken: response.nextToken ? response.nextToken : undefined,
       items: response.items.map((item) => {
@@ -4509,11 +4522,11 @@ export class Chat
           deletedAt: item.deletedAt ? item.deletedAt : null,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
-        })
+        });
       }),
-    }
+    };
 
-    return listTrades
+    return listTrades;
   }
 
   async getConversationTradingPoolById(
@@ -4522,7 +4535,7 @@ export class Chat
     const response = await this._query<
       QueryGetConversationTradingPoolByIdArgs,
       {
-        getConversationTradingPoolById: ConversationTradingPoolGraphQL
+        getConversationTradingPoolById: ConversationTradingPoolGraphQL;
       },
       ConversationTradingPoolGraphQL
     >(
@@ -4532,9 +4545,9 @@ export class Chat
       {
         conversationTradingPoolId,
       }
-    )
+    );
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) return response;
 
     return new ConversationTradingPool({
       ...this._parentConfig!,
@@ -4550,7 +4563,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
-    })
+    });
   }
 
   /**
@@ -4563,34 +4576,34 @@ export class Chat
       response: Message | QIError,
       source: OperationResult<
         {
-          onSendMessage: MessageGraphQL
+          onSendMessage: MessageGraphQL;
         },
         SubscriptionOnSendMessageArgs & {
-          jwt: string
+          jwt: string;
         }
       >,
       uuid: string
     ) => void
   ): SubscriptionGarbage | QIError {
-    const key = "onSendMessage"
+    const key = "onSendMessage";
     const metasubcription = this._subscription<
       SubscriptionOnSendMessageArgs,
       { onSendMessage: MessageGraphQL }
-    >(onSendMessage, key, { conversationId })
+    >(onSendMessage, key, { conversationId });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onSendMessage: MessageGraphQL },
         MessageGraphQL
-      >("onSendMessage", result)
+      >("onSendMessage", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -4608,7 +4621,7 @@ export class Chat
                   createdAt: reaction.createdAt,
                   client: this._client!,
                   realtimeClient: this._realtimeClient!,
-                })
+                });
               })
             : null,
           userId: r.userId,
@@ -4627,7 +4640,7 @@ export class Chat
                         createdAt: reaction.createdAt,
                         client: this._client!,
                         realtimeClient: this._realtimeClient!,
-                      })
+                      });
                     })
                   : null,
                 userId: r.messageRoot.userId,
@@ -4663,10 +4676,10 @@ export class Chat
         }),
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onEditMessage(
@@ -4680,25 +4693,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onEditMessage"
+    const key = "onEditMessage";
     const metasubcription = this._subscription<
       SubscriptionOnEditMessageArgs,
       { onEditMessage: MessageGraphQL }
-    >(onEditMessage, key, { conversationId })
+    >(onEditMessage, key, { conversationId });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onEditMessage: MessageGraphQL },
         MessageGraphQL
-      >("onEditMessage", result)
+      >("onEditMessage", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -4716,7 +4729,7 @@ export class Chat
                   createdAt: reaction.createdAt,
                   client: this._client!,
                   realtimeClient: this._realtimeClient!,
-                })
+                });
               })
             : null,
           userId: r.userId,
@@ -4735,7 +4748,7 @@ export class Chat
                         createdAt: reaction.createdAt,
                         client: this._client!,
                         realtimeClient: this._realtimeClient!,
-                      })
+                      });
                     })
                   : null,
                 userId: r.messageRoot.userId,
@@ -4771,10 +4784,10 @@ export class Chat
         }),
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onBatchDeleteMessages(
@@ -4788,25 +4801,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onBatchDeleteMessages"
+    const key = "onBatchDeleteMessages";
     const metasubcription = this._subscription<
       SubscriptionOnBatchDeleteMessagesArgs,
       { onBatchDeleteMessages: BatchDeleteMessagesResultGraphQL }
-    >(onBatchDeleteMessages, key, { conversationId })
+    >(onBatchDeleteMessages, key, { conversationId });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onBatchDeleteMessages: BatchDeleteMessagesResultGraphQL },
         BatchDeleteMessagesResultGraphQL
-      >("onBatchDeleteMessages", result)
+      >("onBatchDeleteMessages", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -4816,10 +4829,10 @@ export class Chat
         },
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onDeleteMessage(
@@ -4833,25 +4846,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onDeleteMessage"
+    const key = "onDeleteMessage";
     const metasubcription = this._subscription<
       SubscriptionOnDeleteMessageArgs,
       { onDeleteMessage: MessageGraphQL }
-    >(onDeleteMessage, key, { conversationId })
+    >(onDeleteMessage, key, { conversationId });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onDeleteMessage: MessageGraphQL },
         MessageGraphQL
-      >("onDeleteMessage", result)
+      >("onDeleteMessage", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -4869,7 +4882,7 @@ export class Chat
                   createdAt: reaction.createdAt,
                   client: this._client!,
                   realtimeClient: this._realtimeClient!,
-                })
+                });
               })
             : null,
           userId: r.userId,
@@ -4889,7 +4902,7 @@ export class Chat
                         createdAt: reaction.createdAt,
                         client: this._client!,
                         realtimeClient: this._realtimeClient!,
-                      })
+                      });
                     })
                   : null,
                 userId: r.messageRoot.userId,
@@ -4924,10 +4937,10 @@ export class Chat
         }),
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onAddReaction(
@@ -4941,25 +4954,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onAddReaction"
+    const key = "onAddReaction";
     const metasubcription = this._subscription<
       SubscriptionOnAddReactionArgs,
       { onAddReaction: MessageGraphQL }
-    >(onAddReaction, key, { conversationId })
+    >(onAddReaction, key, { conversationId });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onAddReaction: MessageGraphQL },
         MessageGraphQL
-      >("onAddReaction", result)
+      >("onAddReaction", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -4977,7 +4990,7 @@ export class Chat
                   createdAt: reaction.createdAt,
                   client: this._client!,
                   realtimeClient: this._realtimeClient!,
-                })
+                });
               })
             : null,
           userId: r.userId,
@@ -4997,7 +5010,7 @@ export class Chat
                         createdAt: reaction.createdAt,
                         client: this._client!,
                         realtimeClient: this._realtimeClient!,
-                      })
+                      });
                     })
                   : null,
                 userId: r.messageRoot.userId,
@@ -5032,10 +5045,10 @@ export class Chat
         }),
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onRemoveReaction(
@@ -5049,25 +5062,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onRemoveReaction"
+    const key = "onRemoveReaction";
     const metasubcription = this._subscription<
       SubscriptionOnRemoveReactionArgs,
       { onRemoveReaction: MessageGraphQL }
-    >(onRemoveReaction, key, { conversationId })
+    >(onRemoveReaction, key, { conversationId });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onRemoveReaction: MessageGraphQL },
         MessageGraphQL
-      >("onRemoveReaction", result)
+      >("onRemoveReaction", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -5085,7 +5098,7 @@ export class Chat
                   createdAt: reaction.createdAt,
                   client: this._client!,
                   realtimeClient: this._realtimeClient!,
-                })
+                });
               })
             : null,
           userId: r.userId,
@@ -5105,7 +5118,7 @@ export class Chat
                         createdAt: reaction.createdAt,
                         client: this._client!,
                         realtimeClient: this._realtimeClient!,
-                      })
+                      });
                     })
                   : null,
                 userId: r.messageRoot.userId,
@@ -5140,10 +5153,10 @@ export class Chat
         }),
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onAddPinMessage(
@@ -5157,25 +5170,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onAddPinMessage"
+    const key = "onAddPinMessage";
     const metasubcription = this._subscription<
       SubscriptionOnAddPinMessageArgs,
       { onAddPinMessage: MessageGraphQL }
-    >(onAddPinMessage, key, { conversationId })
+    >(onAddPinMessage, key, { conversationId });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onAddPinMessage: MessageGraphQL },
         MessageGraphQL
-      >("onAddPinMessage", result)
+      >("onAddPinMessage", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -5193,7 +5206,7 @@ export class Chat
                   createdAt: reaction.createdAt,
                   client: this._client!,
                   realtimeClient: this._realtimeClient!,
-                })
+                });
               })
             : null,
           userId: r.userId,
@@ -5213,7 +5226,7 @@ export class Chat
                         createdAt: reaction.createdAt,
                         client: this._client!,
                         realtimeClient: this._realtimeClient!,
-                      })
+                      });
                     })
                   : null,
                 userId: r.messageRoot.userId,
@@ -5248,10 +5261,10 @@ export class Chat
         }),
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onRemovePinMessage(
@@ -5265,25 +5278,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onRemovePinMessage"
+    const key = "onRemovePinMessage";
     const metasubcription = this._subscription<
       SubscriptionOnRemovePinMessageArgs,
       { onRemovePinMessage: MessageGraphQL }
-    >(onRemovePinMessage, key, { conversationId })
+    >(onRemovePinMessage, key, { conversationId });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onRemovePinMessage: MessageGraphQL },
         MessageGraphQL
-      >("onRemovePinMessage", result)
+      >("onRemovePinMessage", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -5301,7 +5314,7 @@ export class Chat
                   createdAt: reaction.createdAt,
                   client: this._client!,
                   realtimeClient: this._realtimeClient!,
-                })
+                });
               })
             : null,
           userId: r.userId,
@@ -5320,7 +5333,7 @@ export class Chat
                         createdAt: reaction.createdAt,
                         client: this._client!,
                         realtimeClient: this._realtimeClient!,
-                      })
+                      });
                     })
                   : null,
                 userId: r.messageRoot.userId,
@@ -5356,10 +5369,10 @@ export class Chat
         }),
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onUpdateConversationGroup(
@@ -5373,25 +5386,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onUpdateConversationGroup"
+    const key = "onUpdateConversationGroup";
     const metasubcription = this._subscription<
       SubscriptionOnUpdateConversationGroupArgs,
       { onUpdateConversationGroup: ConversationGraphQL }
-    >(onUpdateConversationGroup, key, { id })
+    >(onUpdateConversationGroup, key, { id });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onUpdateConversationGroup: ConversationGraphQL },
         ConversationGraphQL
-      >("onUpdateConversationGroup", result)
+      >("onUpdateConversationGroup", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -5417,10 +5430,10 @@ export class Chat
         }),
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onEjectMember(
@@ -5429,9 +5442,9 @@ export class Chat
       response:
         | QIError
         | {
-            conversationId: string
-            conversation: Conversation
-            memberOut: User
+            conversationId: string;
+            conversation: Conversation;
+            memberOut: User;
           },
       source: OperationResult<
         { onEjectMember: MemberOutResultGraphQL },
@@ -5440,25 +5453,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onEjectMember"
+    const key = "onEjectMember";
     const metasubcription = this._subscription<
       SubscriptionOnEjectMemberArgs,
       { onEjectMember: MemberOutResultGraphQL }
-    >(onEjectMember, key, { conversationId })
+    >(onEjectMember, key, { conversationId });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onEjectMember: MemberOutResultGraphQL },
         MemberOutResultGraphQL
-      >("onEjectMember", result)
+      >("onEjectMember", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -5556,10 +5569,10 @@ export class Chat
         },
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onLeaveConversation(
@@ -5568,9 +5581,9 @@ export class Chat
       response:
         | QIError
         | {
-            conversationId: string
-            conversation: Conversation
-            memberOut: User
+            conversationId: string;
+            conversation: Conversation;
+            memberOut: User;
           },
       source: OperationResult<
         { onLeaveConversation: MemberOutResultGraphQL },
@@ -5579,25 +5592,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onLeaveConversation"
+    const key = "onLeaveConversation";
     const metasubcription = this._subscription<
       SubscriptionOnLeaveConversationArgs,
       { onLeaveConversation: MemberOutResultGraphQL }
-    >(onLeaveConversation, key, { conversationId })
+    >(onLeaveConversation, key, { conversationId });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onLeaveConversation: MemberOutResultGraphQL },
         MemberOutResultGraphQL
-      >("onLeaveConversation", result)
+      >("onLeaveConversation", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -5695,10 +5708,10 @@ export class Chat
         },
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onAddPinConversation(
@@ -5712,25 +5725,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onAddPinConversation"
+    const key = "onAddPinConversation";
     const metasubcription = this._subscription<
       SubscriptionOnAddPinConversationArgs,
       { onAddPinConversation: ConversationGraphQL }
-    >(onAddPinConversation, key, { conversationId })
+    >(onAddPinConversation, key, { conversationId });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onAddPinConversation: ConversationGraphQL },
         ConversationGraphQL
-      >("onAddPinConversation", result)
+      >("onAddPinConversation", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -5756,10 +5769,10 @@ export class Chat
         }),
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onRemovePinConversation(
@@ -5773,25 +5786,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onRemovePinConversation"
+    const key = "onRemovePinConversation";
     const metasubcription = this._subscription<
       SubscriptionOnRemovePinConversationArgs,
       { onRemovePinConversation: ConversationGraphQL }
-    >(onRemovePinConversation, key, { conversationId })
+    >(onRemovePinConversation, key, { conversationId });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onRemovePinConversation: ConversationGraphQL },
         ConversationGraphQL
-      >("onRemovePinConversation", result)
+      >("onRemovePinConversation", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -5817,10 +5830,10 @@ export class Chat
         }),
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onMuteConversation(
@@ -5834,25 +5847,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onMuteConversation"
+    const key = "onMuteConversation";
     const metasubcription = this._subscription<
       SubscriptionOnMuteConversationArgs,
       { onMuteConversation: ConversationGraphQL }
-    >(onMuteConversation, key, { conversationId })
+    >(onMuteConversation, key, { conversationId });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onMuteConversation: ConversationGraphQL },
         ConversationGraphQL
-      >("onMuteConversation", result)
+      >("onMuteConversation", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -5878,10 +5891,10 @@ export class Chat
         }),
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onUnmuteConversation(
@@ -5895,25 +5908,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onUnmuteConversation"
+    const key = "onUnmuteConversation";
     const metasubcription = this._subscription<
       SubscriptionOnUnmuteConversationArgs,
       { onUnmuteConversation: ConversationGraphQL }
-    >(onUnmuteConversation, key, { conversationId })
+    >(onUnmuteConversation, key, { conversationId });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onUnmuteConversation: ConversationGraphQL },
         ConversationGraphQL
-      >("onUnmuteConversation", result)
+      >("onUnmuteConversation", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -5939,10 +5952,10 @@ export class Chat
         }),
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onAddMembersToConversation(
@@ -5958,25 +5971,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onAddMembersToConversation"
+    const key = "onAddMembersToConversation";
     const metasubcription = this._subscription<
       SubscriptionOnAddMembersToConversationArgs,
       { onAddMembersToConversation: ListConversationMembersGraphQL }
-    >(onAddMembersToConversation, key, { conversationId })
+    >(onAddMembersToConversation, key, { conversationId });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onAddMembersToConversation: ListConversationMembersGraphQL },
         ListConversationMembersGraphQL
-      >("onAddMembersToConversation", result)
+      >("onAddMembersToConversation", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -5997,15 +6010,15 @@ export class Chat
               updatedAt: item.updatedAt,
               client: this._client!,
               realtimeClient: this._realtimeClient!,
-            })
+            });
           }),
         },
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onAddMemberToConversation(
@@ -6014,9 +6027,9 @@ export class Chat
       response:
         | QIError
         | {
-            conversationId: string
-            memberId: string
-            item: ConversationMember
+            conversationId: string;
+            memberId: string;
+            item: ConversationMember;
           },
       source: OperationResult<
         { onAddMemberToConversation: AddMemberToConversationResultGraphQL },
@@ -6025,25 +6038,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onAddMemberToConversation"
+    const key = "onAddMemberToConversation";
     const metasubcription = this._subscription<
       SubscriptionOnAddMemberToConversationArgs,
       { onAddMemberToConversation: AddMemberToConversationResultGraphQL }
-    >(onAddMemberToConversation, key, { memberId })
+    >(onAddMemberToConversation, key, { memberId });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onAddMemberToConversation: AddMemberToConversationResultGraphQL },
         AddMemberToConversationResultGraphQL
-      >("onAddMemberToConversation", result)
+      >("onAddMemberToConversation", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -6068,10 +6081,10 @@ export class Chat
         },
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onUpdateUser(
@@ -6085,25 +6098,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onUpdateUser"
+    const key = "onUpdateUser";
     const metasubcription = this._subscription<
       SubscriptionOnUpdateUserArgs,
       { onUpdateUser: UserGraphQL }
-    >(onUpdateUser, key, { id })
+    >(onUpdateUser, key, { id });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onUpdateUser: UserGraphQL },
         UserGraphQL
-      >("onUpdateUser", result)
+      >("onUpdateUser", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -6148,10 +6161,10 @@ export class Chat
         }),
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onRequestTrade(
@@ -6165,25 +6178,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onRequestTrade"
+    const key = "onRequestTrade";
     const metasubcription = this._subscription<
       SubscriptionOnRequestTradeArgs,
       { onRequestTrade: ConversationTradingPoolGraphQL }
-    >(onRequestTrade, key, { conversationId })
+    >(onRequestTrade, key, { conversationId });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onRequestTrade: ConversationTradingPoolGraphQL },
         ConversationTradingPoolGraphQL
-      >("onRequestTrade", result)
+      >("onRequestTrade", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -6204,10 +6217,10 @@ export class Chat
         }),
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onDeleteRequestTrade(
@@ -6221,25 +6234,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onDeleteRequestTrade"
+    const key = "onDeleteRequestTrade";
     const metasubcription = this._subscription<
       SubscriptionOnDeleteRequestTradeArgs,
       { onDeleteRequestTrade: ConversationTradingPoolGraphQL }
-    >(onDeleteRequestTrade, key, { conversationId })
+    >(onDeleteRequestTrade, key, { conversationId });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onDeleteRequestTrade: ConversationTradingPoolGraphQL },
         ConversationTradingPoolGraphQL
-      >("onDeleteRequestTrade", result)
+      >("onDeleteRequestTrade", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -6260,10 +6273,10 @@ export class Chat
         }),
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   onUpdateRequestTrade(
@@ -6277,25 +6290,25 @@ export class Chat
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
-    const key = "onUpdateRequestTrade"
+    const key = "onUpdateRequestTrade";
     const metasubcription = this._subscription<
       SubscriptionOnUpdateRequestTradeArgs,
       { onUpdateRequestTrade: ConversationTradingPoolGraphQL }
-    >(onUpdateRequestTrade, key, { conversationId })
+    >(onUpdateRequestTrade, key, { conversationId });
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) return metasubcription;
 
-    const { subscribe, uuid } = metasubcription
+    const { subscribe, uuid } = metasubcription;
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
         { onUpdateRequestTrade: ConversationTradingPoolGraphQL },
         ConversationTradingPoolGraphQL
-      >("onUpdateRequestTrade", result)
+      >("onUpdateRequestTrade", result);
 
       if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
+        callback(r, result, uuid);
+        return;
       }
 
       callback(
@@ -6316,77 +6329,76 @@ export class Chat
         }),
         result,
         uuid
-      )
-    })
+      );
+    });
 
-    return { unsubscribe, uuid }
+    return { unsubscribe, uuid };
   }
 
   /** Syncing methods */
 
   async sync(callback: Function) {
     if (!this._account)
-      throw new Error("You must be authenticated before to sync.")
+      throw new Error("You must be authenticated before to sync.");
     if (!this._storage.isStorageEnabled())
-      throw new Error("sync() is available only if you enable the storage.")
+      throw new Error("sync() is available only if you enable the storage.");
     if (
       this._eventsCallback.findIndex((item) => {
-        return item.event === "sync"
+        return item.event === "sync";
       }) > -1
     )
-      throw new Error("You have already launched sync().")
+      throw new Error("You have already launched sync().");
     if (!this._canChat)
       throw new Error(
         "This client cannot start to chat. Are you missing to pairing the keys?"
-      )
+      );
 
     //in order to run queries, mutations or subscriptions we need to call connect() to establish a connection between
     //the client and the server otherwise the internal _client instance of the Engine class cannot be created because one of the requirements
     //is to create a _realtimeClient that use the websocket protocol to communicate with the server.
-    this.connect(async () => {
-      this._on("sync", () => {
-        this._isSyncing = false
-        callback()
-      })
+    await this.connect();
+    this._on("sync", () => {
+      this._isSyncing = false;
+      callback();
+    });
 
-      await this._sync(this._syncingCounter)
+    await this._sync(this._syncingCounter);
 
-      //add member to conversation. This event is global, basically the user is always listening if
-      //someone wants to add him into a conversation.
-      const onAddMemberToConversation = this.onAddMemberToConversation(
-        this._account!.dynamoDBUserID,
-        this._onAddMemberToConversationSync
-      )
+    //add member to conversation. This event is global, basically the user is always listening if
+    //someone wants to add him into a conversation.
+    const onAddMemberToConversation = this.onAddMemberToConversation(
+      this._account!.dynamoDBUserID,
+      this._onAddMemberToConversationSync
+    );
 
-      if (!(onAddMemberToConversation instanceof QIError)) {
-        const { unsubscribe, uuid } = onAddMemberToConversation
-        this._unsubscribeSyncSet.push({
-          type: "onAddMemberToConversation",
-          unsubscribe,
-          uuid,
-          conversationId: "", //this value is updated inside the callback fired by the subscription
-        })
-      }
+    if (!(onAddMemberToConversation instanceof QIError)) {
+      const { unsubscribe, uuid } = onAddMemberToConversation;
+      this._unsubscribeSyncSet.push({
+        type: "onAddMemberToConversation",
+        unsubscribe,
+        uuid,
+        conversationId: "", //this value is updated inside the callback fired by the subscription
+      });
+    }
 
-      //now that we have a _conversationsMap array filled, we can add subscription for every conversation that is currently active
-      for (const { conversationId } of this._conversationsMap.filter(
-        (conversation) => conversation.type === "ACTIVE"
-      )) {
-        this._addSubscriptionsSync(conversationId)
-      }
-    })
+    //now that we have a _conversationsMap array filled, we can add subscription for every conversation that is currently active
+    for (const { conversationId } of this._conversationsMap.filter(
+      (conversation) => conversation.type === "ACTIVE"
+    )) {
+      this._addSubscriptionsSync(conversationId);
+    }
   }
 
   syncing(callback: (isSyncing: boolean, syncingCounter: number) => void) {
     this._on("syncing", (syncingCounter: number) => {
-      callback(this._isSyncing, syncingCounter)
-    })
+      callback(this._isSyncing, syncingCounter);
+    });
   }
 
   syncUpdate(callback: (syncingCounter: number) => void) {
     this._on("syncUpdate", (syncingCounter: number) => {
-      callback(syncingCounter)
-    })
+      callback(syncingCounter);
+    });
   }
 
   /** local database events */
@@ -6414,10 +6426,10 @@ export class Chat
                         this.findPrivateKeyById(conversationId),
                         reaction.content
                       ),
-                    }
+                    };
                   })
                 : null,
-            }
+            };
 
             _message.messageRoot = record.messageRoot
               ? {
@@ -6434,19 +6446,19 @@ export class Chat
                             this.findPrivateKeyById(conversationId),
                             reaction.content
                           ),
-                        }
+                        };
                       })
                     : null,
                 }
-              : null
+              : null;
 
-            callback(_message)
-          })
+            callback(_message);
+          });
         },
         "message"
-      )
+      );
     } catch (error) {
-      callbackError(error)
+      callbackError(error);
     }
   }
 
@@ -6473,10 +6485,10 @@ export class Chat
                         this.findPrivateKeyById(conversationId),
                         reaction.content
                       ),
-                    }
+                    };
                   })
                 : null,
-            }
+            };
 
             _message.messageRoot = record.messageRoot
               ? {
@@ -6493,19 +6505,19 @@ export class Chat
                             this.findPrivateKeyById(conversationId),
                             reaction.content
                           ),
-                        }
+                        };
                       })
                     : null,
                 }
-              : null
+              : null;
 
-            callback(_message)
-          })
+            callback(_message);
+          });
         },
         "message"
-      )
+      );
     } catch (error) {
-      callbackError(error)
+      callbackError(error);
     }
   }
 
@@ -6532,10 +6544,10 @@ export class Chat
                         this.findPrivateKeyById(conversationId),
                         reaction.content
                       ),
-                    }
+                    };
                   })
                 : null,
-            }
+            };
 
             _message.messageRoot = record.messageRoot
               ? {
@@ -6552,19 +6564,19 @@ export class Chat
                             this.findPrivateKeyById(conversationId),
                             reaction.content
                           ),
-                        }
+                        };
                       })
                     : null,
                 }
-              : null
+              : null;
 
-            callback(_message)
-          })
+            callback(_message);
+          });
         },
         "message"
-      )
+      );
     } catch (error) {
-      callbackError(error)
+      callbackError(error);
     }
   }
 
@@ -6603,15 +6615,15 @@ export class Chat
                   record.settings
                 )
               ),
-            }
+            };
 
-            callback(_conversation)
-          })
+            callback(_conversation);
+          });
         },
         "conversation"
-      )
+      );
     } catch (error) {
-      callbackError(error)
+      callbackError(error);
     }
   }
 
@@ -6650,15 +6662,15 @@ export class Chat
                   record.settings
                 )
               ),
-            }
+            };
 
-            callback(_conversation)
-          })
+            callback(_conversation);
+          });
         },
         "conversation"
-      )
+      );
     } catch (error) {
-      callbackError(error)
+      callbackError(error);
     }
   }
 
@@ -6669,13 +6681,13 @@ export class Chat
     page: number,
     numberElements: number
   ): Promise<LocalDBMessage[]> {
-    if (!this._account) throw new Error("Account must be initialized.")
+    if (!this._account) throw new Error("Account must be initialized.");
 
     return new Promise((resolve, reject) => {
       try {
-        if (page < 0 || numberElements <= 0) resolve([])
+        if (page < 0 || numberElements <= 0) resolve([]);
 
-        const offset = (page - 1) * numberElements
+        const offset = (page - 1) * numberElements;
 
         this._storage.query(
           async (
@@ -6694,9 +6706,9 @@ export class Chat
                   typeof element.deletedAt !== "undefined" &&
                   !!element.deletedAt
               )
-              .toArray()
+              .toArray();
 
-            if (!messages) reject([])
+            if (!messages) reject([]);
 
             resolve(
               messages.map((message) => {
@@ -6714,10 +6726,10 @@ export class Chat
                             this.findPrivateKeyById(conversationId),
                             reaction.content
                           ),
-                        }
+                        };
                       })
                     : null,
-                }
+                };
 
                 _message.messageRoot = message.messageRoot
                   ? {
@@ -6734,36 +6746,36 @@ export class Chat
                                 this.findPrivateKeyById(conversationId),
                                 reaction.content
                               ),
-                            }
+                            };
                           })
                         : null,
                     }
-                  : null
+                  : null;
 
-                return _message
+                return _message;
               })
-            )
+            );
           },
           "message"
-        )
+        );
       } catch (error) {
-        console.log("[ERROR]: fetchLocalDBMessages() -> ", error)
-        reject([])
+        console.log("[ERROR]: fetchLocalDBMessages() -> ", error);
+        reject([]);
       }
-    })
+    });
   }
 
   fetchLocalDBConversations(
     page: number,
     numberElements: number
   ): Promise<LocalDBConversation[]> {
-    if (!this._account) throw new Error("Account must be initialized.")
+    if (!this._account) throw new Error("Account must be initialized.");
 
     return new Promise((resolve, reject) => {
       try {
-        if (page < 0 || numberElements <= 0) resolve([])
+        if (page < 0 || numberElements <= 0) resolve([]);
 
-        const offset = (page - 1) * numberElements
+        const offset = (page - 1) * numberElements;
 
         this._storage.query(
           async (
@@ -6785,9 +6797,9 @@ export class Chat
                   typeof element.deletedAt !== "undefined" &&
                   !!element.deletedAt
               )
-              .toArray()
+              .toArray();
 
-            if (!conversations) reject([])
+            if (!conversations) reject([]);
 
             resolve(
               conversations.map((conversation) => {
@@ -6809,23 +6821,23 @@ export class Chat
                     this.findPrivateKeyById(conversation.id),
                     conversation.bannerImageURL
                   ),
-                }
+                };
               })
-            )
+            );
           },
           "conversation"
-        )
+        );
       } catch (error) {
-        console.log("[ERROR]: fetchLocalDBMessages() -> ", error)
-        reject([])
+        console.log("[ERROR]: fetchLocalDBMessages() -> ", error);
+        reject([]);
       }
-    })
+    });
   }
 
   async searchTermsOnLocalDB(
     terms: Array<string>
   ): Promise<Array<{ conversationId: string; messageId: string }>> {
-    if (!this._account) throw new Error("Account must be initialized.")
+    if (!this._account) throw new Error("Account must be initialized.");
     return new Promise((resolve, reject) => {
       try {
         this._storage.query(
@@ -6839,17 +6851,17 @@ export class Chat
                   .where("content")
                   .startsWith(prefix)
                   .and((m) => {
-                    return m.userDid === this._account!.did
+                    return m.userDid === this._account!.did;
                   })
                   .primaryKeys()
               )
-            )
+            );
 
             // Intersect result set of primary keys
             const reduced = results.reduce((a, b) => {
-              const set = new Set(b)
-              return a.filter((k) => set.has(k))
-            })
+              const set = new Set(b);
+              return a.filter((k) => set.has(k));
+            });
 
             const messages = (
               await message.where(":id").anyOf(reduced).toArray()
@@ -6857,23 +6869,23 @@ export class Chat
               return {
                 messageId: message.id,
                 conversationId: message.conversationId,
-              }
-            })
+              };
+            });
 
-            resolve(messages)
+            resolve(messages);
           },
           "message"
-        )
+        );
       } catch (error) {
-        reject(error)
+        reject(error);
       }
-    })
+    });
   }
 
   /** delete operations local database */
 
   softDeleteConversationOnLocalDB(conversationId: string): Promise<void> {
-    if (!this._account) throw new Error("Account must be initialized.")
+    if (!this._account) throw new Error("Account must be initialized.");
     return new Promise((resolve, reject) => {
       try {
         this._storage.query(
@@ -6885,29 +6897,29 @@ export class Chat
               .where("[id+userDid]")
               .equals([conversationId, this._account!.did])
               .modify((conversation: LocalDBConversation) => {
-                conversation.deletedAt = new Date()
-              })
+                conversation.deletedAt = new Date();
+              });
           },
           "conversation"
-        )
+        );
 
-        resolve()
+        resolve();
       } catch (error) {
-        reject(error)
+        reject(error);
       }
-    })
+    });
   }
 
   async truncateTableOnLocalDB(tableName: "message" | "user" | "conversation") {
-    if (!this._account) throw new Error("Account must be initialized.")
+    if (!this._account) throw new Error("Account must be initialized.");
 
-    await this._storage.truncate(tableName)
+    await this._storage.truncate(tableName);
   }
 
   /** update operations local database */
 
   readMessage(conversationId: string): Promise<void> {
-    if (!this._account) throw new Error("Account must be initialized.")
+    if (!this._account) throw new Error("Account must be initialized.");
 
     return new Promise((resolve, reject) => {
       try {
@@ -6920,17 +6932,17 @@ export class Chat
               .where("[id+userDid]")
               .equals([conversationId, this._account!.did])
               .modify((conversation: LocalDBConversation) => {
-                conversation.lastMessageRead = new Date()
-              })
+                conversation.lastMessageRead = new Date();
+              });
           },
           "conversation"
-        )
+        );
 
-        resolve()
+        resolve();
       } catch (error) {
-        reject(error)
+        reject(error);
       }
-    })
+    });
   }
 
   /** transfer keys logic */
@@ -6940,9 +6952,9 @@ export class Chat
     if (!this._userKeyPair)
       throw new Error(
         "Pairing is possible only if the user has generated a personal keys pair."
-      )
-    if (!this._authToken) throw new Error("JWT is not setup correctly.")
-    if (!this._apiKey) throw new Error("API key is not setup correctly.")
+      );
+    if (!this._authToken) throw new Error("JWT is not setup correctly.");
+    if (!this._apiKey) throw new Error("API key is not setup correctly.");
 
     //WARNING!
     //old code was the following:
@@ -6958,10 +6970,10 @@ export class Chat
      *
      */
 
-    const mnemonic = bip39.generateMnemonic(wordlist)
-    const seed = bip39.mnemonicToSeedSync(mnemonic)
-    const buffer = Buffer.from(seed)
-    const hex = buffer.toString("hex")
+    const mnemonic = bip39.generateMnemonic(wordlist);
+    const seed = bip39.mnemonicToSeedSync(mnemonic);
+    const buffer = Buffer.from(seed);
+    const hex = buffer.toString("hex");
 
     try {
       const { response } = await this._fetch<ApiResponse<{ status: number }>>(
@@ -6976,27 +6988,27 @@ export class Chat
             Authorization: `Bearer ${this._authToken}`,
           },
         }
-      )
+      );
 
-      if (!response || !response.data) throw new Error("Response is invalid.")
+      if (!response || !response.data) throw new Error("Response is invalid.");
     } catch (error) {
-      console.log(error)
-      return null
+      console.log(error);
+      return null;
     }
 
-    return mnemonic
+    return mnemonic;
   }
 
   //this action is performed by device B
   async startPairing(mnemonic: string): Promise<Maybe<{ status: number }>> {
-    if (!this._authToken) throw new Error("JWT is not setup correctly.")
-    if (!this._apiKey) throw new Error("API key is not setup correctly.")
+    if (!this._authToken) throw new Error("JWT is not setup correctly.");
+    if (!this._apiKey) throw new Error("API key is not setup correctly.");
 
     try {
-      const keyPair = await Crypto.generateKeys("STANDARD")
+      const keyPair = await Crypto.generateKeys("STANDARD");
 
       if (!keyPair)
-        throw new Error("It was not possible to generate a valid key pair.")
+        throw new Error("It was not possible to generate a valid key pair.");
 
       //WARNING!
       //old code was the following:
@@ -7012,19 +7024,19 @@ export class Chat
        *
        */
 
-      const seed = bip39.mnemonicToSeedSync(mnemonic)
-      const buffer = Buffer.from(seed)
-      const hex = buffer.toString("hex")
-      const _md = md.sha256.create()
+      const seed = bip39.mnemonicToSeedSync(mnemonic);
+      const buffer = Buffer.from(seed);
+      const hex = buffer.toString("hex");
+      const _md = md.sha256.create();
 
-      _md.update(hex)
+      _md.update(hex);
 
       this._keyPairingObject = {
         privateKey: keyPair.privateKey,
         publicKey: keyPair.publicKey,
         md: _md,
         mgf1: mgf.mgf1.create(_md),
-      }
+      };
 
       const { response } = await this._fetch<ApiResponse<{ status: number }>>(
         `${this.backendUrl()}/pair/device/knowledge`,
@@ -7041,14 +7053,14 @@ export class Chat
             Authorization: `Bearer ${this._authToken}`,
           },
         }
-      )
+      );
 
-      if (!response || !response.data) throw new Error("Response is invalid.")
+      if (!response || !response.data) throw new Error("Response is invalid.");
 
-      return response.data[0]
+      return response.data[0];
     } catch (error) {
-      console.log(error)
-      return null
+      console.log(error);
+      return null;
     }
   }
 
@@ -7057,13 +7069,13 @@ export class Chat
     if (!this._userKeyPair)
       throw new Error(
         "Pairing is possible only if the user has generated a personal keys pair."
-      )
-    if (!this._authToken) throw new Error("JWT is not setup correctly.")
-    if (!this._apiKey) throw new Error("API key is not setup correctly.")
+      );
+    if (!this._authToken) throw new Error("JWT is not setup correctly.");
+    if (!this._apiKey) throw new Error("API key is not setup correctly.");
 
     return new Promise(async (resolve, reject) => {
       try {
-        console.log("trying to transfer keys...")
+        console.log("trying to transfer keys...");
 
         //WARNING!
         //old code was the following:
@@ -7078,9 +7090,9 @@ export class Chat
          *
          */
 
-        const seed = bip39.mnemonicToSeedSync(mnemonic)
-        const buffer = Buffer.from(seed)
-        const hex = buffer.toString("hex")
+        const seed = bip39.mnemonicToSeedSync(mnemonic);
+        const buffer = Buffer.from(seed);
+        const hex = buffer.toString("hex");
 
         const { response } = await this._fetch<
           ApiResponse<{ status: number; publicKey: string }>
@@ -7093,29 +7105,29 @@ export class Chat
             "x-api-key": `${this._apiKey}`,
             Authorization: `Bearer ${this._authToken}`,
           },
-        })
+        });
 
         if (!response || !response.data) {
-          reject("Response is invalid.")
-          return
+          reject("Response is invalid.");
+          return;
         }
 
-        const status = response.data[0].status
-        const publicKeyPem = response.data[0].publicKey
+        const status = response.data[0].status;
+        const publicKeyPem = response.data[0].publicKey;
 
-        if (status === 1) setTimeout(this.transferKeysWhenReady, 2000)
+        if (status === 1) setTimeout(this.transferKeysWhenReady, 2000);
         else {
           //let's encrypt the personal key pair of the current user
-          const personalPublicKey = this._userKeyPair!.publicKey
-          const personalPrivateKey = this._userKeyPair!.privateKey
-          const publicKey = pki.publicKeyFromPem(publicKeyPem)
+          const personalPublicKey = this._userKeyPair!.publicKey;
+          const personalPrivateKey = this._userKeyPair!.privateKey;
+          const publicKey = pki.publicKeyFromPem(publicKeyPem);
           const personalPublicKeyPem =
-            Crypto.convertRSAPublicKeyToPem(personalPublicKey)
+            Crypto.convertRSAPublicKeyToPem(personalPublicKey);
           const personalPrivateKeyPem =
-            Crypto.convertRSAPrivateKeyToPem(personalPrivateKey)
-          const _md = md.sha256.create()
-          _md.update(hex)
-          const mgf1 = mgf.mgf1.create(_md)
+            Crypto.convertRSAPrivateKeyToPem(personalPrivateKey);
+          const _md = md.sha256.create();
+          _md.update(hex);
+          const mgf1 = mgf.mgf1.create(_md);
 
           const encryptedPublicKey = publicKey.encrypt(
             personalPublicKeyPem,
@@ -7124,7 +7136,7 @@ export class Chat
               md: _md,
               mgf1,
             }
-          )
+          );
           const encryptedPrivateKey = publicKey.encrypt(
             personalPrivateKeyPem,
             "RSA-OAEP",
@@ -7132,10 +7144,11 @@ export class Chat
               md: _md,
               mgf1,
             }
-          )
+          );
 
-          const encryptedPublicKeyBase64 = Crypto.toBase64(encryptedPublicKey)
-          const encryptedPrivateKeyBase64 = Crypto.toBase64(encryptedPrivateKey)
+          const encryptedPublicKeyBase64 = Crypto.toBase64(encryptedPublicKey);
+          const encryptedPrivateKeyBase64 =
+            Crypto.toBase64(encryptedPrivateKey);
 
           const { response } = await this._fetch<
             ApiResponse<{ status: number }>
@@ -7150,20 +7163,20 @@ export class Chat
               "x-api-key": `${this._apiKey}`,
               Authorization: `Bearer ${this._authToken}`,
             },
-          })
+          });
 
           if (!response || !response.data) {
-            reject("Response is invalid.")
-            return
+            reject("Response is invalid.");
+            return;
           }
 
-          resolve(response.data[0])
+          resolve(response.data[0]);
         }
       } catch (error) {
-        console.log(error)
-        reject(error)
+        console.log(error);
+        reject(error);
       }
-    })
+    });
   }
 
   //called by device B
@@ -7171,13 +7184,13 @@ export class Chat
     if (!this._account)
       throw new Error(
         "Account is not setup correctly. Authenticate to the platform first."
-      )
-    if (!this._authToken) throw new Error("JWT is not setup correctly.")
-    if (!this._apiKey) throw new Error("API key is not setup correctly.")
+      );
+    if (!this._authToken) throw new Error("JWT is not setup correctly.");
+    if (!this._apiKey) throw new Error("API key is not setup correctly.");
 
     return new Promise(async (resolve, reject) => {
       try {
-        console.log("trying to download keys...")
+        console.log("trying to download keys...");
 
         //WARNING!
         //old code was the following:
@@ -7192,15 +7205,15 @@ export class Chat
          *
          */
 
-        const seed = bip39.mnemonicToSeedSync(mnemonic)
-        const buffer = Buffer.from(seed)
-        const hex = buffer.toString("hex")
+        const seed = bip39.mnemonicToSeedSync(mnemonic);
+        const buffer = Buffer.from(seed);
+        const hex = buffer.toString("hex");
 
         const { response } = await this._fetch<
           ApiResponse<{
-            status: number
-            encryptedPrivateKey?: string
-            encryptedPublicKey?: string
+            status: number;
+            encryptedPrivateKey?: string;
+            encryptedPublicKey?: string;
           }>
         >(`${this.backendUrl()}/pair/device/download/keys`, {
           method: "POST",
@@ -7211,28 +7224,28 @@ export class Chat
             "x-api-key": `${this._apiKey}`,
             Authorization: `Bearer ${this._authToken}`,
           },
-        })
+        });
 
         if (!response || !response.data) {
-          reject("Response is invalid.")
-          return
+          reject("Response is invalid.");
+          return;
         }
 
-        const status = response.data[0].status
-        const encryptedPrivateKey = response.data[0].encryptedPrivateKey
-        const encryptedPublicKey = response.data[0].encryptedPublicKey
+        const status = response.data[0].status;
+        const encryptedPrivateKey = response.data[0].encryptedPrivateKey;
+        const encryptedPublicKey = response.data[0].encryptedPublicKey;
 
-        if (status === 3) setTimeout(this.downloadKeysWhenReady, 2000)
+        if (status === 3) setTimeout(this.downloadKeysWhenReady, 2000);
         else {
           //let's decrypt the personal key pair for the current user
-          const personalEncryptedPublicKeyBase64 = encryptedPublicKey!
-          const personalEncryptedPrivateKeyBase64 = encryptedPrivateKey!
+          const personalEncryptedPublicKeyBase64 = encryptedPublicKey!;
+          const personalEncryptedPrivateKeyBase64 = encryptedPrivateKey!;
           const personalEncryptedPublicKey = Crypto.fromBase64(
             personalEncryptedPublicKeyBase64
-          )
+          );
           const personalEncryptedPrivateKey = Crypto.fromBase64(
             personalEncryptedPrivateKeyBase64
-          )
+          );
           const personalPublicKeyPem =
             this._keyPairingObject!.privateKey!.decrypt(
               personalEncryptedPublicKey,
@@ -7241,7 +7254,7 @@ export class Chat
                 md: this._keyPairingObject!.md,
                 mgf1: this._keyPairingObject!.mgf1,
               }
-            )
+            );
           const personalPrivateKeyPem =
             this._keyPairingObject!.privateKey!.decrypt(
               personalEncryptedPrivateKey,
@@ -7250,16 +7263,16 @@ export class Chat
                 md: this._keyPairingObject!.md,
                 mgf1: this._keyPairingObject!.mgf1,
               }
-            )
+            );
 
           this._userKeyPair = await Crypto.generateKeyPairFromPem(
             personalPublicKeyPem,
             personalPrivateKeyPem
-          )
+          );
 
           if (!this._userKeyPair) {
-            reject("Key pair generated is not valid.")
-            return
+            reject("Key pair generated is not valid.");
+            return;
           }
 
           //let's update the current user on our local database
@@ -7267,7 +7280,7 @@ export class Chat
             personalPrivateKeyPem,
             Buffer.from(this._account!.e2eSecret, "hex").toString("base64"),
             Buffer.from(this._account!.e2eSecretIV, "hex").toString("base64")
-          )
+          );
 
           await this._storage.transaction(
             "rw",
@@ -7277,37 +7290,37 @@ export class Chat
                 "user",
                 "[did+organizationId]",
                 [this._account!.did, this._account!.organizationId]
-              )
+              );
 
               await this._storage.user.update(user, {
                 e2eEncryptedPrivateKey: privateKeyForLocalDB,
                 e2ePublicKey: personalPublicKeyPem,
-              })
+              });
 
-              return true
+              return true;
             }
-          )
+          );
 
-          this._canChat = true
-          resolve(this._userKeyPair)
+          this._canChat = true;
+          resolve(this._userKeyPair);
         }
       } catch (error) {
-        console.log(error)
-        reject(error)
+        console.log(error);
+        reject(error);
       }
-    })
+    });
   }
 
   /** handling of "ability to chat" based on _canChat, a property that becomes false if the system notices the current user has done another signin in another device */
 
   clientCanChat(): boolean {
-    return this._canChat === true
+    return this._canChat === true;
   }
 
   setCanChat(canChat: boolean) {
-    this._canChat = canChat
+    this._canChat = canChat;
     if (!this._canChat)
-      console.warn("User needs to transfer private keys between devices.")
+      console.warn("User needs to transfer private keys between devices.");
   }
 
   /** combining messages (NFT & crypto) */
@@ -7317,24 +7330,24 @@ export class Chat
     messageInitializator,
     messageCounterparty,
   }: {
-    initializator: User
-    counterparty: User
-    messageInitializator: Message
-    messageCounterparty: Message
+    initializator: User;
+    counterparty: User;
+    messageInitializator: Message;
+    messageCounterparty: Message;
   }) {
     if (!this._canChat)
       throw new Error(
         "This client chat cannot combine messages. Are you missing to pairing the keys?"
-      )
-    if (!this._account) throw new Error("Account is not setup correctly.")
+      );
+    if (!this._account) throw new Error("Account is not setup correctly.");
     if (messageInitializator.type !== "TRADE_PROPOSAL")
-      throw new Error("messageInitializator is not of type `TRADE_PROPOSAL`.")
+      throw new Error("messageInitializator is not of type `TRADE_PROPOSAL`.");
     if (messageCounterparty.type !== "TRADE_PROPOSAL")
-      throw new Error("messageCounterparty is not of type `TRADE_PROPOSAL`.")
+      throw new Error("messageCounterparty is not of type `TRADE_PROPOSAL`.");
     if (
       messageInitializator.conversationId !== messageCounterparty.conversationId
     )
-      throw new Error("Messages must be of the same conversation.")
+      throw new Error("Messages must be of the same conversation.");
     if (
       [messageCounterparty.userId, messageInitializator.userId].indexOf(
         this._account.dynamoDBUserID
@@ -7342,58 +7355,58 @@ export class Chat
     )
       throw new Error(
         "User must combine at least a message on which he is the author."
-      )
+      );
     if (messageInitializator.userId !== initializator.id)
       throw new Error(
         "It seems the `initializator` is not the author of `messageInitializator`."
-      )
+      );
     if (messageCounterparty.userId !== counterparty.id)
       throw new Error(
         "It seems the `counterparty` is not the author of `messageCounterparty`."
-      )
+      );
 
     try {
-      const counterpartyId = counterparty.id
-      const initializatorId = initializator.id
-      const involvedUsers = [counterpartyId, initializatorId]
+      const counterpartyId = counterparty.id;
+      const initializatorId = initializator.id;
+      const involvedUsers = [counterpartyId, initializatorId];
 
       const {
         assets: assetsInitializator,
       }: { assets: Array<Asset>; message: string } = JSON.parse(
         messageInitializator.content
-      )
+      );
       const {
         assets: assetsCounterparty,
       }: { assets: Array<Asset>; message: string } = JSON.parse(
         messageCounterparty.content
-      )
+      );
 
       //let's check if the assets contains crypto
-      let cryptoParticipantOne = 0
-      let cryptoParticipantTwo = 0
+      let cryptoParticipantOne = 0;
+      let cryptoParticipantTwo = 0;
 
       assetsInitializator.forEach((asset) => {
         if (asset.itemType === "NATIVE" || asset.itemType === "ERC20")
-          cryptoParticipantOne++
-      })
+          cryptoParticipantOne++;
+      });
 
       assetsCounterparty.forEach((asset) => {
         if (asset.itemType === "NATIVE" || asset.itemType === "ERC20")
-          cryptoParticipantTwo++
-      })
+          cryptoParticipantTwo++;
+      });
 
       if (cryptoParticipantOne > 1)
         throw new Error(
           "You cannot add more than one crypto on the first participant side."
-        )
+        );
       if (cryptoParticipantTwo > 1)
         throw new Error(
           "You cannot add more than one crypto on the second participant side."
-        )
+        );
       if (cryptoParticipantOne > 0 && cryptoParticipantTwo > 0)
         throw new Error(
           "Both participants cannot add a token (ERC20 or NATIVE) in the order. Only one counterparty is allowed to add a token in the trade."
-        )
+        );
 
       const operation = {
         operation: "trade",
@@ -7414,15 +7427,15 @@ export class Chat
           participantTwo: assetsCounterparty,
         },
         orderId: "",
-      }
+      };
 
       await this.requestTrade({
         involvedUsers,
         conversationId: messageInitializator.conversationId,
         operation,
-      })
+      });
     } catch (error) {
-      console.log(error)
+      console.log(error);
     }
   }
 
@@ -7432,32 +7445,32 @@ export class Chat
     orderRef,
     dayDuration,
   }: {
-    conversationTradingPoolId: string
-    status: ConversationTradingPoolStatus
-    orderRef: Order
-    dayDuration: number
+    conversationTradingPoolId: string;
+    status: ConversationTradingPoolStatus;
+    orderRef: Order;
+    dayDuration: number;
   }) {
     if (!this._canChat)
       throw new Error(
         "This client chat cannot perform order. Are you missing to pairing the keys?"
-      )
-    if (!this._account) throw new Error("Account is not setup correctly.")
+      );
+    if (!this._account) throw new Error("Account is not setup correctly.");
     if (!orderRef.isInitialized())
       throw new Error(
         "Order referece must be initialized in order to use this method."
-      )
+      );
 
     try {
       const conversationTradingPool = await this.getConversationTradingPoolById(
         conversationTradingPoolId
-      )
+      );
 
       if (conversationTradingPool instanceof QIError)
         throw new Error(
           "Error while retrieving ConversationTradingPool. The `conversationTradingPoolId` provided is wrong maybe?"
-        )
+        );
 
-      const operation = JSON.parse(conversationTradingPool.operation!)
+      const operation = JSON.parse(conversationTradingPool.operation!);
 
       if (status === ConversationTradingPoolStatus.TradeProgress) {
         if (
@@ -7466,60 +7479,60 @@ export class Chat
         )
           throw new Error(
             "Trade status is not in state `TRADE_INITIALIZED`. You are trying to update a trade that was already initialized."
-          )
+          );
 
-        const { assets } = operation
+        const { assets } = operation;
         const {
           participantOne: assetsParticipantOne,
           participantTwo: assetsParticipantTwo,
-        } = assets
-        let participantOne
-        let participantTwo
-        let creatorAddress
-        let creatorDid
-        let counterpartyAddress
-        let counterpartyDid
+        } = assets;
+        let participantOne;
+        let participantTwo;
+        let creatorAddress;
+        let creatorDid;
+        let counterpartyAddress;
+        let counterpartyDid;
 
         //in this way we understand who is the creator and who is the counterparty
         if (this._account.dynamoDBUserID === operation.participantOneId) {
           participantOne = {
             assets: assetsParticipantOne,
             address: operation.participantOneAddress,
-          } //maker is the current user
+          }; //maker is the current user
           participantTwo = {
             assets: assetsParticipantTwo,
             address: operation.participantTwoAddress,
-          } //taker is the other user
+          }; //taker is the other user
 
-          creatorAddress = operation.participantOneAddress
-          creatorDid = operation.participantOneDid
-          counterpartyAddress = operation.participantTwoAddress
-          counterpartyDid = operation.participantTwoDid
+          creatorAddress = operation.participantOneAddress;
+          creatorDid = operation.participantOneDid;
+          counterpartyAddress = operation.participantTwoAddress;
+          counterpartyDid = operation.participantTwoDid;
         } else {
           participantOne = {
             assets: assetsParticipantTwo,
             address: operation.participantTwoAddress,
-          } //maker is the user marked as participantTwo
+          }; //maker is the user marked as participantTwo
           participantTwo = {
             assets: assetsParticipantOne,
             address: operation.participantOneAddress,
-          } //taker is the user marked as participantOne
+          }; //taker is the user marked as participantOne
 
-          creatorAddress = operation.participantTwoAddress
-          creatorDid = operation.participantTwoDid
-          counterpartyAddress = operation.participantOneAddress
-          counterpartyDid = operation.participantOneDid
+          creatorAddress = operation.participantTwoAddress;
+          creatorDid = operation.participantTwoDid;
+          counterpartyAddress = operation.participantOneAddress;
+          counterpartyDid = operation.participantOneDid;
         }
 
         const order = await orderRef.create(
           participantOne,
           participantTwo,
           dayDuration
-        )
+        );
 
-        if (!order) throw new Error("Order was not created successfully.")
+        if (!order) throw new Error("Order was not created successfully.");
 
-        const orderId = order.orderId.toString()
+        const orderId = order.orderId.toString();
 
         await this.updateRequestTrade({
           conversationTradingPoolId,
@@ -7531,21 +7544,21 @@ export class Chat
             counterpartyDid,
           },
           orderId,
-        })
+        });
       } else if (status === ConversationTradingPoolStatus.TradeCompleted) {
-        await orderRef.finalize(operation.orderId)
+        await orderRef.finalize(operation.orderId);
         await this.updateRequestTrade({
           conversationTradingPoolId,
           status,
-        })
+        });
       }
     } catch (error) {
-      console.log(error)
+      console.log(error);
     }
   }
 
   setAuthToken(authToken: Maybe<string>): void {
-    this._authToken = authToken
-    this._realtimeAuthorizationToken = `${this._apiKey}##${authToken}`
+    this._authToken = authToken;
+    this._realtimeAuthorizationToken = `${this._apiKey}##${authToken}`;
   }
 }

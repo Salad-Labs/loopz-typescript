@@ -4,9 +4,10 @@ import React, { FC, useEffect, useMemo, useRef, useState } from "react";
 import { Loopz } from "../../loopz";
 import { PrivyClientConfig, PrivyProvider } from "@privy-io/react-auth";
 import { PrivyWrapper } from "./privywrapper";
-import { LoopzProviderProps } from "@src/interfaces";
+import { LoopzProviderProps } from "../../interfaces";
 import { LoopzContext } from "../context/loopzcontext";
-import { ILoopzContext } from "@src/interfaces/react/iloopzcontext";
+import { ILoopzContext } from "../../interfaces/react/iloopzcontext";
+import { LoopzAccountProvider } from "./loopzaccountprovider";
 
 export const LoopzProvider: FC<LoopzProviderProps> = ({
   config,
@@ -57,7 +58,7 @@ export const LoopzProvider: FC<LoopzProviderProps> = ({
     <LoopzContext.Provider value={loopz}>
       <PrivyProvider appId={config.privyAppId} config={privyConfig}>
         <PrivyWrapper auth={loopz.instance.auth} order={loopz.instance.order}>
-          {children}
+          <LoopzAccountProvider>{children}</LoopzAccountProvider>
         </PrivyWrapper>
       </PrivyProvider>
     </LoopzContext.Provider>

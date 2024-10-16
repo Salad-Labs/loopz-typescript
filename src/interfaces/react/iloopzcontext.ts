@@ -1,8 +1,8 @@
-import { Auth } from "@src/auth";
-import { Chat } from "@src/chat";
-import { Oracle } from "@src/oracle";
-import { Proposal } from "@src/proposal";
-import { Order } from "@src/order";
+import { Auth } from "../../auth";
+import { Chat } from "../../chat";
+import { Oracle } from "../../oracle";
+import { Proposal } from "../../proposal";
+import { Order } from "../../order";
 
 export type ILoopzContext =
   | {

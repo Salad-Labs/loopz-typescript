@@ -347,29 +347,27 @@ export class Account extends Client implements AccountSchema, AccountEngine {
       return item.eventName === eventName;
     });
 
-    if (index > -1 && onlyOnce === true) return;
-
-    if (index > -1 && !onlyOnce)
+    if (index < 0)
+      this._eventsCallbacks.push({
+        eventName,
+        callbacks: [callback],
+      });
+    else {
+      if (onlyOnce) return;
       this._eventsCallbacks[index].callbacks.push(callback);
-
-    this._eventsCallbacks.push({
-      eventName,
-      callbacks: [callback],
-    });
+    }
   }
 
-  /**
-   * Unsubscribes a callback function from a specific event.
-   * @param {"onFundExit"} eventName - The name of the event to unsubscribe from.
-   * @returns None
-   * @throws {Error} If the event is not supported or the callback is not a function.
-   */
-  off(eventName: "onFundExit") {
-    const item = this._eventsCallbacks.find((eventItem) => {
-      return eventItem.eventName === eventName;
+  off(eventName: "onFundExit", callback?: Function) {
+    const index = this._eventsCallbacks.findIndex((item) => {
+      return item.eventName === eventName;
     });
 
-    if (item) item.callbacks = [];
+    if (index < 0) return;
+
+    this._eventsCallbacks[index].callbacks = callback
+      ? this._eventsCallbacks[index].callbacks.filter((cb) => cb !== callback)
+      : [];
   }
 
   /**

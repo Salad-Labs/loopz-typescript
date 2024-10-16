@@ -1,4 +1,4 @@
-import { Client } from "./core/client"
+import { Client } from "./core/client";
 import {
   AuthClientConfig,
   AuthConfig,
@@ -6,23 +6,23 @@ import {
   AuthInfo,
   AuthParams,
   LinkAccountInfo,
-} from "./types/auth"
-import { ApiResponse } from "./types/base/apiresponse"
-import { ApiKeyAuthorized, Maybe } from "./types/base"
-import { Crypto } from "./core"
-import { Account, DexieStorage } from "./core/app"
-import { PrivyClientConfig } from "@privy-io/react-auth"
-import { AuthInternalEvents } from "./interfaces/auth/authinternalevents"
-import { PrivyErrorCode } from "@src/enums/adapter/auth/privyerrorcode"
-import { PrivyAuthInfo } from "./types/adapter"
-import { Order } from "./order"
-import { Proposal } from "./proposal"
-import { Oracle } from "./oracle"
-import forge from "node-forge"
-import { AccountInitConfig } from "./types/auth/account"
-import { Chat } from "./chat"
-import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "./constants/app"
-import { Notification } from "./notification"
+} from "./types/auth";
+import { ApiResponse } from "./types/base/apiresponse";
+import { ApiKeyAuthorized, Maybe } from "./types/base";
+import { Crypto } from "./core";
+import { Account, DexieStorage } from "./core/app";
+import { PrivyClientConfig } from "@privy-io/react-auth";
+import { AuthInternalEvents } from "./interfaces/auth/authinternalevents";
+import { PrivyErrorCode } from "@src/enums/adapter/auth/privyerrorcode";
+import { PrivyAuthInfo } from "./types/adapter";
+import { Order } from "./order";
+import { Proposal } from "./proposal";
+import { Oracle } from "./oracle";
+import forge from "node-forge";
+import { AccountInitConfig } from "./types/auth/account";
+import { Chat } from "./chat";
+import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "./constants/app";
+import { Notification } from "./notification";
 
 /**
  * Represents an authentication client that interacts with a backend server for user authentication.
@@ -30,21 +30,21 @@ import { Notification } from "./notification"
  * @extends Client
  */
 export class Auth extends Client implements AuthInternalEvents {
-  private _storage?: DexieStorage
-  private _privyAppId: string
-  private _privyConfig?: PrivyClientConfig
+  private _storage?: DexieStorage;
+  private _privyAppId: string;
+  private _privyConfig?: PrivyClientConfig;
   private _eventsCallbacks: Array<{
-    callbacks: Function[]
-    eventName: AuthEvents
-  }> = []
-  private _orderRef: Order
-  private _proposalRef: Proposal
-  private _oracleRef: Oracle
-  private _chatRef: Chat
-  private _notificationRef: Notification
-  private _isLoggingOut: boolean = false
-  private _isAuthenticated: boolean = false
-  private _isDevMode: boolean = false
+    callbacks: Function[];
+    eventName: AuthEvents;
+  }> = [];
+  private _orderRef: Order;
+  private _proposalRef: Proposal;
+  private _oracleRef: Oracle;
+  private _chatRef: Chat;
+  private _notificationRef: Notification;
+  private _isLoggingOut: boolean = false;
+  private _isAuthenticated: boolean = false;
+  private _isDevMode: boolean = false;
 
   /**
    * Constructs a new instance of Auth with the provided configuration.
@@ -52,18 +52,18 @@ export class Auth extends Client implements AuthInternalEvents {
    * @returns None
    */
   constructor(config: AuthConfig & ApiKeyAuthorized) {
-    super(config.devMode)
+    super(config.devMode);
 
-    this._isDevMode = config.devMode
-    this._storage = config.storage
-    this._apiKey = config.apiKey
-    this._privyAppId = config.privyAppId
-    this._privyConfig = config.privyConfig
-    this._orderRef = config.order
-    this._oracleRef = config.oracle
-    this._proposalRef = config.proposal
-    this._chatRef = config.chat
-    this._notificationRef = config.notification
+    this._isDevMode = config.devMode;
+    this._storage = config.storage;
+    this._apiKey = config.apiKey;
+    this._privyAppId = config.privyAppId;
+    this._privyConfig = config.privyConfig;
+    this._orderRef = config.order;
+    this._oracleRef = config.oracle;
+    this._proposalRef = config.proposal;
+    this._chatRef = config.chat;
+    this._notificationRef = config.notification;
 
     //OAuth providers like Google, Instagram etc bring the user from the current web application page to
     //their authentication pages. When the user is redirect from their auth pages to the web application page again
@@ -71,33 +71,33 @@ export class Auth extends Client implements AuthInternalEvents {
     this.on(
       "__onOAuthAuthenticatedDesktop",
       async (authInfo: PrivyAuthInfo) => {
-        await this._callBackendAuthAfterOAuthRedirect(authInfo)
+        await this._callBackendAuthAfterOAuthRedirect(authInfo);
       }
-    )
+    );
 
     // same but for linking an account to a user already registered
     this.on(
       "__onOAuthLinkAuthenticatedDesktop",
       async (authInfo: PrivyAuthInfo) => {
-        await this._callBackendLinkAfterOAuthRedirect(authInfo)
+        await this._callBackendLinkAfterOAuthRedirect(authInfo);
       }
-    )
+    );
 
     //OAuth providers login error handling
     this.on("__onLoginError", (error: PrivyErrorCode) => {
-      this._emit("onAuthError", error)
-    })
+      this._emit("onAuthError", error);
+    });
     this.on("__onLinkAccountError", (error: PrivyErrorCode) => {
-      this._emit("onLinkError", error)
-    })
+      this._emit("onLinkError", error);
+    });
   }
 
   private async _generateKeys(): Promise<boolean | forge.pki.rsa.KeyPair> {
-    const keys = await Crypto.generateKeys("HIGH")
+    const keys = await Crypto.generateKeys("HIGH");
 
-    if (!keys) return false
+    if (!keys) return false;
 
-    return keys
+    return keys;
   }
 
   private async _getUserE2EPublicKey(
@@ -105,7 +105,7 @@ export class Auth extends Client implements AuthInternalEvents {
     organizationId: string
   ): Promise<Maybe<string | "error">> {
     try {
-      const storage = this._storage as DexieStorage
+      const storage = this._storage as DexieStorage;
       const e2ePublicKey = await storage.transaction(
         "rw",
         storage.user,
@@ -113,42 +113,42 @@ export class Auth extends Client implements AuthInternalEvents {
           const existingUser = await storage.user
             .where("[did+organizationId]")
             .equals([did, organizationId])
-            .first()
+            .first();
 
-          if (!existingUser) return null
+          if (!existingUser) return null;
 
-          return existingUser!.e2ePublicKey
+          return existingUser!.e2ePublicKey;
         }
-      )
+      );
 
-      return e2ePublicKey
+      return e2ePublicKey;
     } catch (error) {
-      console.log(error)
-      return "error"
+      console.log(error);
+      return "error";
     }
   }
 
   private async _handleDexie(account: Account) {
-    const storage = this._storage as DexieStorage
+    const storage = this._storage as DexieStorage;
     try {
-      const keys = await this._generateKeys()
+      const keys = await this._generateKeys();
       if (!keys || typeof keys === "boolean")
-        throw new Error("Error during generation of public/private keys.")
+        throw new Error("Error during generation of public/private keys.");
 
       //let's encrypt first the private key. Private key will be always calculated runtime.
       const encryptedPrivateKey = Crypto.encryptAES_CBC(
         Crypto.convertRSAPrivateKeyToPem(keys.privateKey),
         Buffer.from(account.e2eSecret, "hex").toString("base64"),
         Buffer.from(account.e2eSecretIV, "hex").toString("base64")
-      )
-      const publicKey = Crypto.convertRSAPublicKeyToPem(keys.publicKey)
+      );
+      const publicKey = Crypto.convertRSAPublicKeyToPem(keys.publicKey);
 
       //save all the data related to this user into the db
       await storage.transaction("rw", storage.user, async () => {
         const existingUser = await storage.user
           .where("[did+organizationId]")
           .equals([account.did, account.organizationId])
-          .first()
+          .first();
 
         if (!existingUser)
           await storage.user.add({
@@ -274,13 +274,13 @@ export class Auth extends Client implements AuthInternalEvents {
             e2eEncryptedPrivateKey: encryptedPrivateKey,
             createdAt: account.createdAt,
             updatedAt: account.updatedAt,
-          })
-      })
+          });
+      });
     } catch (error) {
-      console.log(error)
+      console.log(error);
       throw new Error(
         "Error during setup of the local keys. Check the console to have more information."
-      )
+      );
     }
   }
 
@@ -289,14 +289,14 @@ export class Auth extends Client implements AuthInternalEvents {
       const e2ePublicKey = await this._getUserE2EPublicKey(
         authInfo.user.id,
         this._apiKey!
-      )
+      );
 
       if (e2ePublicKey === "error")
-        throw new Error("Error retrieven e2e public key.")
+        throw new Error("Error retrieven e2e public key.");
 
       const { response } = await this._fetch<
         ApiResponse<{
-          user: AccountInitConfig
+          user: AccountInitConfig;
         }>
       >(`${this.backendUrl()}/auth`, {
         method: "POST",
@@ -308,18 +308,18 @@ export class Auth extends Client implements AuthInternalEvents {
           "x-api-key": `${this._apiKey}`,
           Authorization: `Bearer ${authInfo.authToken}`,
         },
-      })
+      });
 
       if (!response || !response.data)
         return this._emit(
           "onAuthError",
           new Error("No response from backend during authentication")
-        )
+        );
 
-      const { user } = response.data[0]
+      const { user } = response.data[0];
 
       if (!user)
-        return this._emit("onAuthError", new Error("Access not granted."))
+        return this._emit("onAuthError", new Error("Access not granted."));
 
       //let's check if it's the first login of the user.
       //this is needed to understand if the user is doing the login on a different device
@@ -328,9 +328,9 @@ export class Auth extends Client implements AuthInternalEvents {
         //because if i'm using the same device i should have e2ePublicKey already setup.
         //So, if this value is null and it's not the first login of the user, means probably the user is doing the login on a different device.
         //Thus, let's block the possibility to chat since before to do that the user needs to transfer the private keys between the devices.
-        this._chatRef.setCanChat(false)
+        this._chatRef.setCanChat(false);
       } else {
-        this._chatRef.setCanChat(true)
+        this._chatRef.setCanChat(true);
       }
 
       const account = new Account({
@@ -339,49 +339,49 @@ export class Auth extends Client implements AuthInternalEvents {
         apiKey: this._apiKey!,
         storage: this._storage!,
         chatRef: this._chatRef,
-      })
+      });
       //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
       //the user refresh the page
-      account.storeLastUserLoggedKey()
+      account.storeLastUserLoggedKey();
 
       //generation of the table and local keys for e2e encryption
-      await this._handleDexie(account)
+      await this._handleDexie(account);
 
-      this._isAuthenticated = true
+      this._isAuthenticated = true;
 
-      this.setAuthToken(authInfo.authToken)
+      this.setAuthToken(authInfo.authToken);
 
-      this._orderRef.setAuthToken(authInfo.authToken)
-      this._oracleRef.setAuthToken(authInfo.authToken)
-      this._proposalRef.setAuthToken(authInfo.authToken)
-      this._chatRef.setAuthToken(authInfo.authToken)
-      this._notificationRef.setAuthToken(authInfo.authToken)
+      this._orderRef.setAuthToken(authInfo.authToken);
+      this._oracleRef.setAuthToken(authInfo.authToken);
+      this._proposalRef.setAuthToken(authInfo.authToken);
+      this._chatRef.setAuthToken(authInfo.authToken);
+      this._notificationRef.setAuthToken(authInfo.authToken);
 
-      this._chatRef.setCurrentAccount(account)
-      this._orderRef.setCurrentAccount(account)
-      this._oracleRef.setCurrentAccount(account)
-      this._proposalRef.setCurrentAccount(account)
-      this._notificationRef.setCurrentAccount(account)
+      this._chatRef.setCurrentAccount(account);
+      this._orderRef.setCurrentAccount(account);
+      this._oracleRef.setCurrentAccount(account);
+      this._proposalRef.setCurrentAccount(account);
+      this._notificationRef.setCurrentAccount(account);
 
       //this must be the last because it fires event "auth"
-      this.setCurrentAccount(account)
+      this.setCurrentAccount(account);
       //clear all the internal callbacks connected to the authentication...
       this._clearEventsCallbacks([
         "__onOAuthAuthenticatedDesktop",
         "__onLoginError",
-      ])
+      ]);
     } catch (error) {
       //safety check, _account could be null and this method destroy the local storage values stored
       if ("statusCode" in (error as any) && (error as any).statusCode === 401)
-        this.destroyLastUserLoggedKey()
+        this.destroyLastUserLoggedKey();
 
       //clear all the internal callbacks connected to the authentication...
       this._clearEventsCallbacks([
         "__onOAuthAuthenticatedDesktop",
         "__onLoginError",
-      ])
-      await this.logout()
-      this._emit("onAuthError", error)
+      ]);
+      await this.logout();
+      this._emit("onAuthError", error);
     }
   }
 
@@ -398,14 +398,14 @@ export class Auth extends Client implements AuthInternalEvents {
       const e2ePublicKey = await this._getUserE2EPublicKey(
         authInfo.user.id,
         this._apiKey!
-      )
+      );
 
       if (e2ePublicKey === "error")
-        throw new Error("Error retrieven e2e public key.")
+        throw new Error("Error retrieven e2e public key.");
 
       const { response } = await this._fetch<
         ApiResponse<{
-          user: AccountInitConfig
+          user: AccountInitConfig;
         }>
       >(`${this.backendUrl()}/auth`, {
         method: "POST",
@@ -417,13 +417,13 @@ export class Auth extends Client implements AuthInternalEvents {
           "x-api-key": `${this._apiKey}`,
           Authorization: `Bearer ${authInfo.authToken}`,
         },
-      })
+      });
 
-      if (!response || !response.data) throw new Error("Invalid response.")
+      if (!response || !response.data) throw new Error("Invalid response.");
 
-      const { user } = response.data[0]
+      const { user } = response.data[0];
 
-      if (!user) throw new Error("Access not granted.")
+      if (!user) throw new Error("Access not granted.");
 
       //let's check if it's the first login of the user.
       //this is needed to understand if the user is doing the login on a different device
@@ -432,9 +432,9 @@ export class Auth extends Client implements AuthInternalEvents {
         //because if i'm using the same device i should have e2ePublicKey already setup.
         //So, if this value is null and it's not the first login of the user, means probably the user is doing the login on a different device.
         //Thus, let's block the possibility to chat since before to do that the user needs to transfer the private keys between the devices.
-        this._chatRef.setCanChat(false)
+        this._chatRef.setCanChat(false);
       } else {
-        this._chatRef.setCanChat(true)
+        this._chatRef.setCanChat(true);
       }
 
       const account = new Account({
@@ -443,35 +443,35 @@ export class Auth extends Client implements AuthInternalEvents {
         apiKey: this._apiKey!,
         storage: this._storage!,
         chatRef: this._chatRef,
-      })
+      });
       //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
       //the user refresh the page
-      account.storeLastUserLoggedKey()
+      account.storeLastUserLoggedKey();
 
       //generation of the table and local keys for e2e encryption
-      await this._handleDexie(account)
+      await this._handleDexie(account);
 
-      this._isAuthenticated = true
+      this._isAuthenticated = true;
 
-      this.setAuthToken(authInfo.authToken)
+      this.setAuthToken(authInfo.authToken);
 
-      this._orderRef.setAuthToken(authInfo.authToken)
-      this._oracleRef.setAuthToken(authInfo.authToken)
-      this._proposalRef.setAuthToken(authInfo.authToken)
-      this._chatRef.setAuthToken(authInfo.authToken)
-      this._notificationRef.setAuthToken(authInfo.authToken)
+      this._orderRef.setAuthToken(authInfo.authToken);
+      this._oracleRef.setAuthToken(authInfo.authToken);
+      this._proposalRef.setAuthToken(authInfo.authToken);
+      this._chatRef.setAuthToken(authInfo.authToken);
+      this._notificationRef.setAuthToken(authInfo.authToken);
 
-      this._chatRef.setCurrentAccount(account)
-      this._orderRef.setCurrentAccount(account)
-      this._oracleRef.setCurrentAccount(account)
-      this._proposalRef.setCurrentAccount(account)
-      this._notificationRef.setCurrentAccount(account)
+      this._chatRef.setCurrentAccount(account);
+      this._orderRef.setCurrentAccount(account);
+      this._oracleRef.setCurrentAccount(account);
+      this._proposalRef.setCurrentAccount(account);
+      this._notificationRef.setCurrentAccount(account);
 
       //this must be the last because it fires event "auth"
-      this.setCurrentAccount(account)
+      this.setCurrentAccount(account);
 
       //clear all the internal callbacks connected to the authentication...
-      this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
+      this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"]);
 
       resolve({
         auth: {
@@ -479,18 +479,18 @@ export class Auth extends Client implements AuthInternalEvents {
           ...authInfo,
         },
         account,
-      })
+      });
     } catch (error) {
       //safety check, _account could be null and this method destroy the local storage values stored
       if ("statusCode" in (error as any) && (error as any).statusCode === 401)
-        this.destroyLastUserLoggedKey()
+        this.destroyLastUserLoggedKey();
 
       //clear all the internal callbacks connected to the authentication...
-      this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
-      await this.logout()
-      this._emit("onAuthError", error)
+      this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"]);
+      await this.logout();
+      this._emit("onAuthError", error);
 
-      reject(error)
+      reject(error);
     }
   }
 
@@ -499,8 +499,8 @@ export class Auth extends Client implements AuthInternalEvents {
       const { response } = await this._fetch<
         ApiResponse<{
           link: {
-            status: boolean
-          }
+            status: boolean;
+          };
         }>
       >(`${this.backendUrl()}/user/link/account`, {
         method: "POST",
@@ -515,35 +515,35 @@ export class Auth extends Client implements AuthInternalEvents {
           "x-api-key": `${this._apiKey}`,
           Authorization: `Bearer ${authInfo.authToken}`,
         },
-      })
+      });
 
-      if (!response || !response.data) throw new Error("Invalid response.")
+      if (!response || !response.data) throw new Error("Invalid response.");
 
-      const { link } = response.data[0]
-      const { status } = link
+      const { link } = response.data[0];
+      const { status } = link;
 
       if (!link || !status)
-        throw new Error("An error occured while updating the account.")
+        throw new Error("An error occured while updating the account.");
 
       //clear all the internal callbacks connected to the authentication...
       this._clearEventsCallbacks([
         "__onOAuthLinkAuthenticatedDesktop",
         "__onLinkAccountError",
-      ])
+      ]);
 
       this._emit("link", {
         ...authInfo,
-      })
+      });
     } catch (error) {
       //safety check, _account could be null and this method destroy the local storage values stored
       if ("statusCode" in (error as any) && (error as any).statusCode === 401)
-        this.destroyLastUserLoggedKey()
+        this.destroyLastUserLoggedKey();
 
       this._clearEventsCallbacks([
         "__onOAuthLinkAuthenticatedDesktop",
         "__onLinkAccountError",
-      ])
-      this._emit("onLinkError", error)
+      ]);
+      this._emit("onLinkError", error);
     }
   }
 
@@ -556,8 +556,8 @@ export class Auth extends Client implements AuthInternalEvents {
       const { response } = await this._fetch<
         ApiResponse<{
           link: {
-            status: boolean
-          }
+            status: boolean;
+          };
         }>
       >(`${this.backendUrl()}/user/link/account`, {
         method: "POST",
@@ -572,33 +572,33 @@ export class Auth extends Client implements AuthInternalEvents {
           "x-api-key": `${this._apiKey}`,
           Authorization: `Bearer ${authInfo.authToken}`,
         },
-      })
+      });
 
-      if (!response || !response.data) throw new Error("Invalid response.")
+      if (!response || !response.data) throw new Error("Invalid response.");
 
-      const { link } = response.data[0]
-      const { status } = link
+      const { link } = response.data[0];
+      const { status } = link;
 
       if (!link || !status)
-        throw new Error("An error occured while updating the account.")
+        throw new Error("An error occured while updating the account.");
 
       //clear all the internal callbacks connected to the link...
       this._clearEventsCallbacks([
         "__onLinkAccountComplete",
         "__onLinkAccountError",
-      ])
+      ]);
 
-      resolve({ ...authInfo })
+      resolve({ ...authInfo });
     } catch (error) {
       //safety check, _account could be null and this method destroy the local storage values stored
       if ("statusCode" in (error as any) && (error as any).statusCode === 401)
-        this.destroyLastUserLoggedKey()
+        this.destroyLastUserLoggedKey();
 
       this._clearEventsCallbacks([
         "__onLinkAccountComplete",
         "__onLinkAccountError",
-      ])
-      reject(error)
+      ]);
+      reject(error);
     }
   }
 
@@ -708,17 +708,17 @@ export class Auth extends Client implements AuthInternalEvents {
         : null,
       phone: authInfo.user.phone ? authInfo.user.phone.number : null,
       email: authInfo.user.email ? authInfo.user.email.address : null,
-    }
+    };
   }
 
   private _clearEventsCallbacks(events: Array<AuthEvents>) {
     events.forEach((event: AuthEvents) => {
       const index = this._eventsCallbacks.findIndex((item) => {
-        return item.eventName === event
-      })
+        return item.eventName === event;
+      });
 
-      if (index > -1) this._eventsCallbacks[index].callbacks = []
-    })
+      if (index > -1) this._eventsCallbacks[index].callbacks = [];
+    });
   }
 
   private _handleDesktopAuthentication(
@@ -731,16 +731,16 @@ export class Auth extends Client implements AuthInternalEvents {
   ) {
     try {
       this.on("__onLoginComplete", async (authInfo: PrivyAuthInfo) => {
-        this._callBackendAuth(resolve, reject, authInfo)
-      })
+        this._callBackendAuth(resolve, reject, authInfo);
+      });
 
       this.on("__onLoginError", (error: PrivyErrorCode) => {
-        reject(error)
-      })
+        reject(error);
+      });
 
-      this._emit("__authenticate")
+      this._emit("__authenticate");
     } catch (error) {
-      reject(error)
+      reject(error);
     }
   }
 
@@ -766,28 +766,28 @@ export class Auth extends Client implements AuthInternalEvents {
   ) {
     try {
       this.on("__onLinkAccountComplete", async (authInfo: PrivyAuthInfo) => {
-        this._callBackendLink(resolve, reject, authInfo)
-      })
+        this._callBackendLink(resolve, reject, authInfo);
+      });
 
       this.on("__onLinkAccountError", (error: PrivyErrorCode) => {
-        reject(error)
-      })
+        reject(error);
+      });
 
-      this._emit("__link", method)
+      this._emit("__link", method);
     } catch (error) {
-      reject(error)
+      reject(error);
     }
   }
 
   _emit(eventName: AuthEvents, params?: any) {
     const index = this._eventsCallbacks.findIndex((item) => {
-      return item.eventName === eventName
-    })
+      return item.eventName === eventName;
+    });
 
     if (index > -1)
       this._eventsCallbacks[index].callbacks.forEach((callback) => {
-        callback(params)
-      })
+        callback(params);
+      });
   }
 
   /**
@@ -796,85 +796,97 @@ export class Auth extends Client implements AuthInternalEvents {
    * @returns None
    */
   config(config: AuthClientConfig) {
-    if (config.storage) this._storage = config.storage
+    if (config.storage) this._storage = config.storage;
   }
 
   on(eventName: AuthEvents, callback: Function, onlyOnce?: boolean) {
     const index = this._eventsCallbacks.findIndex((item) => {
-      return item.eventName === eventName
-    })
+      return item.eventName === eventName;
+    });
 
-    if (index > -1 && onlyOnce === true) return
+    if (index < 0)
+      this._eventsCallbacks.push({
+        eventName,
+        callbacks: [callback],
+      });
+    else {
+      if (onlyOnce) return;
+      this._eventsCallbacks[index].callbacks.push(callback);
+    }
+  }
 
-    if (index > -1 && !onlyOnce)
-      this._eventsCallbacks[index].callbacks.push(callback)
+  off(eventName: AuthEvents, callback?: Function) {
+    const index = this._eventsCallbacks.findIndex((item) => {
+      return item.eventName === eventName;
+    });
 
-    this._eventsCallbacks.push({
-      eventName,
-      callbacks: [callback],
-    })
+    if (index < 0) return;
+
+    this._eventsCallbacks[index].callbacks = callback
+      ? this._eventsCallbacks[index].callbacks.filter((cb) => cb !== callback)
+      : [];
   }
 
   authenticate(): Promise<{ auth: AuthInfo; account: Account }> {
     return new Promise((resolve, reject) => {
-      this._handleDesktopAuthentication(resolve, reject)
-    })
+      this._handleDesktopAuthentication(resolve, reject);
+    });
   }
 
   sendEmailOTPCode(email: string): Promise<{ email: string }> {
     return new Promise((resolve, reject) => {
       this.on("__onEmailOTPCodeSent", (email: string) => {
-        resolve({ email })
-      })
+        resolve({ email });
+      });
 
       this.on("__onEmailOTPCodeSentError", (error: string) => {
-        reject(error)
-      })
+        reject(error);
+      });
 
-      this._emit("__sendEmailOTPCode", email)
-    })
+      this._emit("__sendEmailOTPCode", email);
+    });
   }
 
   sendPhoneOTPCode(phone: string): Promise<{ phone: string }> {
     return new Promise((resolve, reject) => {
       this.on("__onSMSOTPCodeSent", (phone: string) => {
-        resolve({ phone })
-      })
+        resolve({ phone });
+      });
 
       this.on("__onSMSOTPCodeSentError", (error: string) => {
-        reject(error)
-      })
+        reject(error);
+      });
 
-      this._emit("__sendSMSOTPCode", phone)
-    })
+      this._emit("__sendSMSOTPCode", phone);
+    });
   }
 
   sendEmailOTPCodeAfterAuth(email: string): Promise<{ email: string }> {
     return new Promise((resolve, reject) => {
       this.on("__onEmailOTPCodeAfterAuthSent", (email: string) => {
-        resolve({ email })
-      })
+        resolve({ email });
+      });
 
       this.on("__onEmailOTPCodeAfterAuthSentError", (error: string) => {
-        reject(error)
-      })
+        reject(error);
+      });
 
-      this._emit("__sendEmailOTPCodeAfterAuth", email)
-    })
+      this._emit("__sendEmailOTPCodeAfterAuth", email);
+    });
   }
 
   sendPhoneOTPCodeAfterAuth(phone: string): Promise<{ phone: string }> {
     return new Promise((resolve, reject) => {
       this.on("__onSMSOTPCodeAfterAuthSent", (phone: string) => {
-        resolve({ phone })
-      })
+        resolve({ phone });
+      });
 
       this.on("__onSMSOTPCodeSentAfterAuthError", (error: string) => {
-        reject(error)
-      })
+        reject(error);
+      });
 
-      this._emit("__sendSMSOTPCodeAfterAuth", phone)
-    })
+      this._emit("__sendSMSOTPCodeAfterAuth", phone);
+    });
   }
 
   //call this if you want to auth the user automatically without the need of a button to authenticate
@@ -883,53 +895,53 @@ export class Auth extends Client implements AuthInternalEvents {
     return new Promise((resolve, reject) => {
       try {
         this.on("__onPrivyReady", () => {
-          resolve(true)
-        })
+          resolve(true);
+        });
       } catch (error) {
-        resolve(false)
+        resolve(false);
       }
-    })
+    });
   }
 
   logout(): Promise<boolean> {
     return new Promise((resolve, reject) => {
       try {
         this.on("__onLogoutComplete", (status: boolean) => {
-          this._isLoggingOut = false
-          this._clearEventsCallbacks(["__onLogoutComplete"])
-          resolve(status)
-        })
+          this._isLoggingOut = false;
+          this._clearEventsCallbacks(["__onLogoutComplete"]);
+          resolve(status);
+        });
 
-        this._isLoggingOut = true
-        this._isAuthenticated = false
-        this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
-        this._account?.emptyActiveWallets()
-        this.destroyLastUserLoggedKey()
-        this.setAuthToken(null)
-        this._oracleRef.setAuthToken(null)
-        this._chatRef.setAuthToken(null)
-        this._orderRef.setAuthToken(null)
-        this._proposalRef.setAuthToken(null)
+        this._isLoggingOut = true;
+        this._isAuthenticated = false;
+        this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"]);
+        this._account?.emptyActiveWallets();
+        this.destroyLastUserLoggedKey();
+        this.setAuthToken(null);
+        this._oracleRef.setAuthToken(null);
+        this._chatRef.setAuthToken(null);
+        this._orderRef.setAuthToken(null);
+        this._proposalRef.setAuthToken(null);
 
-        this._emit("__logout")
+        this._emit("__logout");
       } catch (error) {
         this._clearEventsCallbacks([
           "__onLoginComplete",
           "__onLoginError",
           "__onLogoutComplete",
-        ])
-        console.warn(error)
-        reject(false)
+        ]);
+        console.warn(error);
+        reject(false);
       }
-    })
+    });
   }
 
   isLoggingOut() {
-    return this._isLoggingOut === true
+    return this._isLoggingOut === true;
   }
 
   isAuthenticated() {
-    return this._isAuthenticated === true
+    return this._isAuthenticated === true;
   }
 
   link(
@@ -950,8 +962,8 @@ export class Auth extends Client implements AuthInternalEvents {
       | "telegram"
   ): Promise<LinkAccountInfo> {
     return new Promise((resolve, reject) => {
-      this._handleDesktopLink(resolve, reject, method)
-    })
+      this._handleDesktopLink(resolve, reject, method);
+    });
   }
 
   unlink(
@@ -975,47 +987,47 @@ export class Auth extends Client implements AuthInternalEvents {
       try {
         this.on("__onUnlinkAccountComplete", (status: boolean) => {
           //aggiungere await per chiamata lato server per aggiornare backend
-          resolve(status)
-        })
+          resolve(status);
+        });
 
         this.on(
           "__onUnlinkAccountError",
           ({ error }: { error: PrivyErrorCode }) => {
-            reject({ error })
+            reject({ error });
           }
-        )
+        );
 
-        this._emit("__unlink", method)
+        this._emit("__unlink", method);
       } catch (error) {
-        console.warn(error)
-        reject(error)
+        console.warn(error);
+        reject(error);
       }
-    })
+    });
   }
 
   async recoverAccountFromLocalDB(): Promise<void> {
-    if (!this._storage) return
-    if (this._account) return
+    if (!this._storage) return;
+    if (this._account) return;
 
     const lastUserLoggedKey = window.localStorage.getItem(
       CLIENT_DB_KEY_LAST_USER_LOGGED
-    )
+    );
 
-    if (!lastUserLoggedKey) return
+    if (!lastUserLoggedKey) return;
 
     try {
-      const { did, organizationId, token } = JSON.parse(lastUserLoggedKey)
+      const { did, organizationId, token } = JSON.parse(lastUserLoggedKey);
       const user = await this._storage.get("user", "[did+organizationId]", [
         did,
         organizationId,
-      ])
+      ]);
 
       const { response } = await this._fetch<
         ApiResponse<{
           secrets: {
-            e2eSecret: string
-            e2eSecretIV: string
-          }
+            e2eSecret: string;
+            e2eSecretIV: string;
+          };
         }>
       >(`${this.backendUrl()}/user/secrets`, {
         method: "GET",
@@ -1023,15 +1035,15 @@ export class Auth extends Client implements AuthInternalEvents {
           "x-api-key": `${this._apiKey}`,
           Authorization: `Bearer ${token}`,
         },
-      })
+      });
 
-      if (!response || !response.data) return
+      if (!response || !response.data) return;
 
-      const { secrets } = response.data[0]
+      const { secrets } = response.data[0];
 
-      if (!secrets) return
+      if (!secrets) return;
 
-      const { e2eSecret, e2eSecretIV } = secrets
+      const { e2eSecret, e2eSecretIV } = secrets;
 
       const account = new Account({
         enableDevMode: this._isDevMode,
@@ -1129,44 +1141,44 @@ export class Auth extends Client implements AuthInternalEvents {
         allowReceiveMessageFrom: user.allowReceiveMessageFrom,
         allowAddToGroupsFrom: user.allowAddToGroupsFrom,
         allowGroupsSuggestion: user.allowGroupsSuggestion,
-      })
+      });
 
-      this._isAuthenticated = true
+      this._isAuthenticated = true;
 
-      this.setAuthToken(token)
+      this.setAuthToken(token);
 
-      this._oracleRef.setAuthToken(token)
-      this._chatRef.setAuthToken(token)
-      this._proposalRef.setAuthToken(token)
-      this._orderRef.setAuthToken(token)
-      this._notificationRef.setAuthToken(token)
+      this._oracleRef.setAuthToken(token);
+      this._chatRef.setAuthToken(token);
+      this._proposalRef.setAuthToken(token);
+      this._orderRef.setAuthToken(token);
+      this._notificationRef.setAuthToken(token);
 
-      this._chatRef.setCurrentAccount(account)
-      this._orderRef.setCurrentAccount(account)
-      this._oracleRef.setCurrentAccount(account)
-      this._proposalRef.setCurrentAccount(account)
-      this._notificationRef.setCurrentAccount(account)
+      this._chatRef.setCurrentAccount(account);
+      this._orderRef.setCurrentAccount(account);
+      this._oracleRef.setCurrentAccount(account);
+      this._proposalRef.setCurrentAccount(account);
+      this._notificationRef.setCurrentAccount(account);
 
       //this must be the last because it fires event "auth"
-      this.setCurrentAccount(account)
+      this.setCurrentAccount(account);
     } catch (error) {
       //safety check, _account could be null and this method destroy the local storage values stored
       if ("statusCode" in (error as any) && (error as any).statusCode === 401) {
-        this.destroyLastUserLoggedKey()
-        await this.logout()
+        this.destroyLastUserLoggedKey();
+        await this.logout();
       }
 
-      console.log("Error during rebuilding phase for account.")
-      console.log(error)
+      console.log("Error during rebuilding phase for account.");
+      console.log(error);
     }
   }
 
   destroyLastUserLoggedKey() {
-    window.localStorage.removeItem(CLIENT_DB_KEY_LAST_USER_LOGGED)
+    window.localStorage.removeItem(CLIENT_DB_KEY_LAST_USER_LOGGED);
   }
 
   setCurrentAccount(account: Account) {
-    super.setCurrentAccount(account)
-    this._emit("__onAccountReady")
+    super.setCurrentAccount(account);
+    this._emit("__onAccountReady");
   }
 }

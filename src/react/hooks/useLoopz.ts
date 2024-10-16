@@ -6,7 +6,5 @@ export const useLoopz = () => {
   if (!context)
     throw new Error("useLoopz() must be used within a <LoopzProvider />.");
 
-  const { initialized, instance } = context;
-
-  return { initialized, instance };
+  return context;
 };
