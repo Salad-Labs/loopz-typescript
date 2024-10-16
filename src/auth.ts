@@ -344,7 +344,13 @@ export class Auth extends Client implements AuthInternalEvents {
       //the user refresh the page
       account.storeLastUserLoggedKey()
 
+      //generation of the table and local keys for e2e encryption
+      await this._handleDexie(account)
+
+      this._isAuthenticated = true
+
       this.setAuthToken(authInfo.authToken)
+
       this._orderRef.setAuthToken(authInfo.authToken)
       this._oracleRef.setAuthToken(authInfo.authToken)
       this._proposalRef.setAuthToken(authInfo.authToken)
@@ -356,18 +362,14 @@ export class Auth extends Client implements AuthInternalEvents {
       this._oracleRef.setCurrentAccount(account)
       this._proposalRef.setCurrentAccount(account)
       this._notificationRef.setCurrentAccount(account)
-      this.setCurrentAccount(account) //this must be the last because it fires event
 
+      //this must be the last because it fires event "auth"
+      this.setCurrentAccount(account)
       //clear all the internal callbacks connected to the authentication...
       this._clearEventsCallbacks([
         "__onOAuthAuthenticatedDesktop",
         "__onLoginError",
       ])
-
-      //generation of the table and local keys for e2e encryption
-      await this._handleDexie(account)
-
-      this._isAuthenticated = true
     } catch (error) {
       //safety check, _account could be null and this method destroy the local storage values stored
       if ("statusCode" in (error as any) && (error as any).statusCode === 401)
@@ -446,6 +448,11 @@ export class Auth extends Client implements AuthInternalEvents {
       //the user refresh the page
       account.storeLastUserLoggedKey()
 
+      //generation of the table and local keys for e2e encryption
+      await this._handleDexie(account)
+
+      this._isAuthenticated = true
+
       this.setAuthToken(authInfo.authToken)
 
       this._orderRef.setAuthToken(authInfo.authToken)
@@ -459,15 +466,12 @@ export class Auth extends Client implements AuthInternalEvents {
       this._oracleRef.setCurrentAccount(account)
       this._proposalRef.setCurrentAccount(account)
       this._notificationRef.setCurrentAccount(account)
-      this.setCurrentAccount(account) //this must be the last because it fires event
+
+      //this must be the last because it fires event "auth"
+      this.setCurrentAccount(account)
 
       //clear all the internal callbacks connected to the authentication...
       this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
-
-      //generation of the table and local keys for e2e encryption
-      await this._handleDexie(account)
-
-      this._isAuthenticated = true
 
       resolve({
         auth: {
@@ -1127,7 +1131,10 @@ export class Auth extends Client implements AuthInternalEvents {
         allowGroupsSuggestion: user.allowGroupsSuggestion,
       })
 
+      this._isAuthenticated = true
+
       this.setAuthToken(token)
+
       this._oracleRef.setAuthToken(token)
       this._chatRef.setAuthToken(token)
       this._proposalRef.setAuthToken(token)
@@ -1139,7 +1146,9 @@ export class Auth extends Client implements AuthInternalEvents {
       this._oracleRef.setCurrentAccount(account)
       this._proposalRef.setCurrentAccount(account)
       this._notificationRef.setCurrentAccount(account)
-      this.setCurrentAccount(account) //this must be the last because it fires event
+
+      //this must be the last because it fires event "auth"
+      this.setCurrentAccount(account)
     } catch (error) {
       //safety check, _account could be null and this method destroy the local storage values stored
       if ("statusCode" in (error as any) && (error as any).statusCode === 401) {
