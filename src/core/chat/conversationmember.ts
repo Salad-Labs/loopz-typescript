@@ -69,6 +69,8 @@ export class ConversationMember
     this.encryptedConversationPublicKey = config.encryptedConversationPublicKey
     this.createdAt = config.createdAt
     this.updatedAt = config.updatedAt
+
     this._client = config.client
+    this._realtimeClient = config.realtimeClient
   }
 }

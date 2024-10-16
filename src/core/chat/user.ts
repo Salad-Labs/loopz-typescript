@@ -168,6 +168,7 @@ export class User
     this.updatedAt = config.updatedAt
 
     this._client = config.client
+    this._realtimeClient = config.realtimeClient
   }
 
   /**
@@ -234,6 +235,7 @@ export class User
       createdAt: new Date(response.createdAt),
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -301,6 +303,7 @@ export class User
       createdAt: new Date(response.createdAt),
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -397,9 +400,11 @@ export class User
                 ? new Date(item.blockedUser.updatedAt)
                 : null,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             }),
             createdAt: item.createdAt,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
           })
         )
       }

@@ -2,6 +2,7 @@ import { Client } from "@urql/core"
 import { Maybe } from "../../../../types/base"
 import { Reaction } from "@src/core/chat/reaction"
 import { Message } from "@src/core"
+import UUIDSubscriptionClient from "@src/core/chat/uuidsubscriptionclient"
 
 /**
  * Represents the configuration for initializing a message.
@@ -56,4 +57,8 @@ export type MessageInitConfig = {
    * @property {Client} client - Represents a client object.
    */
   client: Client
+  /**
+   * @property {UUIDSubscriptionClient} realtimeClient - The real time client associated with the entry.
+   */
+  realtimeClient: UUIDSubscriptionClient
 }

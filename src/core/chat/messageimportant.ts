@@ -61,6 +61,8 @@ export class MessageImportant extends Engine implements MessageImportantSchema {
     this.conversationId = config.conversationId
     this.createdAt = config.createdAt
     this.updatedAt = config.updatedAt
+
     this._client = config.client
+    this._realtimeClient = config.realtimeClient
   }
 }

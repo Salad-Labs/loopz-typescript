@@ -1,5 +1,6 @@
 import { Client } from "@urql/core"
 import { Maybe } from "../../../../types/base"
+import UUIDSubscriptionClient from "@src/core/chat/uuidsubscriptionclient"
 
 /**
  * Represents the initialization configuration for a conversation member.
@@ -42,4 +43,8 @@ export type ConversationMemberInitConfig = {
    * @property {Client} client - The client object.
    */
   client: Client
+  /**
+   * @property {UUIDSubscriptionClient} realtimeClient - The real time client associated with the entry.
+   */
+  realtimeClient: UUIDSubscriptionClient
 }

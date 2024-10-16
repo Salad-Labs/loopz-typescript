@@ -542,7 +542,7 @@ export class Engine extends ClientEngine implements IEngine {
    */
   reconnect(callback: Function): void {
     this._reset(() => {
-      this.connect(callback)
+      this.connect(callback, true)
     })
   }
 
@@ -551,8 +551,12 @@ export class Engine extends ClientEngine implements IEngine {
    * @param {Function} callback - The callback function to be executed after connecting to the WebSocket server.
    * @returns void
    */
-  connect(callback: Function): void {
-    this._makeWSClient(callback)
+  connect(callback: Function, force = false): void {
+    if (!force) {
+      if (!this._realtimeClient) this._makeWSClient(callback)
+    } else {
+      this._makeWSClient(callback)
+    }
   }
 
   /**
