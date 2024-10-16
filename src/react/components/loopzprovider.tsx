@@ -20,6 +20,7 @@ import { Chat } from "@src/chat"
 export const LoopzProvider: React.FC<LoopzProviderProps> = ({
   config,
   children,
+  devMode,
 }) => {
   const initialized = useRef<boolean>(false)
   const authRef = useRef<Auth>()
@@ -41,6 +42,7 @@ export const LoopzProvider: React.FC<LoopzProviderProps> = ({
       //in this way we are sure we will handle all the Privy interaction directly from the components defined in this file.
       Loopz.boot(config, {
         runAdapter: false,
+        devMode: devMode ? devMode : false,
       }).then(async (loopz: Loopz) => {
         const { auth, order, oracle, proposal, chat, notification } =
           loopz.init()

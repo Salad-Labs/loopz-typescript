@@ -4,7 +4,7 @@ import { LoopzConfig } from "@src/types/app/loopzconfig"
 import { ReactNode } from "react"
 
 export interface LoopzDesktopProviderProps {
-  config: LoopzConfig
+  config: Omit<LoopzConfig, "storage">
   auth: Auth
   order: Order
   children: ReactNode
