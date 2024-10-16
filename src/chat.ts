@@ -233,7 +233,8 @@ import Dexie, { Table } from "dexie"
 import { Reaction } from "./core/chat/reaction"
 import { v4 as uuidv4 } from "uuid"
 import { DexieStorage } from "./core/app"
-import bip39 from "bip39"
+import * as bip39 from "@scure/bip39"
+import { wordlist } from "@scure/bip39/wordlists/english"
 import { ApiResponse } from "./types/base/apiresponse"
 import { md, mgf, pki } from "node-forge"
 import { Order } from "./order"
@@ -6816,9 +6817,24 @@ export class Chat
     if (!this._authToken) throw new Error("JWT is not setup correctly.")
     if (!this._apiKey) throw new Error("API key is not setup correctly.")
 
-    const mnemonic = bip39.generateMnemonic()
+    //WARNING!
+    //old code was the following:
+    /**
+     *
+     * const mnemonic = bip39.generateMnemonic()
+     * const seed = bip39.mnemonicToSeedSync(mnemonic)
+     * const hex = seed.toString("hex")
+     *
+     * bip39 was imported with another npm package and not @scure/bip39
+     * so, the convertion in hex is not supported directly because seed now is an UInt8Array instead to be a Buffer
+     * we need to verify if adding the buffer convertion has the same effect.
+     *
+     */
+
+    const mnemonic = bip39.generateMnemonic(wordlist)
     const seed = bip39.mnemonicToSeedSync(mnemonic)
-    const hex = seed.toString("hex")
+    const buffer = Buffer.from(seed)
+    const hex = buffer.toString("hex")
 
     try {
       const { response } = await this._fetch<ApiResponse<{ status: number }>>(
@@ -6855,8 +6871,23 @@ export class Chat
       if (!keyPair)
         throw new Error("It was not possible to generate a valid key pair.")
 
+      //WARNING!
+      //old code was the following:
+      /**
+       *
+       * const mnemonic = bip39.generateMnemonic()
+       * const seed = bip39.mnemonicToSeedSync(mnemonic)
+       * const hex = seed.toString("hex")
+       *
+       * bip39 was imported with another npm package and not @scure/bip39
+       * so, the convertion in hex is not supported directly because seed now is an UInt8Array instead to be a Buffer
+       * we need to verify if adding the buffer convertion has the same effect.
+       *
+       */
+
       const seed = bip39.mnemonicToSeedSync(mnemonic)
-      const hex = seed.toString("hex")
+      const buffer = Buffer.from(seed)
+      const hex = buffer.toString("hex")
       const _md = md.sha256.create()
 
       _md.update(hex)
@@ -6907,8 +6938,23 @@ export class Chat
       try {
         console.log("trying to transfer keys...")
 
+        //WARNING!
+        //old code was the following:
+        /**
+         *
+         * const mnemonic = bip39.generateMnemonic()
+         * const seed = bip39.mnemonicToSeedSync(mnemonic)
+         * const hex = seed.toString("hex")
+         *
+         * bip39 was imported with another npm package and not @scure/bip39
+         * so, the convertion in hex is not supported directly because seed now is an UInt8Array instead to be a Buffer
+         * we need to verify if adding the buffer convertion has the same effect.
+         *
+         */
+
         const seed = bip39.mnemonicToSeedSync(mnemonic)
-        const hex = seed.toString("hex")
+        const buffer = Buffer.from(seed)
+        const hex = buffer.toString("hex")
 
         const { response } = await this._fetch<
           ApiResponse<{ status: number; publicKey: string }>
@@ -7007,8 +7053,23 @@ export class Chat
       try {
         console.log("trying to download keys...")
 
+        //WARNING!
+        //old code was the following:
+        /**
+         *
+         * const mnemonic = bip39.generateMnemonic()
+         * const seed = bip39.mnemonicToSeedSync(mnemonic)
+         * const hex = seed.toString("hex")
+         *
+         * bip39 was imported with another npm package and not @scure/bip39
+         * so, the convertion in hex is not supported directly because seed now is an UInt8Array instead to be a Buffer
+         * we need to verify if adding the buffer convertion has the same effect.
+         *
+         */
+
         const seed = bip39.mnemonicToSeedSync(mnemonic)
-        const hex = seed.toString("hex")
+        const buffer = Buffer.from(seed)
+        const hex = buffer.toString("hex")
 
         const { response } = await this._fetch<
           ApiResponse<{
