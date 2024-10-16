@@ -6942,7 +6942,6 @@ export class Chat
         //old code was the following:
         /**
          *
-         * const mnemonic = bip39.generateMnemonic()
          * const seed = bip39.mnemonicToSeedSync(mnemonic)
          * const hex = seed.toString("hex")
          *
@@ -7057,7 +7056,6 @@ export class Chat
         //old code was the following:
         /**
          *
-         * const mnemonic = bip39.generateMnemonic()
          * const seed = bip39.mnemonicToSeedSync(mnemonic)
          * const hex = seed.toString("hex")
          *
