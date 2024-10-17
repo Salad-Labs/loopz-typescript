@@ -1,6 +1,11 @@
 import { Client } from "./core/client"
-import { GetCollectionsArgs, GetNFTArgs, GetNFTsArgs } from "./types/oracle"
-import { Collectible } from "./interfaces/oracle"
+import {
+  GetBookmarkedCollectionsArgs,
+  GetCollectionsArgs,
+  GetNFTArgs,
+  GetNFTsArgs,
+} from "./types/oracle"
+import { Collectible, CollectibleMetadata } from "./interfaces/oracle"
 import { ApiKeyAuthorized, Maybe } from "./types/base"
 import { ApiResponse } from "./types/base/apiresponse"
 import { Collection } from "./interfaces"
@@ -51,9 +56,9 @@ export class Oracle extends Client {
   async getCollections(
     args: GetCollectionsArgs
   ): Promise<Maybe<{ total: number; collections: Array<Collection> }>> {
-    const url: string = `${this.backendUrl()}/collections/getCollections/${
+    const url: string = `${this.backendUrl()}/collection/get/all/${
       args.networkId ? args.networkId : `*`
-    }/${args.userDid}/${args.searchType}/${args.skip}/${args.take}${
+    }/${args.searchType}/${args.skip}/${args.take}${
       args.queryString ? `/${args.queryString}` : ``
     }`
 
@@ -64,6 +69,41 @@ export class Oracle extends Client {
         method: "GET",
         headers: {
           "x-api-key": `${this._apiKey}`,
+          Authorization: `Bearer ${this._authToken}`,
+        },
+      })
+
+      if (!response || !response.data) return null
+
+      return response.data[0]
+    } catch (error) {
+      console.warn(error)
+    }
+
+    return null
+  }
+
+  /**
+   * Retrieves collections based on the provided search parameters.
+   * @param {GetBookmarkedCollectionsArgs} args - The search parameters for fetching collections.
+   * @returns {Promise<Maybe<{total: number; collections: Array<Collection>}>>} A promise that resolves to the collections response or null.
+   * @throws {Error} If an error occurs during the fetching process.
+   */
+  async getBookmarkedCollections(
+    args: GetBookmarkedCollectionsArgs
+  ): Promise<Maybe<{ total: number; collections: Array<Collection> }>> {
+    const url: string = `${this.backendUrl()}/collection/get/all/bookmark/${
+      args.networkId ? args.networkId : `*`
+    }/${args.skip}/${args.take}`
+
+    try {
+      const { response } = await this._fetch<
+        ApiResponse<{ total: number; collections: Array<Collection> }>
+      >(url, {
+        method: "GET",
+        headers: {
+          "x-api-key": `${this._apiKey}`,
+          Authorization: `Bearer ${this._authToken}`,
         },
       })
 
@@ -94,9 +134,9 @@ export class Oracle extends Client {
       total: number
     }>
   > {
-    const url: string = `${this.backendUrl()}/metadata/getNFTsByOwner/${
+    const url: string = `${this.backendUrl()}/nft/get/all/owner/${
       args.networkId
-    }/${args.address}/${args.take}${
+    }/${args.collectionAddress}/${args.take}${
       args.continuation ? `/${args.continuation}` : ``
     }`
 
@@ -111,6 +151,7 @@ export class Oracle extends Client {
         method: "POST",
         headers: {
           "x-api-key": `${this._apiKey}`,
+          Authorization: `Bearer ${this._authToken}`,
         },
         body: {
           collections: args.collections ? args.collections : null,
@@ -130,23 +171,25 @@ export class Oracle extends Client {
   /**
    * Retrieves NFT metadata based on the provided search parameters.
    * @param {GetNFTArgs} args - The search parameters for the NFT.
-   * @returns {Promise<Maybe<GetNFTResponse>>} A promise that resolves to the NFT metadata response, or null if no data is found.
+   * @returns {Promise<Maybe<CollectibleMetadata>>} A promise that resolves to the NFT metadata response, or null if no data is found.
    * @throws {Error} If an error occurs during the retrieval process.
    */
-  async getNFT(args: GetNFTArgs): Promise<Maybe<Collectible>> {
-    const url: string = `${this.backendUrl()}/metadata/getNftMetadata/${
-      args.networkId
-    }/${args.collectionAddress}/${args.tokenId}${
-      args.address ? `/${args.address}` : ``
-    }`
+  async getNFT(args: GetNFTArgs): Promise<Maybe<CollectibleMetadata>> {
+    const url: string = `${this.backendUrl()}/nft/metadata/${args.networkId}/${
+      args.collectionAddress
+    }/${args.tokenId}${args.address ? `/${args.address}` : ``}`
 
     try {
-      const { response } = await this._fetch<ApiResponse<Collectible>>(url, {
-        method: "GET",
-        headers: {
-          "x-api-key": `${this._apiKey}`,
-        },
-      })
+      const { response } = await this._fetch<ApiResponse<CollectibleMetadata>>(
+        url,
+        {
+          method: "GET",
+          headers: {
+            "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
+          },
+        }
+      )
 
       if (!response || !response.data) return null
 
@@ -159,14 +202,14 @@ export class Oracle extends Client {
   }
 
   /**
-   * Adds collections to the backend server.
+   * Submit a new collection to the system.
    * @param {Array<{ address: string; networkId: string }>} collections - An array of objects containing address and networkId.
-   * @returns {Promise<Maybe<Array<CollectionsAdded>>>} A promise that resolves to an array of added collections, or null if no data is returned.
+   * @returns {Promise<Maybe<Array<any>>>} A promise that resolves in case of success, or null if no data is returned.
    * @throws {Error} If an error occurs during the process.
    */
-  async addCollections(
+  async addCollection(
     collections: Array<{ address: string; networkId: string }>
-  ): Promise<Maybe<Array<{ added: boolean }>>> {
+  ): Promise<Maybe<Array<any>>> {
     this._validate(
       collections.map((c) => {
         return c.address
@@ -174,8 +217,8 @@ export class Oracle extends Client {
     )
 
     try {
-      const { response } = await this._fetch<ApiResponse<{ added: boolean }>>(
-        `${this.backendUrl()}/collections/insertCollectionBulk`,
+      const { response } = await this._fetch<ApiResponse<any>>(
+        `${this.backendUrl()}/collection/add`,
         {
           method: "POST",
           body: {
@@ -183,6 +226,47 @@ export class Oracle extends Client {
           },
           headers: {
             "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
+          },
+        }
+      )
+
+      if (!response || !response.data) return null
+
+      return response.data
+    } catch (error) {
+      console.warn(error)
+    }
+
+    return null
+  }
+
+  /**
+   * Submit a new set of collections to the system.
+   * @param {Array<{ address: string; networkId: string }>} collections - An array of objects containing address and networkId.
+   * @returns {Promise<Maybe<Array<any>>>} A promise that resolves in case of success, or null if no data is returned.
+   * @throws {Error} If an error occurs during the process.
+   */
+  async addCollections(
+    collections: Array<{ address: string; networkId: string }>
+  ): Promise<Maybe<Array<any>>> {
+    this._validate(
+      collections.map((c) => {
+        return c.address
+      })
+    )
+
+    try {
+      const { response } = await this._fetch<ApiResponse<any>>(
+        `${this.backendUrl()}/collection/add/bulk`,
+        {
+          method: "POST",
+          body: {
+            collections,
+          },
+          headers: {
+            "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
           },
         }
       )
@@ -218,11 +302,12 @@ export class Oracle extends Client {
       const { response } = await this._fetch<
         ApiResponse<{ address: string; networkId: string; supported: boolean }>
       >(
-        `${this.backendUrl()}/collections/isCollectionSupported/${address}/${networkId}`,
+        `${this.backendUrl()}/collection/is/supported/${address}/${networkId}`,
         {
           method: "GET",
           headers: {
             "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
           },
         }
       )
@@ -257,13 +342,14 @@ export class Oracle extends Client {
     try {
       const { response } = await this._fetch<
         ApiResponse<{ address: string; networkId: string; supported: boolean }>
-      >(`${this.backendUrl()}/collections/isCollectionSupportedBulk`, {
+      >(`${this.backendUrl()}/collection/is/supported/bulk`, {
         method: "POST",
         body: {
           collections,
         },
         headers: {
           "x-api-key": `${this._apiKey}`,
+          Authorization: `Bearer ${this._authToken}`,
         },
       })
 

@@ -8,5 +8,5 @@ export enum NotificationSubType {
   SOMEONE_CREATED_THREAD = "4",
   FOLLOWED_CREATED_THREAD = "5",
   SOMEONE_FOLLOWED_YOU = "0",
-  NFTTRADER_SYSTEM = "0",
+  SYSTEM = "0",
 }

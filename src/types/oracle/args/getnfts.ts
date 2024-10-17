@@ -11,7 +11,7 @@ type GetNFTsArgs = {
   /**
    * @property {string} address - The address to search for NFTs.
    */
-  address: string
+  collectionAddress: string
   /**
    * @property {number} take - The number of NFTs to retrieve.
    */
