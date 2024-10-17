@@ -209,9 +209,9 @@ export interface Collectible {
     bannerImageUrl: Maybe<string>
   }
   /**
-   * @property {Collection} nfttraderCollection - Represents a collection of NFTs shaped in the NFT Trader format.
+   * @property {Collection} loopzAdditionalInfoCollection - Represents additional collection information
    */
-  nfttraderCollection?: Collection
+  loopzAdditionalInfoCollection?: Collection
   /**
    * @property {boolean} isOwner - Indicates if the user is the owner of the NFTs.
    */
