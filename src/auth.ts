@@ -68,20 +68,14 @@ export class Auth extends Client implements AuthInternalEvents {
     //OAuth providers like Google, Instagram etc bring the user from the current web application page to
     //their authentication pages. When the user is redirect from their auth pages to the web application page again
     //this event is fired.
-    this.on(
-      "__onOAuthAuthenticatedDesktop",
-      async (authInfo: PrivyAuthInfo) => {
-        await this._callBackendAuthAfterOAuthRedirect(authInfo)
-      }
-    )
+    this.on("__onOAuthAuthenticatedDesktop", (authInfo: PrivyAuthInfo) => {
+      this._callBackendAuthAfterOAuthRedirect(authInfo, authInfo.authToken)
+    })
 
     // same but for linking an account to a user already registered
-    this.on(
-      "__onOAuthLinkAuthenticatedDesktop",
-      async (authInfo: PrivyAuthInfo) => {
-        await this._callBackendLinkAfterOAuthRedirect(authInfo)
-      }
-    )
+    this.on("__onOAuthLinkAuthenticatedDesktop", (authInfo: PrivyAuthInfo) => {
+      this._callBackendLinkAfterOAuthRedirect(authInfo, authInfo.authToken)
+    })
 
     //OAuth providers login error handling
     this.on("__onLoginError", (error: PrivyErrorCode) => {
@@ -126,6 +120,27 @@ export class Auth extends Client implements AuthInternalEvents {
       console.log(error)
       return "error"
     }
+  }
+
+  private _setAllAuthToken(authToken: Maybe<string>) {
+    this.setAuthToken(authToken)
+
+    this._orderRef.setAuthToken(authToken)
+    this._oracleRef.setAuthToken(authToken)
+    this._proposalRef.setAuthToken(authToken)
+    this._chatRef.setAuthToken(authToken)
+    this._notificationRef.setAuthToken(authToken)
+  }
+
+  private _setAllCurrentAccount(account: Account) {
+    this._chatRef.setCurrentAccount(account)
+    this._orderRef.setCurrentAccount(account)
+    this._oracleRef.setCurrentAccount(account)
+    this._proposalRef.setCurrentAccount(account)
+    this._notificationRef.setCurrentAccount(account)
+
+    //this must be the last because it fires event "auth"
+    this.setCurrentAccount(account)
   }
 
   private async _handleDexie(account: Account) {
@@ -284,7 +299,10 @@ export class Auth extends Client implements AuthInternalEvents {
     }
   }
 
-  private async _callBackendAuthAfterOAuthRedirect(authInfo: PrivyAuthInfo) {
+  private async _callBackendAuthAfterOAuthRedirect(
+    authInfo: PrivyAuthInfo,
+    authToken: string
+  ) {
     try {
       const e2ePublicKey = await this._getUserE2EPublicKey(
         authInfo.user.id,
@@ -298,22 +316,56 @@ export class Auth extends Client implements AuthInternalEvents {
         ApiResponse<{
           user: AccountInitConfig
         }>
-      >(`${this.backendUrl()}/auth`, {
-        method: "POST",
-        body: {
-          ...this._formatAuthParams(authInfo),
-          e2ePublicKey,
+      >(
+        `${this.backendUrl()}/auth`,
+        {
+          method: "POST",
+          body: {
+            ...this._formatAuthParams(authInfo),
+            e2ePublicKey,
+          },
+          headers: {
+            "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${authToken}`,
+          },
         },
-        headers: {
-          "x-api-key": `${this._apiKey}`,
-          Authorization: `Bearer ${authInfo.authToken}`,
-        },
-      })
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                return this._callBackendAuthAfterOAuthRedirect(
+                  authInfo,
+                  authToken
+                )
+              },
+              async (error) => {
+                //clear all the internal callbacks connected to the authentication...
+                this._clearEventsCallbacks([
+                  "__onOAuthAuthenticatedDesktop",
+                  "__onLoginError",
+                ])
+                await this.logout()
+                this._emit("onAuthError", error)
+              }
+            )
+          } else {
+            //if we're here, this means the second call encountered again a 401, so we logout the user
+            //clear all the internal callbacks connected to the authentication...
+            this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
+            await this.logout()
+            this._emit("onAuthError", error)
+          }
+        }
+      )
 
       if (!response || !response.data)
         return this._emit(
           "onAuthError",
-          new Error("No response from backend during authentication")
+          new Error("No response from backend during authentication.")
         )
 
       const { user } = response.data[0]
@@ -348,33 +400,18 @@ export class Auth extends Client implements AuthInternalEvents {
       await this._handleDexie(account)
 
       this._isAuthenticated = true
+      this._setAllAuthToken(authToken)
+      this._setAllCurrentAccount(account)
 
-      this.setAuthToken(authInfo.authToken)
-
-      this._orderRef.setAuthToken(authInfo.authToken)
-      this._oracleRef.setAuthToken(authInfo.authToken)
-      this._proposalRef.setAuthToken(authInfo.authToken)
-      this._chatRef.setAuthToken(authInfo.authToken)
-      this._notificationRef.setAuthToken(authInfo.authToken)
-
-      this._chatRef.setCurrentAccount(account)
-      this._orderRef.setCurrentAccount(account)
-      this._oracleRef.setCurrentAccount(account)
-      this._proposalRef.setCurrentAccount(account)
-      this._notificationRef.setCurrentAccount(account)
-
-      //this must be the last because it fires event "auth"
-      this.setCurrentAccount(account)
       //clear all the internal callbacks connected to the authentication...
       this._clearEventsCallbacks([
         "__onOAuthAuthenticatedDesktop",
         "__onLoginError",
       ])
-    } catch (error) {
-      //safety check, _account could be null and this method destroy the local storage values stored
-      if ("statusCode" in (error as any) && (error as any).statusCode === 401)
-        this.destroyLastUserLoggedKey()
 
+      //reset auth attempts in case this function is called because a 401 error
+      this.resetRequestNewAuthToken()
+    } catch (error) {
       //clear all the internal callbacks connected to the authentication...
       this._clearEventsCallbacks([
         "__onOAuthAuthenticatedDesktop",
@@ -392,7 +429,8 @@ export class Auth extends Client implements AuthInternalEvents {
         | PromiseLike<{ auth: AuthInfo; account: Account }>
     ) => void,
     reject: (reason?: any) => void,
-    authInfo: PrivyAuthInfo
+    authInfo: PrivyAuthInfo,
+    authToken: string
   ) {
     try {
       const e2ePublicKey = await this._getUserE2EPublicKey(
@@ -401,23 +439,63 @@ export class Auth extends Client implements AuthInternalEvents {
       )
 
       if (e2ePublicKey === "error")
-        throw new Error("Error retrieven e2e public key.")
+        throw new Error("Error during retrieving e2e public key.")
 
       const { response } = await this._fetch<
         ApiResponse<{
           user: AccountInitConfig
         }>
-      >(`${this.backendUrl()}/auth`, {
-        method: "POST",
-        body: {
-          ...this._formatAuthParams(authInfo),
-          e2ePublicKey,
+      >(
+        `${this.backendUrl()}/auth`,
+        {
+          method: "POST",
+          body: {
+            ...this._formatAuthParams(authInfo),
+            e2ePublicKey,
+          },
+          headers: {
+            "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${authToken}`,
+          },
         },
-        headers: {
-          "x-api-key": `${this._apiKey}`,
-          Authorization: `Bearer ${authInfo.authToken}`,
-        },
-      })
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                return this._callBackendAuth(
+                  resolve,
+                  reject,
+                  authInfo,
+                  authToken
+                )
+              },
+              async (error) => {
+                //clear all the internal callbacks connected to the authentication...
+                this._clearEventsCallbacks([
+                  "__onLoginComplete",
+                  "__onLoginError",
+                ])
+                await this.logout()
+                this._emit("onAuthError", error)
+
+                reject(error)
+              }
+            )
+          } else {
+            //if we're here, this means the second call encountered again a 401, so we logout the user
+            //clear all the internal callbacks connected to the authentication...
+            this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
+            await this.logout()
+            this._emit("onAuthError", error)
+
+            reject(error)
+          }
+        }
+      )
 
       if (!response || !response.data) throw new Error("Invalid response.")
 
@@ -452,39 +530,25 @@ export class Auth extends Client implements AuthInternalEvents {
       await this._handleDexie(account)
 
       this._isAuthenticated = true
-
-      this.setAuthToken(authInfo.authToken)
-
-      this._orderRef.setAuthToken(authInfo.authToken)
-      this._oracleRef.setAuthToken(authInfo.authToken)
-      this._proposalRef.setAuthToken(authInfo.authToken)
-      this._chatRef.setAuthToken(authInfo.authToken)
-      this._notificationRef.setAuthToken(authInfo.authToken)
-
-      this._chatRef.setCurrentAccount(account)
-      this._orderRef.setCurrentAccount(account)
-      this._oracleRef.setCurrentAccount(account)
-      this._proposalRef.setCurrentAccount(account)
-      this._notificationRef.setCurrentAccount(account)
-
-      //this must be the last because it fires event "auth"
-      this.setCurrentAccount(account)
+      this._setAllAuthToken(authToken)
+      this._setAllCurrentAccount(account)
 
       //clear all the internal callbacks connected to the authentication...
       this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
+
+      //reset auth attempts in case this function is called because a 401 error
+      this.resetRequestNewAuthToken()
 
       resolve({
         auth: {
           isConnected: true,
           ...authInfo,
+          authToken,
         },
         account,
       })
     } catch (error) {
-      //safety check, _account could be null and this method destroy the local storage values stored
-      if ("statusCode" in (error as any) && (error as any).statusCode === 401)
-        this.destroyLastUserLoggedKey()
-
+      console.log(error)
       //clear all the internal callbacks connected to the authentication...
       this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
       await this.logout()
@@ -494,7 +558,10 @@ export class Auth extends Client implements AuthInternalEvents {
     }
   }
 
-  private async _callBackendLinkAfterOAuthRedirect(authInfo: PrivyAuthInfo) {
+  private async _callBackendLinkAfterOAuthRedirect(
+    authInfo: PrivyAuthInfo,
+    authToken: string
+  ) {
     try {
       const { response } = await this._fetch<
         ApiResponse<{
@@ -502,20 +569,70 @@ export class Auth extends Client implements AuthInternalEvents {
             status: boolean
           }
         }>
-      >(`${this.backendUrl()}/user/link/account`, {
-        method: "POST",
-        body: {
-          ...this._formatAuthParams(authInfo),
-          e2ePublicKey: await this._getUserE2EPublicKey(
-            authInfo.user.id,
-            this._apiKey!
-          ),
+      >(
+        `${this.backendUrl()}/user/link/account`,
+        {
+          method: "POST",
+          body: {
+            ...this._formatAuthParams(authInfo),
+            e2ePublicKey: await this._getUserE2EPublicKey(
+              authInfo.user.id,
+              this._apiKey!
+            ),
+          },
+          headers: {
+            "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${authToken}`,
+          },
         },
-        headers: {
-          "x-api-key": `${this._apiKey}`,
-          Authorization: `Bearer ${authInfo.authToken}`,
-        },
-      })
+        async (error) => {
+          //in case of 401, we ask a new token. If it's valid, we refresh the token internally and we call again the _callBackendLinkAfterOAuthRedirect
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+
+                this._setAllAuthToken(authToken)
+                this._account?.setAuthToken(authToken)
+
+                this._callBackendLinkAfterOAuthRedirect(authInfo, authToken)
+              },
+              async (error) => {
+                console.log(error)
+
+                this._clearEventsCallbacks([
+                  "__onOAuthLinkAuthenticatedDesktop",
+                  "__onLinkAccountError",
+                  "__onLoginComplete",
+                  "__onLoginError",
+                ])
+
+                this._emit("onLinkError", error)
+                await this.logout()
+                this._emit("onAuthError", error)
+              }
+            )
+          } else {
+            //if we're here, this means the second call encountered again a 401, so we logout the user
+            //clear all the internal callbacks connected to the authentication...
+            console.log(error)
+
+            this._clearEventsCallbacks([
+              "__onOAuthLinkAuthenticatedDesktop",
+              "__onLinkAccountError",
+              "__onLoginComplete",
+              "__onLoginError",
+            ])
+
+            this._emit("onLinkError", error)
+            await this.logout()
+            this._emit("onAuthError", error)
+          }
+        }
+      )
 
       if (!response || !response.data) throw new Error("Invalid response.")
 
@@ -531,14 +648,14 @@ export class Auth extends Client implements AuthInternalEvents {
         "__onLinkAccountError",
       ])
 
+      //reset auth attempts in case this function is called because a 401 error
+      this.resetRequestNewAuthToken()
+
       this._emit("link", {
         ...authInfo,
+        authToken,
       })
     } catch (error) {
-      //safety check, _account could be null and this method destroy the local storage values stored
-      if ("statusCode" in (error as any) && (error as any).statusCode === 401)
-        this.destroyLastUserLoggedKey()
-
       this._clearEventsCallbacks([
         "__onOAuthLinkAuthenticatedDesktop",
         "__onLinkAccountError",
@@ -550,7 +667,8 @@ export class Auth extends Client implements AuthInternalEvents {
   private async _callBackendLink(
     resolve: (value: PrivyAuthInfo | PromiseLike<PrivyAuthInfo>) => void,
     reject: (reason?: any) => void,
-    authInfo: PrivyAuthInfo
+    authInfo: PrivyAuthInfo,
+    authToken: string
   ) {
     try {
       const { response } = await this._fetch<
@@ -559,20 +677,77 @@ export class Auth extends Client implements AuthInternalEvents {
             status: boolean
           }
         }>
-      >(`${this.backendUrl()}/user/link/account`, {
-        method: "POST",
-        body: {
-          ...this._formatAuthParams(authInfo),
-          e2ePublicKey: await this._getUserE2EPublicKey(
-            authInfo.user.id,
-            this._apiKey!
-          ),
+      >(
+        `${this.backendUrl()}/user/link/account`,
+        {
+          method: "POST",
+          body: {
+            ...this._formatAuthParams(authInfo),
+            e2ePublicKey: await this._getUserE2EPublicKey(
+              authInfo.user.id,
+              this._apiKey!
+            ),
+          },
+          headers: {
+            "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${authToken}`,
+          },
         },
-        headers: {
-          "x-api-key": `${this._apiKey}`,
-          Authorization: `Bearer ${authInfo.authToken}`,
-        },
-      })
+        async (error) => {
+          //in case of 401, we ask a new token. If it's valid, we refresh the token internally and we call again the _callBackendLink
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+
+                this._setAllAuthToken(authToken)
+                this._account?.setAuthToken(authToken)
+
+                return this._callBackendLink(
+                  resolve,
+                  reject,
+                  authInfo,
+                  authToken
+                )
+              },
+              async (error) => {
+                console.log(error)
+
+                this._clearEventsCallbacks([
+                  "__onLinkAccountComplete",
+                  "__onLinkAccountError",
+                  "__onLoginComplete",
+                  "__onLoginError",
+                ])
+
+                await this.logout()
+                this._emit("onAuthError", error)
+
+                reject(error)
+              }
+            )
+          } else {
+            //if we're here, this means the second call encountered again a 401, so we logout the user
+            //clear all the internal callbacks connected to the authentication...
+            console.log(error)
+
+            this._clearEventsCallbacks([
+              "__onOAuthLinkAuthenticatedDesktop",
+              "__onLinkAccountError",
+              "__onLoginComplete",
+              "__onLoginError",
+            ])
+
+            await this.logout()
+            this._emit("onAuthError", error)
+
+            reject(error)
+          }
+        }
+      )
 
       if (!response || !response.data) throw new Error("Invalid response.")
 
@@ -588,12 +763,11 @@ export class Auth extends Client implements AuthInternalEvents {
         "__onLinkAccountError",
       ])
 
-      resolve({ ...authInfo })
-    } catch (error) {
-      //safety check, _account could be null and this method destroy the local storage values stored
-      if ("statusCode" in (error as any) && (error as any).statusCode === 401)
-        this.destroyLastUserLoggedKey()
+      //reset auth attempts in case this function is called because a 401 error
+      this.resetRequestNewAuthToken()
 
+      resolve({ ...authInfo, authToken })
+    } catch (error) {
       this._clearEventsCallbacks([
         "__onLinkAccountComplete",
         "__onLinkAccountError",
@@ -730,8 +904,8 @@ export class Auth extends Client implements AuthInternalEvents {
     reject: (reason?: any) => void
   ) {
     try {
-      this.on("__onLoginComplete", async (authInfo: PrivyAuthInfo) => {
-        this._callBackendAuth(resolve, reject, authInfo)
+      this.on("__onLoginComplete", (authInfo: PrivyAuthInfo) => {
+        this._callBackendAuth(resolve, reject, authInfo, authInfo.authToken)
       })
 
       this.on("__onLoginError", (error: PrivyErrorCode) => {
@@ -766,7 +940,7 @@ export class Auth extends Client implements AuthInternalEvents {
   ) {
     try {
       this.on("__onLinkAccountComplete", async (authInfo: PrivyAuthInfo) => {
-        this._callBackendLink(resolve, reject, authInfo)
+        this._callBackendLink(resolve, reject, authInfo, authInfo.authToken)
       })
 
       this.on("__onLinkAccountError", (error: PrivyErrorCode) => {
@@ -916,13 +1090,9 @@ export class Auth extends Client implements AuthInternalEvents {
         this._isAuthenticated = false
         this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
         this._account?.emptyActiveWallets()
+        this._account?.setAuthToken(null)
         this.destroyLastUserLoggedKey()
-        this.setAuthToken(null)
-        this._oracleRef.setAuthToken(null)
-        this._chatRef.setAuthToken(null)
-        this._orderRef.setAuthToken(null)
-        this._proposalRef.setAuthToken(null)
-        this._notificationRef.setAuthToken(null)
+        this._setAllAuthToken(null)
 
         this._emit("__logout")
       } catch (error) {
@@ -1030,13 +1200,39 @@ export class Auth extends Client implements AuthInternalEvents {
             e2eSecretIV: string
           }
         }>
-      >(`${this.backendUrl()}/user/secrets`, {
-        method: "GET",
-        headers: {
-          "x-api-key": `${this._apiKey}`,
-          Authorization: `Bearer ${token}`,
+      >(
+        `${this.backendUrl()}/user/secrets`,
+        {
+          method: "GET",
+          headers: {
+            "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${token}`,
+          },
         },
-      })
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                this._setAllAuthToken(authToken)
+                this._account?.setAuthToken(authToken)
+                this.recoverAccountFromLocalDB()
+              },
+              async (error) => {
+                console.log(error)
+                await this.logout()
+              }
+            )
+          } else {
+            //if we're here this means the second call encountered again a 401 error, so we logout the user
+            console.log(error)
+            await this.logout()
+          }
+        }
+      )
 
       if (!response || !response.data) return
 
@@ -1145,30 +1341,12 @@ export class Auth extends Client implements AuthInternalEvents {
       })
 
       this._isAuthenticated = true
+      this._setAllAuthToken(token)
+      this._setAllCurrentAccount(account)
 
-      this.setAuthToken(token)
-
-      this._oracleRef.setAuthToken(token)
-      this._chatRef.setAuthToken(token)
-      this._proposalRef.setAuthToken(token)
-      this._orderRef.setAuthToken(token)
-      this._notificationRef.setAuthToken(token)
-
-      this._chatRef.setCurrentAccount(account)
-      this._orderRef.setCurrentAccount(account)
-      this._oracleRef.setCurrentAccount(account)
-      this._proposalRef.setCurrentAccount(account)
-      this._notificationRef.setCurrentAccount(account)
-
-      //this must be the last because it fires event "auth"
-      this.setCurrentAccount(account)
+      //reset auth attempts in case this function is called because a 401 error
+      this.resetRequestNewAuthToken()
     } catch (error) {
-      //safety check, _account could be null and this method destroy the local storage values stored
-      if ("statusCode" in (error as any) && (error as any).statusCode === 401) {
-        this.destroyLastUserLoggedKey()
-        await this.logout()
-      }
-
       console.log("Error during rebuilding phase for account.")
       console.log(error)
     }

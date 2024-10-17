@@ -1,6 +1,7 @@
 import { Maybe } from "@src/types"
 import { HTTPRequestInit, HTTPResponse } from "../interfaces/base"
 import { Account } from "./app"
+import { getAccessToken } from "@privy-io/react-auth"
 
 /**
  * Class representing an HTTP client for making HTTP requests.
@@ -20,9 +21,14 @@ export class Client {
   protected _authToken: Maybe<string> = null
 
   /**
-   * @type {Maybe<Account>} accout - The account object, which may be null.
+   * @type {Maybe<Account>} account - The account object, which may be null.
    */
   protected _account: Maybe<Account> = null
+
+  /**
+   * @type {number} _requestAuthToken - The number of auth attempts the client is doing in case of 401 unauthorized error.
+   */
+  protected _requestAuthToken: number = 0
 
   constructor(enableDevMode: boolean) {
     if (enableDevMode) this.enableDevMode()
@@ -34,7 +40,7 @@ export class Client {
    * @param {HTTPRequestInit} options - The options for the HTTP request.
    * @returns {Promise<HTTPResponse<RT>>} A promise that resolves with the HTTP response data.
    */
-  private async _fetchJS<RT = any>(
+  private async _fetchXHR<RT = any>(
     url: string | URL,
     options: HTTPRequestInit
   ): Promise<HTTPResponse<RT>> {
@@ -82,80 +88,6 @@ export class Client {
   }
 
   /**
-   * Fetches data from a given URL using the specified options.
-   * @param {string | URL} url - The URL to fetch data from.
-   * @param {HTTPRequestInit} options - The options for the HTTP request.
-   * @returns {Promise<HTTPResponse<ReturnType>>} A promise that resolves with the HTTP response.
-   * @throws {Error} If the URL protocol is invalid.
-   */
-  private async _fetchNode<ReturnType = any>(
-    url: string | URL,
-    options: HTTPRequestInit
-  ): Promise<HTTPResponse<ReturnType>> {
-    const client =
-      url instanceof URL
-        ? url.protocol === "https:"
-          ? await import("https")
-          : url.protocol === "http:"
-          ? await import("http")
-          : null
-        : /^https?(?=:)/g.test(url)
-        ? url.substring(0, 5) === "https"
-          ? await import("https")
-          : await import("http")
-        : null
-
-    if (!client) throw new Error("Invalid url protocol")
-
-    return new Promise((resolve, reject) => {
-      const request = client.request(
-        url,
-        { method: options.method, headers: options.headers ?? undefined },
-        (response) => {
-          const statusCode = response.statusCode!,
-            statusMessage = response.statusMessage!
-
-          let result = ""
-
-          response.on(
-            "data",
-            (chunk) => (result += chunk.toString ? chunk.toString() : "")
-          )
-
-          response.on("error", (error) =>
-            reject({
-              statusCode,
-              statusMessage,
-              response: error,
-            })
-          )
-
-          response.on("end", () => {
-            const response = result.length ? JSON.parse(result) : null
-
-            if (statusCode >= 400)
-              reject({
-                statusCode,
-                statusMessage,
-                response,
-              })
-            else
-              resolve({
-                statusCode,
-                statusMessage,
-                response,
-              })
-          })
-        }
-      )
-
-      if (options.body) request.write(JSON.stringify(options.body))
-
-      request.end()
-    })
-  }
-
-  /**
    * Fetches data from the specified URL using either browser's fetch API or Node.js's http/https module.
    * @param {string | URL} url - The URL to fetch data from.
    * @param {HTTPRequestInit} [options] - The options for the HTTP request such as method, headers, and body.
@@ -167,7 +99,8 @@ export class Client {
       method: "GET",
       headers: undefined,
       body: undefined,
-    }
+    },
+    callbackUnauthorized: (error: unknown) => void
   ): Promise<HTTPResponse<ReturnType>> {
     options.headers = {
       ...options.headers,
@@ -175,9 +108,21 @@ export class Client {
       mode: "loopz",
     }
 
-    return globalThis.document
-      ? this._fetchJS<ReturnType>(url, options)
-      : this._fetchNode<ReturnType>(url, options)
+    return new Promise(async (resolve, reject) => {
+      try {
+        resolve(await this._fetchXHR<ReturnType>(url, options))
+      } catch (error) {
+        if (
+          "statusCode" in (error as any) &&
+          (error as any).statusCode === 401
+        ) {
+          //handle 401 error
+          callbackUnauthorized(error)
+        } else {
+          reject(error)
+        }
+      }
+    })
   }
 
   protected getDevMode(): string {
@@ -233,6 +178,37 @@ export class Client {
         ? `wss://develop.api.graphql.loopz.xyz/graphql/realtime` //url server chat graphql development
         : `wss://api.graphql.loopz.xyz/graphql/realtime` //url server chat graphql production
     }`
+  }
+
+  protected resetRequestNewAuthToken() {
+    this._requestAuthToken = 0
+  }
+
+  protected incrementRequestNewAuthToken() {
+    this._requestAuthToken = this._requestAuthToken + 1
+  }
+
+  protected countRequestNewAuthToken(): number {
+    return this._requestAuthToken
+  }
+
+  protected async obtainNewAuthToken(
+    callbackSuccess: (authToken: string) => void,
+    callbackError: (error: unknown) => void
+  ) {
+    try {
+      const authToken = await getAccessToken()
+
+      if (authToken) {
+        callbackSuccess(authToken)
+      } else {
+        callbackError({
+          error: "error: authToken is null.",
+        })
+      }
+    } catch (error) {
+      callbackError(error)
+    }
   }
 
   setAuthToken(authToken: Maybe<string>): void {
