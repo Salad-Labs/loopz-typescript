@@ -51,7 +51,7 @@ export const LoopzProvider: FC<LoopzProviderProps> = ({
       devMode,
       runAdapter: false,
       enableStorage,
-    }).then((i) => setLoopz({ initialized: true, instance: i.init() }))
+    }).then((loopz) => setLoopz({ initialized: true, instance: loopz.init() }))
   }, [config, devMode, enableStorage])
 
   if (!loopz.initialized) return null
