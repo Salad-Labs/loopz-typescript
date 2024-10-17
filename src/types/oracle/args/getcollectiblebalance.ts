@@ -1,4 +1,4 @@
-export type GetCollectibleBalanceArgs = {
+type GetCollectibleBalanceArgs = {
   networkId: string
   address: string // User address that should be checked
   tokens: [
@@ -10,3 +10,5 @@ export type GetCollectibleBalanceArgs = {
     }
   ]
 }
+
+export { GetCollectibleBalanceArgs }

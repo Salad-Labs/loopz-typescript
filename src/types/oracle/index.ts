@@ -1,1 +1,1 @@
-export * from "./args/index.js"
+export * from "./args"
