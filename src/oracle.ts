@@ -1,15 +1,20 @@
 import { Client } from "./core/client"
 import {
   ListBookmarkedCollectionsArgs,
-  GetNFTArgs,
-  ListNFTsArgs,
+  GetCollectibleMetadataArgs,
+  ListCollectiblesArgs,
   ListCollectionsArgs,
-  ListNFTsByCollectionArgs,
+  ListCollectiblesByCollectionArgs,
 } from "./types/oracle"
-import { Collectible, CollectibleMetadata } from "./interfaces/oracle"
+import {
+  Collectible,
+  CollectibleBalance,
+  CollectibleMetadata,
+} from "./interfaces/oracle"
 import { ApiKeyAuthorized, Maybe } from "./types/base"
 import { ApiResponse } from "./types/base/apiresponse"
 import { Collection } from "./interfaces"
+import { GetCollectibleBalanceArgs } from "./types/oracle/args/getcollectiblebalance"
 
 /**
  * Represents an Oracle class that extends Client and provides methods to interact with an Oracle API.
@@ -120,7 +125,7 @@ export class Oracle extends Client {
 
   /**
    * Retrieves NFTs based on the provided search parameters.
-   * @param {ListNFTsArgs} args - The search parameters for fetching NFTs.
+   * @param {ListCollectiblesArgs} args - The search parameters for fetching NFTs.
    * @returns {Promise<Maybe<{
    *   nfts: Array<Collectible>
    *   continuation: Maybe<string> | undefined
@@ -128,7 +133,7 @@ export class Oracle extends Client {
    * }>>} A promise that resolves to the response containing the NFTs, or null if no data is returned.
    * @throws {Error} If an error occurs during the fetch operation.
    */
-  async listNFTs(args: ListNFTsArgs): Promise<
+  async listCollectibles(args: ListCollectiblesArgs): Promise<
     Maybe<{
       nfts: Array<Collectible>
       continuation: Maybe<string> | undefined
@@ -171,11 +176,13 @@ export class Oracle extends Client {
 
   /**
    * Retrieves collections based on the provided search parameters.
-   * @param {ListNFTsByCollectionArgs} args - The search parameters for fetching collections.
+   * @param {ListCollectiblesByCollectionArgs} args - The search parameters for fetching collections.
    * @returns {Promise<Maybe<{nfts: Array<Collectible>; continuation: Maybe<string> | undefined; total: number}>>} A promise that resolves to the collections response or null.
    * @throws {Error} If an error occurs during the fetching process.
    */
-  async listNftsByCollection(args: ListNFTsByCollectionArgs): Promise<
+  async listCollectiblesByCollection(
+    args: ListCollectiblesByCollectionArgs
+  ): Promise<
     Maybe<{
       nfts: Array<Collectible>
       continuation: Maybe<string> | undefined
@@ -215,11 +222,13 @@ export class Oracle extends Client {
 
   /**
    * Retrieves NFT metadata based on the provided search parameters.
-   * @param {GetNFTArgs} args - The search parameters for the NFT.
+   * @param {GetCollectibleMetadataArgs} args - The search parameters for the NFT.
    * @returns {Promise<Maybe<CollectibleMetadata>>} A promise that resolves to the NFT metadata response, or null if no data is found.
    * @throws {Error} If an error occurs during the retrieval process.
    */
-  async getNFT(args: GetNFTArgs): Promise<Maybe<CollectibleMetadata>> {
+  async getCollectibleMetadata(
+    args: GetCollectibleMetadataArgs
+  ): Promise<Maybe<CollectibleMetadata>> {
     const url: string = `${this.backendUrl()}/nft/metadata/${args.networkId}/${
       args.collectionAddress
     }/${args.tokenId}${args.address ? `/${args.address}` : ``}`
@@ -232,6 +241,41 @@ export class Oracle extends Client {
           headers: {
             "x-api-key": `${this._apiKey}`,
             Authorization: `Bearer ${this._authToken}`,
+          },
+        }
+      )
+
+      if (!response || !response.data) return null
+
+      return response.data[0]
+    } catch (error) {
+      console.warn(error)
+    }
+
+    return null
+  }
+
+  /**
+   * Retrieves the balance of a collectible.
+   * @param {GetCollectibleBalanceArgs} args - The search parameters for the collectible.
+   * @returns {Promise<Maybe<CollectibleMetadata>>} A promise that resolves to the NFT balance response, or null if no data is found.
+   * @throws {Error} If an error occurs during the retrieval process.
+   */
+  async getCollectibleBalance(
+    args: GetCollectibleBalanceArgs
+  ): Promise<Maybe<CollectibleBalance>> {
+    const url: string = `${this.backendUrl()}/nft/balance`
+    try {
+      const { response } = await this._fetch<ApiResponse<CollectibleBalance>>(
+        url,
+        {
+          method: "PUT",
+          headers: {
+            "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
+          },
+          body: {
+            ...args,
           },
         }
       )
