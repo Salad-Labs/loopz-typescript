@@ -61,6 +61,31 @@ export class Proposal extends Client {
             "x-api-key": `${this._apiKey}`,
             Authorization: `Bearer ${this._authToken}`,
           },
+        },
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              async (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                this._setAllAuthToken(authToken)
+                this._account?.setAuthToken(authToken)
+                this._account?.storeLastUserLoggedKey()
+
+                return await this._createProposal(proposal)
+              },
+              async (error) => {
+                console.log(error)
+                await this._authRef?.logout()
+              }
+            )
+          } else {
+            //if we're here this means the second call encountered again a 401 error, so we logout the user
+            console.log(error)
+            await this._authRef?.logout()
+          }
         }
       )
 
@@ -92,6 +117,31 @@ export class Proposal extends Client {
           headers: {
             "x-api-key": `${this._apiKey}`,
           },
+        },
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              async (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                this._setAllAuthToken(authToken)
+                this._account?.setAuthToken(authToken)
+                this._account?.storeLastUserLoggedKey()
+
+                return await this.get(id, did)
+              },
+              async (error) => {
+                console.log(error)
+                await this._authRef?.logout()
+              }
+            )
+          } else {
+            //if we're here this means the second call encountered again a 401 error, so we logout the user
+            console.log(error)
+            await this._authRef?.logout()
+          }
         }
       )
 
@@ -186,6 +236,37 @@ export class Proposal extends Client {
           headers: {
             "x-api-key": `${this._apiKey}`,
           },
+        },
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              async (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                this._setAllAuthToken(authToken)
+                this._account?.setAuthToken(authToken)
+                this._account?.storeLastUserLoggedKey()
+
+                return await this.list(
+                  filtersOptions,
+                  orderOptions,
+                  skip,
+                  take,
+                  did
+                )
+              },
+              async (error) => {
+                console.log(error)
+                await this._authRef?.logout()
+              }
+            )
+          } else {
+            //if we're here this means the second call encountered again a 401 error, so we logout the user
+            console.log(error)
+            await this._authRef?.logout()
+          }
         }
       )
 
@@ -219,16 +300,44 @@ export class Proposal extends Client {
    */
   async delete(id: string, creatorAddress: string): Promise<void> {
     try {
-      await this._fetch(`${this.backendUrl()}/proposal/${id}/delete`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${this._authToken}`,
-          "x-api-key": `${this._apiKey}`,
+      await this._fetch(
+        `${this.backendUrl()}/proposal/${id}/delete`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${this._authToken}`,
+            "x-api-key": `${this._apiKey}`,
+          },
+          body: {
+            creatorAddress,
+          },
         },
-        body: {
-          creatorAddress,
-        },
-      })
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              async (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                this._setAllAuthToken(authToken)
+                this._account?.setAuthToken(authToken)
+                this._account?.storeLastUserLoggedKey()
+
+                return await this.delete(id, creatorAddress)
+              },
+              async (error) => {
+                console.log(error)
+                await this._authRef?.logout()
+              }
+            )
+          } else {
+            //if we're here this means the second call encountered again a 401 error, so we logout the user
+            console.log(error)
+            await this._authRef?.logout()
+          }
+        }
+      )
     } catch (error) {
       console.warn(error)
     }

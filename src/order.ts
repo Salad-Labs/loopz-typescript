@@ -94,6 +94,31 @@ export class Order extends Client {
             "x-api-key": `${this._apiKey}`,
             Authorization: `Bearer ${this._authToken}`,
           },
+        },
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              async (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                this._setAllAuthToken(authToken)
+                this._account?.setAuthToken(authToken)
+                this._account?.storeLastUserLoggedKey()
+
+                return await this._getGnosis()
+              },
+              async (error) => {
+                console.log(error)
+                await this._authRef?.logout()
+              }
+            )
+          } else {
+            //if we're here this means the second call encountered again a 401 error, so we logout the user
+            console.log(error)
+            await this._authRef?.logout()
+          }
         }
       )
 
@@ -127,6 +152,31 @@ export class Order extends Client {
             "x-api-key": `${this._apiKey}`,
             Authorization: `Bearer ${this._authToken}`,
           },
+        },
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              async (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                this._setAllAuthToken(authToken)
+                this._account?.setAuthToken(authToken)
+                this._account?.storeLastUserLoggedKey()
+
+                return await this._getMasterFee()
+              },
+              async (error) => {
+                console.log(error)
+                await this._authRef?.logout()
+              }
+            )
+          } else {
+            //if we're here this means the second call encountered again a 401 error, so we logout the user
+            console.log(error)
+            await this._authRef?.logout()
+          }
         }
       )
 
@@ -527,6 +577,37 @@ export class Order extends Client {
             "x-api-key": `${this._apiKey}`,
             Authorization: `Bearer ${this._authToken}`,
           },
+        },
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              async (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                this._setAllAuthToken(authToken)
+                this._account?.setAuthToken(authToken)
+                this._account?.storeLastUserLoggedKey()
+
+                return await this.create(
+                  participantOne,
+                  participantTwo,
+                  end,
+                  fees,
+                  proposalId
+                )
+              },
+              async (error) => {
+                console.log(error)
+                await this._authRef?.logout()
+              }
+            )
+          } else {
+            //if we're here this means the second call encountered again a 401 error, so we logout the user
+            console.log(error)
+            await this._authRef?.logout()
+          }
         }
       )
 
@@ -565,6 +646,31 @@ export class Order extends Client {
             "x-api-key": `${this._apiKey}`,
             Authorization: `Bearer ${this._authToken}`,
           },
+        },
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              async (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                this._setAllAuthToken(authToken)
+                this._account?.setAuthToken(authToken)
+                this._account?.storeLastUserLoggedKey()
+
+                return await this.finalize(orderId)
+              },
+              async (error) => {
+                console.log(error)
+                await this._authRef?.logout()
+              }
+            )
+          } else {
+            //if we're here this means the second call encountered again a 401 error, so we logout the user
+            console.log(error)
+            await this._authRef?.logout()
+          }
         }
       )
 
@@ -639,6 +745,31 @@ export class Order extends Client {
             "x-api-key": `${this._apiKey}`,
             Authorization: `Bearer ${this._authToken}`,
           },
+        },
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              async (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                this._setAllAuthToken(authToken)
+                this._account?.setAuthToken(authToken)
+                this._account?.storeLastUserLoggedKey()
+
+                return await this.cancel(orderId, gasLimit, gasPrice)
+              },
+              async (error) => {
+                console.log(error)
+                await this._authRef?.logout()
+              }
+            )
+          } else {
+            //if we're here this means the second call encountered again a 401 error, so we logout the user
+            console.log(error)
+            await this._authRef?.logout()
+          }
         }
       )
 
@@ -685,6 +816,31 @@ export class Order extends Client {
             "x-api-key": `${this._apiKey}`,
             Authorization: `Bearer ${this._authToken}`,
           },
+        },
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              async (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                this._setAllAuthToken(authToken)
+                this._account?.setAuthToken(authToken)
+                this._account?.storeLastUserLoggedKey()
+
+                return await this.get(networkId, id)
+              },
+              async (error) => {
+                console.log(error)
+                await this._authRef?.logout()
+              }
+            )
+          } else {
+            //if we're here this means the second call encountered again a 401 error, so we logout the user
+            console.log(error)
+            await this._authRef?.logout()
+          }
         }
       )
 
@@ -755,6 +911,41 @@ export class Order extends Client {
             from: typeof from !== "undefined" ? from : null,
             to: typeof to !== "undefined" ? to : null,
           },
+        },
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              async (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                this._setAllAuthToken(authToken)
+                this._account?.setAuthToken(authToken)
+                this._account?.storeLastUserLoggedKey()
+
+                return await this.listOrders({
+                  networkId,
+                  status,
+                  skip,
+                  take,
+                  from,
+                  to,
+                  collections,
+                  search,
+                  order,
+                })
+              },
+              async (error) => {
+                console.log(error)
+                await this._authRef?.logout()
+              }
+            )
+          } else {
+            //if we're here this means the second call encountered again a 401 error, so we logout the user
+            console.log(error)
+            await this._authRef?.logout()
+          }
         }
       )
 
@@ -831,6 +1022,42 @@ export class Order extends Client {
             from: typeof from !== "undefined" ? from : null,
             to: typeof to !== "undefined" ? to : null,
           },
+        },
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              async (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                this._setAllAuthToken(authToken)
+                this._account?.setAuthToken(authToken)
+                this._account?.storeLastUserLoggedKey()
+
+                return await this.listUserOrders({
+                  networkId,
+                  did,
+                  status,
+                  skip,
+                  take,
+                  from,
+                  to,
+                  collections,
+                  searchAddress,
+                  order,
+                })
+              },
+              async (error) => {
+                console.log(error)
+                await this._authRef?.logout()
+              }
+            )
+          } else {
+            //if we're here this means the second call encountered again a 401 error, so we logout the user
+            console.log(error)
+            await this._authRef?.logout()
+          }
         }
       )
 

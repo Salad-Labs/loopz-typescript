@@ -2,7 +2,8 @@ import { Maybe } from "@src/types"
 import { HTTPRequestInit, HTTPResponse } from "../interfaces/base"
 import { Account } from "./app"
 import { getAccessToken } from "@privy-io/react-auth"
-
+import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "@src/constants/app"
+import { Auth, Chat, Notification, Proposal, Order, Oracle } from ".."
 /**
  * Class representing an HTTP client for making HTTP requests.
  * @class Client
@@ -29,6 +30,36 @@ export class Client {
    * @type {number} _requestAuthToken - The number of auth attempts the client is doing in case of 401 unauthorized error.
    */
   protected _requestAuthToken: number = 0
+
+  /**
+   * @type {Maybe<Auth>} _authRef -
+   */
+  protected _authRef: Maybe<Auth> = null
+
+  /**
+   * @type {Maybe<Order>} _orderRef -
+   */
+  protected _orderRef: Maybe<Order> = null
+
+  /**
+   * @type {Maybe<Proposal>} _proposalRef -
+   */
+  protected _proposalRef: Maybe<Proposal> = null
+
+  /**
+   * @type {Maybe<Oracle>} _oracleRef -
+   */
+  protected _oracleRef: Maybe<Oracle> = null
+
+  /**
+   * @type { Maybe<Chat>} _chatRef -
+   */
+  protected _chatRef: Maybe<Chat> = null
+
+  /**
+   * @type {Maybe<Notification>} _notificationRef -
+   */
+  protected _notificationRef: Maybe<Notification> = null
 
   constructor(enableDevMode: boolean) {
     if (enableDevMode) this.enableDevMode()
@@ -211,6 +242,38 @@ export class Client {
     }
   }
 
+  protected _setAllAuthToken(authToken: Maybe<string>) {
+    this._authRef?.setAuthToken(authToken)
+    this._orderRef?.setAuthToken(authToken)
+    this._oracleRef?.setAuthToken(authToken)
+    this._proposalRef?.setAuthToken(authToken)
+    this._chatRef?.setAuthToken(authToken)
+    this._notificationRef?.setAuthToken(authToken)
+  }
+
+  setLoopzObjectsReference({
+    auth,
+    oracle,
+    order,
+    proposal,
+    chat,
+    notification,
+  }: {
+    auth: Maybe<Auth>
+    oracle: Maybe<Oracle>
+    order: Maybe<Order>
+    proposal: Maybe<Proposal>
+    chat: Maybe<Chat>
+    notification: Maybe<Notification>
+  }) {
+    this._authRef = auth
+    this._oracleRef = oracle
+    this._orderRef = order
+    this._proposalRef = proposal
+    this._chatRef = chat
+    this._notificationRef = notification
+  }
+
   setAuthToken(authToken: Maybe<string>): void {
     this._authToken = authToken
   }
@@ -221,5 +284,9 @@ export class Client {
 
   getCurrentAccount() {
     return this._account
+  }
+
+  destroyLastUserLoggedKey() {
+    window.localStorage.removeItem(CLIENT_DB_KEY_LAST_USER_LOGGED)
   }
 }

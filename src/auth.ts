@@ -15,14 +15,9 @@ import { PrivyClientConfig } from "@privy-io/react-auth"
 import { AuthInternalEvents } from "./interfaces/auth/authinternalevents"
 import { PrivyErrorCode } from "@src/enums/adapter/auth/privyerrorcode"
 import { PrivyAuthInfo } from "./types/adapter"
-import { Order } from "./order"
-import { Proposal } from "./proposal"
-import { Oracle } from "./oracle"
 import forge from "node-forge"
 import { AccountInitConfig } from "./types/auth/account"
-import { Chat } from "./chat"
 import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "./constants/app"
-import { Notification } from "./notification"
 
 /**
  * Represents an authentication client that interacts with a backend server for user authentication.
@@ -37,11 +32,6 @@ export class Auth extends Client implements AuthInternalEvents {
     callbacks: Function[]
     eventName: AuthEvents
   }> = []
-  private _orderRef: Order
-  private _proposalRef: Proposal
-  private _oracleRef: Oracle
-  private _chatRef: Chat
-  private _notificationRef: Notification
   private _isLoggingOut: boolean = false
   private _isAuthenticated: boolean = false
   private _isDevMode: boolean = false
@@ -122,25 +112,25 @@ export class Auth extends Client implements AuthInternalEvents {
     }
   }
 
-  private _setAllAuthToken(authToken: Maybe<string>) {
-    this.setAuthToken(authToken)
-
-    this._orderRef.setAuthToken(authToken)
-    this._oracleRef.setAuthToken(authToken)
-    this._proposalRef.setAuthToken(authToken)
-    this._chatRef.setAuthToken(authToken)
-    this._notificationRef.setAuthToken(authToken)
-  }
-
   private _setAllCurrentAccount(account: Account) {
-    this._chatRef.setCurrentAccount(account)
-    this._orderRef.setCurrentAccount(account)
-    this._oracleRef.setCurrentAccount(account)
-    this._proposalRef.setCurrentAccount(account)
-    this._notificationRef.setCurrentAccount(account)
+    this._chatRef?.setCurrentAccount(account)
+    this._orderRef?.setCurrentAccount(account)
+    this._oracleRef?.setCurrentAccount(account)
+    this._proposalRef?.setCurrentAccount(account)
+    this._notificationRef?.setCurrentAccount(account)
 
     //this must be the last because it fires event "auth"
     this.setCurrentAccount(account)
+
+    //account now knows the other objects
+    account.setLoopzObjectsReference({
+      auth: this,
+      oracle: this._oracleRef,
+      order: this._orderRef,
+      proposal: this._proposalRef,
+      chat: this._chatRef,
+      notification: this._notificationRef,
+    })
   }
 
   private async _handleDexie(account: Account) {
@@ -380,9 +370,9 @@ export class Auth extends Client implements AuthInternalEvents {
         //because if i'm using the same device i should have e2ePublicKey already setup.
         //So, if this value is null and it's not the first login of the user, means probably the user is doing the login on a different device.
         //Thus, let's block the possibility to chat since before to do that the user needs to transfer the private keys between the devices.
-        this._chatRef.setCanChat(false)
+        this._chatRef?.setCanChat(false)
       } else {
-        this._chatRef.setCanChat(true)
+        this._chatRef?.setCanChat(true)
       }
 
       const account = new Account({
@@ -390,7 +380,7 @@ export class Auth extends Client implements AuthInternalEvents {
         enableDevMode: this._isDevMode,
         apiKey: this._apiKey!,
         storage: this._storage!,
-        chatRef: this._chatRef,
+        chatRef: this._chatRef!,
       })
       //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
       //the user refresh the page
@@ -510,9 +500,9 @@ export class Auth extends Client implements AuthInternalEvents {
         //because if i'm using the same device i should have e2ePublicKey already setup.
         //So, if this value is null and it's not the first login of the user, means probably the user is doing the login on a different device.
         //Thus, let's block the possibility to chat since before to do that the user needs to transfer the private keys between the devices.
-        this._chatRef.setCanChat(false)
+        this._chatRef?.setCanChat(false)
       } else {
-        this._chatRef.setCanChat(true)
+        this._chatRef?.setCanChat(true)
       }
 
       const account = new Account({
@@ -520,7 +510,7 @@ export class Auth extends Client implements AuthInternalEvents {
         enableDevMode: this._isDevMode,
         apiKey: this._apiKey!,
         storage: this._storage!,
-        chatRef: this._chatRef,
+        chatRef: this._chatRef!,
       })
       //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
       //the user refresh the page
@@ -597,6 +587,7 @@ export class Auth extends Client implements AuthInternalEvents {
 
                 this._setAllAuthToken(authToken)
                 this._account?.setAuthToken(authToken)
+                this._account?.storeLastUserLoggedKey()
 
                 this._callBackendLinkAfterOAuthRedirect(authInfo, authToken)
               },
@@ -705,6 +696,7 @@ export class Auth extends Client implements AuthInternalEvents {
 
                 this._setAllAuthToken(authToken)
                 this._account?.setAuthToken(authToken)
+                this._account?.storeLastUserLoggedKey()
 
                 return this._callBackendLink(
                   resolve,
@@ -1093,6 +1085,7 @@ export class Auth extends Client implements AuthInternalEvents {
         this._account?.setAuthToken(null)
         this.destroyLastUserLoggedKey()
         this._setAllAuthToken(null)
+        this.resetRequestNewAuthToken()
 
         this._emit("__logout")
       } catch (error) {
@@ -1219,6 +1212,7 @@ export class Auth extends Client implements AuthInternalEvents {
                 this.incrementRequestNewAuthToken()
                 this._setAllAuthToken(authToken)
                 this._account?.setAuthToken(authToken)
+                this._account?.storeLastUserLoggedKey()
                 this.recoverAccountFromLocalDB()
               },
               async (error) => {
@@ -1246,7 +1240,7 @@ export class Auth extends Client implements AuthInternalEvents {
         enableDevMode: this._isDevMode,
         apiKey: this._apiKey!,
         storage: this._storage,
-        chatRef: this._chatRef,
+        chatRef: this._chatRef!,
         did: user.did,
         organizationId: user.organizationId,
         token: token,
@@ -1350,10 +1344,6 @@ export class Auth extends Client implements AuthInternalEvents {
       console.log("Error during rebuilding phase for account.")
       console.log(error)
     }
-  }
-
-  destroyLastUserLoggedKey() {
-    window.localStorage.removeItem(CLIENT_DB_KEY_LAST_USER_LOGGED)
   }
 
   setCurrentAccount(account: Account) {

@@ -112,8 +112,6 @@ export class Account extends Client implements AccountSchema, AccountEngine {
 
   private _storage: DexieStorage
 
-  private _chatRef: Chat
-
   constructor(
     config: AccountInitConfig & {
       enableDevMode: boolean
@@ -420,6 +418,36 @@ export class Account extends Client implements AccountSchema, AccountEngine {
             "x-api-key": `${this._apiKey}`,
             Authorization: `Bearer ${this.token}`,
           },
+        },
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              async (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                this._setAllAuthToken(authToken)
+                this.setAuthToken(authToken)
+                this.storeLastUserLoggedKey()
+
+                return await this.updateData({
+                  username,
+                  avatarUrl,
+                  bio,
+                  pfp,
+                })
+              },
+              async (error) => {
+                console.log(error)
+                await this._authRef?.logout()
+              }
+            )
+          } else {
+            //if we're here this means the second call encountered again a 401 error, so we logout the user
+            console.log(error)
+            await this._authRef?.logout()
+          }
         }
       )
 
@@ -481,6 +509,31 @@ export class Account extends Client implements AccountSchema, AccountEngine {
             "x-api-key": `${this._apiKey}`,
             Authorization: `Bearer ${this.token}`,
           },
+        },
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              async (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                this._setAllAuthToken(authToken)
+                this.setAuthToken(authToken)
+                this.storeLastUserLoggedKey()
+
+                return await this.updateSettings(setting, enabled)
+              },
+              async (error) => {
+                console.log(error)
+                await this._authRef?.logout()
+              }
+            )
+          } else {
+            //if we're here this means the second call encountered again a 401 error, so we logout the user
+            console.log(error)
+            await this._authRef?.logout()
+          }
         }
       )
 
@@ -533,7 +586,7 @@ export class Account extends Client implements AccountSchema, AccountEngine {
     allowGroupsSuggestion: boolean
   }) {
     try {
-      const response = await this._chatRef.updateUser(settings)
+      const response = await this._chatRef?.updateUser(settings)
 
       if (response instanceof QIError) throw new Error(response.toString())
 

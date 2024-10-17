@@ -6974,6 +6974,31 @@ export class Chat
             "x-api-key": `${this._apiKey}`,
             Authorization: `Bearer ${this._authToken}`,
           },
+        },
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              async (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                this._setAllAuthToken(authToken)
+                this._account?.setAuthToken(authToken)
+                this._account?.storeLastUserLoggedKey()
+
+                return await this.pair()
+              },
+              async (error) => {
+                console.log(error)
+                await this._authRef?.logout()
+              }
+            )
+          } else {
+            //if we're here this means the second call encountered again a 401 error, so we logout the user
+            console.log(error)
+            await this._authRef?.logout()
+          }
         }
       )
 
@@ -7039,6 +7064,31 @@ export class Chat
             "x-api-key": `${this._apiKey}`,
             Authorization: `Bearer ${this._authToken}`,
           },
+        },
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              async (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                this._setAllAuthToken(authToken)
+                this._account?.setAuthToken(authToken)
+                this._account?.storeLastUserLoggedKey()
+
+                return await this.startPairing(mnemonic)
+              },
+              async (error) => {
+                console.log(error)
+                await this._authRef?.logout()
+              }
+            )
+          } else {
+            //if we're here this means the second call encountered again a 401 error, so we logout the user
+            console.log(error)
+            await this._authRef?.logout()
+          }
         }
       )
 
@@ -7083,16 +7133,44 @@ export class Chat
 
         const { response } = await this._fetch<
           ApiResponse<{ status: number; publicKey: string }>
-        >(`${this.backendUrl()}/pair/device/check`, {
-          method: "POST",
-          body: {
-            pairingIdentity: hex,
+        >(
+          `${this.backendUrl()}/pair/device/check`,
+          {
+            method: "POST",
+            body: {
+              pairingIdentity: hex,
+            },
+            headers: {
+              "x-api-key": `${this._apiKey}`,
+              Authorization: `Bearer ${this._authToken}`,
+            },
           },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        })
+          async (error) => {
+            //safety check, _account could be null and this method destroy the local storage values stored
+            this.destroyLastUserLoggedKey()
+
+            if (this.countRequestNewAuthToken() === 0) {
+              await this.obtainNewAuthToken(
+                async (authToken: string) => {
+                  this.incrementRequestNewAuthToken()
+                  this._setAllAuthToken(authToken)
+                  this._account?.setAuthToken(authToken)
+                  this._account?.storeLastUserLoggedKey()
+
+                  return await this.transferKeysWhenReady(mnemonic)
+                },
+                async (error) => {
+                  console.log(error)
+                  await this._authRef?.logout()
+                }
+              )
+            } else {
+              //if we're here this means the second call encountered again a 401 error, so we logout the user
+              console.log(error)
+              await this._authRef?.logout()
+            }
+          }
+        )
 
         if (!response || !response.data) {
           reject("Response is invalid.")
@@ -7138,18 +7216,46 @@ export class Chat
 
           const { response } = await this._fetch<
             ApiResponse<{ status: number }>
-          >(`${this.backendUrl()}/pair/device/transfer/keys`, {
-            method: "POST",
-            body: {
-              pairingIdentity: hex,
-              encryptedPublicKey: encryptedPublicKeyBase64,
-              encryptedPrivateKey: encryptedPrivateKeyBase64,
+          >(
+            `${this.backendUrl()}/pair/device/transfer/keys`,
+            {
+              method: "POST",
+              body: {
+                pairingIdentity: hex,
+                encryptedPublicKey: encryptedPublicKeyBase64,
+                encryptedPrivateKey: encryptedPrivateKeyBase64,
+              },
+              headers: {
+                "x-api-key": `${this._apiKey}`,
+                Authorization: `Bearer ${this._authToken}`,
+              },
             },
-            headers: {
-              "x-api-key": `${this._apiKey}`,
-              Authorization: `Bearer ${this._authToken}`,
-            },
-          })
+            async (error) => {
+              //safety check, _account could be null and this method destroy the local storage values stored
+              this.destroyLastUserLoggedKey()
+
+              if (this.countRequestNewAuthToken() === 0) {
+                await this.obtainNewAuthToken(
+                  async (authToken: string) => {
+                    this.incrementRequestNewAuthToken()
+                    this._setAllAuthToken(authToken)
+                    this._account?.setAuthToken(authToken)
+                    this._account?.storeLastUserLoggedKey()
+
+                    return await this.transferKeysWhenReady(mnemonic)
+                  },
+                  async (error) => {
+                    console.log(error)
+                    await this._authRef?.logout()
+                  }
+                )
+              } else {
+                //if we're here this means the second call encountered again a 401 error, so we logout the user
+                console.log(error)
+                await this._authRef?.logout()
+              }
+            }
+          )
 
           if (!response || !response.data) {
             reject("Response is invalid.")
@@ -7201,16 +7307,44 @@ export class Chat
             encryptedPrivateKey?: string
             encryptedPublicKey?: string
           }>
-        >(`${this.backendUrl()}/pair/device/download/keys`, {
-          method: "POST",
-          body: {
-            pairingIdentity: hex,
+        >(
+          `${this.backendUrl()}/pair/device/download/keys`,
+          {
+            method: "POST",
+            body: {
+              pairingIdentity: hex,
+            },
+            headers: {
+              "x-api-key": `${this._apiKey}`,
+              Authorization: `Bearer ${this._authToken}`,
+            },
           },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        })
+          async (error) => {
+            //safety check, _account could be null and this method destroy the local storage values stored
+            this.destroyLastUserLoggedKey()
+
+            if (this.countRequestNewAuthToken() === 0) {
+              await this.obtainNewAuthToken(
+                async (authToken: string) => {
+                  this.incrementRequestNewAuthToken()
+                  this._setAllAuthToken(authToken)
+                  this._account?.setAuthToken(authToken)
+                  this._account?.storeLastUserLoggedKey()
+
+                  return await this.downloadKeysWhenReady(mnemonic)
+                },
+                async (error) => {
+                  console.log(error)
+                  await this._authRef?.logout()
+                }
+              )
+            } else {
+              //if we're here this means the second call encountered again a 401 error, so we logout the user
+              console.log(error)
+              await this._authRef?.logout()
+            }
+          }
+        )
 
         if (!response || !response.data) {
           reject("Response is invalid.")
