@@ -3,6 +3,7 @@ import { Chat } from "../../chat"
 import { Oracle } from "../../oracle"
 import { Proposal } from "../../proposal"
 import { Order } from "../../order"
+import { Notification } from "../../notification"
 
 export type ILoopzContext =
   | {
@@ -13,6 +14,7 @@ export type ILoopzContext =
         proposal: null
         oracle: null
         chat: null
+        notification: null
       }
     }
   | {
@@ -23,5 +25,6 @@ export type ILoopzContext =
         proposal: Proposal
         oracle: Oracle
         chat: Chat
+        notification: Notification
       }
     }

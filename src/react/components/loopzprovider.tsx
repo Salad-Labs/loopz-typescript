@@ -25,6 +25,7 @@ export const LoopzProvider: FC<LoopzProviderProps> = ({
       proposal: null,
       oracle: null,
       chat: null,
+      notification: null,
     },
   })
 
