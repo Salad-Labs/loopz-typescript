@@ -451,4 +451,39 @@ export class Oracle extends Client {
 
     return null
   }
+
+  /**
+   * Checks if the given collections are supported by the backend server.
+   * @param collectionAddress - string - The collection address.
+   * @param networkId - string - An identifier representing the network in which looking for.
+   * @returns {Promise<Maybe<Collection>>} A promise that resolves to a collection or null if no data is returned.
+   * @throws {Error} If an error occurs during the API call.
+   */
+  async findCollection(
+    collectionAddress: string,
+    networkId: string
+  ): Promise<Maybe<Collection>> {
+    this._validate([collectionAddress])
+
+    try {
+      const { response } = await this._fetch<ApiResponse<Collection>>(
+        `${this.backendUrl()}/collection/find/${collectionAddress}/${networkId}`,
+        {
+          method: "GET",
+          headers: {
+            "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
+          },
+        }
+      )
+
+      if (!response || !response.data) return null
+
+      return response.data[0]
+    } catch (error) {
+      console.warn(error)
+    }
+
+    return null
+  }
 }
