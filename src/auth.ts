@@ -922,6 +922,7 @@ export class Auth extends Client implements AuthInternalEvents {
         this._chatRef.setAuthToken(null)
         this._orderRef.setAuthToken(null)
         this._proposalRef.setAuthToken(null)
+        this._notificationRef.setAuthToken(null)
 
         this._emit("__logout")
       } catch (error) {
