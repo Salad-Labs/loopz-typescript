@@ -715,7 +715,7 @@ export class Order extends Client {
    * @param {string} order.direction - The direction of ordering, either "ASC" for ascending or "DESC" for descending.
    * @param {string} order.field - The field to order results by.
    */
-  async getOrders({
+  async listOrders({
     networkId,
     status,
     skip,
@@ -786,7 +786,7 @@ export class Order extends Client {
    * @param {string} order.direction - The direction of ordering, either "ASC" for ascending or "DESC" for descending.
    * @param {string} order.field - The field to order results by.
    */
-  async getUserOrders({
+  async listUserOrders({
     networkId,
     did,
     status,
