@@ -1,7 +1,7 @@
 /**
  * Represents the parameters for searching collections.
  */
-type GetCollectionsArgs = {
+type ListCollectionsArgs = {
   /**
    * @property {"NFT" | "TKN" | "ALL"} searchType - The type of search to perform ("NFT", "TKN", or "ALL").
    */
@@ -24,4 +24,4 @@ type GetCollectionsArgs = {
   queryString?: string
 }
 
-export { GetCollectionsArgs }
+export { ListCollectionsArgs }

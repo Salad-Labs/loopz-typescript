@@ -1,7 +1,7 @@
 /**
  * Represents the parameters for searching collections.
  */
-type GetBookmarkedCollectionsArgs = {
+type ListBookmarkedCollectionsArgs = {
   /**
    * @property {number} skip - The number of items to skip in the search results.
    */
@@ -16,4 +16,4 @@ type GetBookmarkedCollectionsArgs = {
   networkId?: string
 }
 
-export { GetBookmarkedCollectionsArgs }
+export { ListBookmarkedCollectionsArgs }

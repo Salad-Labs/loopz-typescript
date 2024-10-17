@@ -1,9 +1,10 @@
 import { Client } from "./core/client"
 import {
-  GetBookmarkedCollectionsArgs,
-  GetCollectionsArgs,
+  ListBookmarkedCollectionsArgs,
   GetNFTArgs,
-  GetNFTsArgs,
+  ListNFTsArgs,
+  ListCollectionsArgs,
+  ListNFTsByCollectionArgs,
 } from "./types/oracle"
 import { Collectible, CollectibleMetadata } from "./interfaces/oracle"
 import { ApiKeyAuthorized, Maybe } from "./types/base"
@@ -49,12 +50,12 @@ export class Oracle extends Client {
 
   /**
    * Retrieves collections based on the provided search parameters.
-   * @param {GetCollectionsArgs} args - The search parameters for fetching collections.
+   * @param {ListCollectionsArgs} args - The search parameters for fetching collections.
    * @returns {Promise<Maybe<{total: number; collections: Array<Collection>}>>} A promise that resolves to the collections response or null.
    * @throws {Error} If an error occurs during the fetching process.
    */
-  async getCollections(
-    args: GetCollectionsArgs
+  async listCollections(
+    args: ListCollectionsArgs
   ): Promise<Maybe<{ total: number; collections: Array<Collection> }>> {
     const url: string = `${this.backendUrl()}/collection/get/all/${
       args.networkId ? args.networkId : `*`
@@ -85,12 +86,12 @@ export class Oracle extends Client {
 
   /**
    * Retrieves collections based on the provided search parameters.
-   * @param {GetBookmarkedCollectionsArgs} args - The search parameters for fetching collections.
+   * @param {ListBookmarkedCollectionsArgs} args - The search parameters for fetching collections.
    * @returns {Promise<Maybe<{total: number; collections: Array<Collection>}>>} A promise that resolves to the collections response or null.
    * @throws {Error} If an error occurs during the fetching process.
    */
-  async getBookmarkedCollections(
-    args: GetBookmarkedCollectionsArgs
+  async listBookmarkedCollections(
+    args: ListBookmarkedCollectionsArgs
   ): Promise<Maybe<{ total: number; collections: Array<Collection> }>> {
     const url: string = `${this.backendUrl()}/collection/get/all/bookmark/${
       args.networkId ? args.networkId : `*`
@@ -119,7 +120,7 @@ export class Oracle extends Client {
 
   /**
    * Retrieves NFTs based on the provided search parameters.
-   * @param {GetNFTsArgs} args - The search parameters for fetching NFTs.
+   * @param {ListNFTsArgs} args - The search parameters for fetching NFTs.
    * @returns {Promise<Maybe<{
    *   nfts: Array<Collectible>
    *   continuation: Maybe<string> | undefined
@@ -127,7 +128,7 @@ export class Oracle extends Client {
    * }>>} A promise that resolves to the response containing the NFTs, or null if no data is returned.
    * @throws {Error} If an error occurs during the fetch operation.
    */
-  async getNFTs(args: GetNFTsArgs): Promise<
+  async listNFTs(args: ListNFTsArgs): Promise<
     Maybe<{
       nfts: Array<Collectible>
       continuation: Maybe<string> | undefined
@@ -155,6 +156,50 @@ export class Oracle extends Client {
         },
         body: {
           collections: args.collections ? args.collections : null,
+        },
+      })
+
+      if (!response || !response.data) return null
+
+      return response.data[0]
+    } catch (error) {
+      console.warn(error)
+    }
+
+    return null
+  }
+
+  /**
+   * Retrieves collections based on the provided search parameters.
+   * @param {ListNFTsByCollectionArgs} args - The search parameters for fetching collections.
+   * @returns {Promise<Maybe<{nfts: Array<Collectible>; continuation: Maybe<string> | undefined; total: number}>>} A promise that resolves to the collections response or null.
+   * @throws {Error} If an error occurs during the fetching process.
+   */
+  async listNftsByCollection(args: ListNFTsByCollectionArgs): Promise<
+    Maybe<{
+      nfts: Array<Collectible>
+      continuation: Maybe<string> | undefined
+      total: number
+    }>
+  > {
+    const url: string = `${this.backendUrl()}/nft/get/metadata/owner/${
+      args.networkId ? args.networkId : `*`
+    }/${args.collectionAddress}/${args.address}/${args.take}${
+      args.continuation ? `/${args.continuation}` : ``
+    }`
+
+    try {
+      const { response } = await this._fetch<
+        ApiResponse<{
+          nfts: Array<Collectible>
+          continuation: Maybe<string> | undefined
+          total: number
+        }>
+      >(url, {
+        method: "GET",
+        headers: {
+          "x-api-key": `${this._apiKey}`,
+          Authorization: `Bearer ${this._authToken}`,
         },
       })
 
