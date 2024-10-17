@@ -35,14 +35,6 @@ export class Proposal extends Client {
   }
 
   /**
-   * Returns the message that needs to be signed, which is used by nfttrader.io for verification.
-   * @returns {string} The message to sign powered by nfttrader.io
-   */
-  static get _MESSAGE_TO_SIGN(): string {
-    return `This is the message to sign powered by nfttrader.io`
-  }
-
-  /**
    * Constructor for creating an instance of a class that requires an API key for authorization.
    * @param {ApiKeyAuthorized} config - The configuration object containing the API key.
    * @returns None
