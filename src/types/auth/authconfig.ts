@@ -11,11 +11,6 @@ import { Notification } from "@src/notification"
  */
 export type AuthConfig = {
   storage: DexieStorage
-  oracle: Oracle
-  order: Order
-  proposal: Proposal
-  chat: Chat
-  notification: Notification
   privyAppId: string
   privyConfig: PrivyClientConfig
 }

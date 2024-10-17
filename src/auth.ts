@@ -49,11 +49,6 @@ export class Auth extends Client implements AuthInternalEvents {
     this._apiKey = config.apiKey
     this._privyAppId = config.privyAppId
     this._privyConfig = config.privyConfig
-    this._orderRef = config.order
-    this._oracleRef = config.oracle
-    this._proposalRef = config.proposal
-    this._chatRef = config.chat
-    this._notificationRef = config.notification
 
     //OAuth providers like Google, Instagram etc bring the user from the current web application page to
     //their authentication pages. When the user is redirect from their auth pages to the web application page again

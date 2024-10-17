@@ -88,16 +88,19 @@ export class Loopz {
       apiKey: config.apiKey,
       privyAppId: config.privyAppId,
       privyConfig: config.privyClientConfig,
-      oracle: Loopz._oracle,
-      proposal: Loopz._proposal,
-      order: Loopz._order,
-      chat: Loopz._chat,
-      notification: Loopz._notification,
       storage: config.storage,
       devMode: Loopz._devMode,
     })
 
     //set the references between the object, the target is making objects able to know each other
+    Loopz._auth.setLoopzObjectsReference({
+      auth: Loopz._auth,
+      oracle: Loopz._oracle,
+      proposal: Loopz._proposal,
+      order: Loopz._order,
+      chat: Loopz._chat,
+      notification: Loopz._notification,
+    })
     Loopz._oracle.setLoopzObjectsReference({
       auth: Loopz._auth,
       oracle: Loopz._oracle,
@@ -131,14 +134,6 @@ export class Loopz {
       notification: Loopz._notification,
     })
     Loopz._chat.setLoopzObjectsReference({
-      auth: Loopz._auth,
-      oracle: Loopz._oracle,
-      proposal: Loopz._proposal,
-      order: Loopz._order,
-      chat: Loopz._chat,
-      notification: Loopz._notification,
-    })
-    Loopz._auth.setLoopzObjectsReference({
       auth: Loopz._auth,
       oracle: Loopz._oracle,
       proposal: Loopz._proposal,
