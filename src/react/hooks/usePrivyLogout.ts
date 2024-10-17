@@ -16,7 +16,6 @@ export const usePrivyLogout = (auth: Auth) => {
       initialized.current = true;
 
       auth.on("__logout", () => {
-        console.log("logout");
         logout();
       });
     }

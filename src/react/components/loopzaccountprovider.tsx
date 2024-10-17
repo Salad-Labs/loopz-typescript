@@ -13,7 +13,6 @@ export const LoopzAccountProvider: FC<{ children: ReactNode }> = ({
   const [authStatus, setAuthStatus] = useState<LoopzAccountHookValue>({
     isLoading: true,
     isAuthenticated: false,
-    isLoggingOut: false,
     account: null,
   });
 
@@ -23,7 +22,6 @@ export const LoopzAccountProvider: FC<{ children: ReactNode }> = ({
     setAuthStatus({
       isLoading: false,
       isAuthenticated: instance.auth.isAuthenticated(),
-      isLoggingOut: instance.auth.isLoggingOut(),
       account: instance.auth.getCurrentAccount(),
     } as LoopzAccountHookValue);
   }, [initialized, instance]);
@@ -32,12 +30,12 @@ export const LoopzAccountProvider: FC<{ children: ReactNode }> = ({
     if (!initialized) return;
 
     instance.auth.on("auth", handleAuthChange);
-    instance.auth.on("__onLogoutComplete", handleAuthChange);
+    instance.auth.on("onAuthError", handleAuthChange);
     instance.auth.on("__logout", handleAuthChange);
 
     return () => {
       instance.auth.off("auth", handleAuthChange);
-      instance.auth.off("__onLogoutComplete", handleAuthChange);
+      instance.auth.off("onAuthError", handleAuthChange);
       instance.auth.off("__logout", handleAuthChange);
     };
   }, [initialized, instance]);

@@ -94,13 +94,7 @@ export const usePrivyLogin = (auth: Auth) => {
 
       auth._emit("__tryRebuildAccountOnRefresh");
     } else if (!authenticated && ready) {
-      //to prevent loop
-      (async () => {
-        if (auth.isAuthenticated()) {
-          console.log("client logout...");
-          await auth.logout();
-        }
-      })();
+      auth.logout();
     } else if (!ready) {
       console.log("client is not ready at all!");
     }

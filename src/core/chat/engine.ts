@@ -67,6 +67,10 @@ export class Engine extends ClientEngine implements IEngine {
    */
   protected _account: Maybe<Account> = null;
   /**
+   * @property {boolan} _isConnected - Wheather the client has connected to the server
+   */
+  protected _isConnected: boolean = false;
+  /**
    * @property {Maybe<Function>} _connectCallback - The callback function for connecting to real-time services.
    */
   private _connectCallback: Maybe<Function> = null;
@@ -557,11 +561,16 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns {Promise<void>}
    */
   connect(force = false): Promise<void> {
-    return new Promise((res) => {
+    return new Promise((_resolve) => {
+      const resolve = () => {
+        this._isConnected = true;
+        _resolve();
+      };
+
       if (!force) {
-        if (!this._realtimeClient) this._makeWSClient(res);
+        if (!this._realtimeClient) this._makeWSClient(resolve);
       } else {
-        this._makeWSClient(res);
+        this._makeWSClient(resolve);
       }
     });
   }
@@ -757,5 +766,9 @@ export class Engine extends ClientEngine implements IEngine {
 
   getUserKeyPair(): Maybe<forge.pki.rsa.KeyPair> {
     return this._userKeyPair;
+  }
+
+  isConnected(): boolean {
+    return this._isConnected;
   }
 }

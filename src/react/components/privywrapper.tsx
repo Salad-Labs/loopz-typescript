@@ -15,8 +15,8 @@ export const PrivyWrapper: FC<PrivyWrapperProps> = ({
 }) => {
   //used in desktop environment (React, Angular, Vanilla js, Vue)
   //if device is equal to "mobile" for example, inside the hooks there is a check to avoid that these functions will be executed.
-  usePrivyLogin(auth);
   usePrivyLogout(auth);
+  usePrivyLogin(auth);
   usePrivyLinkAccount(auth);
   usePrivyUnlinkAccount(auth);
   usePrivyWallets(order);
