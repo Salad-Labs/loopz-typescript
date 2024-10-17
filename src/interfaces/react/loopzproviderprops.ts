@@ -1,15 +1,15 @@
-import { LoopzConfig } from "@src/types/app/loopzconfig";
-import { ReactNode } from "react";
+import { LoopzConfig } from "@src/types/app/loopzconfig"
+import { ReactNode } from "react"
 
 export interface LoopzProviderProps {
-  config: LoopzConfig;
+  config: LoopzConfig
   /**
    * @default false
    */
-  devMode?: boolean;
+  devMode?: boolean
   /**
    * @default true
    */
-  enableStorage?: boolean;
-  children: ReactNode;
+  enableStorage?: boolean
+  children: ReactNode
 }

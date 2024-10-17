@@ -1,9 +1,9 @@
-"use client";
+"use client"
 
-import React, { FC, useMemo } from "react";
-import { PrivyClientConfig, PrivyProvider } from "@privy-io/react-auth";
-import { PrivyAdapterProps } from "@src/interfaces/adapter/privyadapterprops";
-import { PrivyWrapper } from "./privywrapper";
+import React, { FC, useMemo } from "react"
+import { PrivyClientConfig, PrivyProvider } from "@privy-io/react-auth"
+import { PrivyAdapterProps } from "@src/interfaces/adapter/privyadapterprops"
+import { PrivyWrapper } from "./privywrapper"
 
 export const PrivyContext: FC<PrivyAdapterProps> = ({
   auth,
@@ -19,7 +19,7 @@ export const PrivyContext: FC<PrivyAdapterProps> = ({
       ...config,
     }),
     [config]
-  );
+  )
 
   return (
     <PrivyProvider appId={appId} config={privyConfig}>
@@ -27,5 +27,5 @@ export const PrivyContext: FC<PrivyAdapterProps> = ({
         <></>
       </PrivyWrapper>
     </PrivyProvider>
-  );
-};
+  )
+}

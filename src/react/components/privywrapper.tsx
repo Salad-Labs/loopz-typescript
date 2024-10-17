@@ -1,12 +1,12 @@
-"use client";
+"use client"
 
-import React, { FC } from "react";
-import { PrivyWrapperProps } from "@src/interfaces/adapter/privywrapperprops";
-import { usePrivyLinkAccount } from "../hooks/usePrivyLinkAccount";
-import { usePrivyLogin } from "../hooks/usePrivyLogin";
-import { usePrivyLogout } from "../hooks/usePrivyLogout";
-import { usePrivyUnlinkAccount } from "../hooks/usePrivyUnlinkAccount";
-import { usePrivyWallets } from "../hooks/usePrivyWallets";
+import React, { FC } from "react"
+import { PrivyWrapperProps } from "@src/interfaces/adapter/privywrapperprops"
+import { usePrivyLinkAccount } from "../hooks/usePrivyLinkAccount"
+import { usePrivyLogin } from "../hooks/usePrivyLogin"
+import { usePrivyLogout } from "../hooks/usePrivyLogout"
+import { usePrivyUnlinkAccount } from "../hooks/usePrivyUnlinkAccount"
+import { usePrivyWallets } from "../hooks/usePrivyWallets"
 
 export const PrivyWrapper: FC<PrivyWrapperProps> = ({
   auth,
@@ -15,11 +15,11 @@ export const PrivyWrapper: FC<PrivyWrapperProps> = ({
 }) => {
   //used in desktop environment (React, Angular, Vanilla js, Vue)
   //if device is equal to "mobile" for example, inside the hooks there is a check to avoid that these functions will be executed.
-  usePrivyLogout(auth);
-  usePrivyLogin(auth);
-  usePrivyLinkAccount(auth);
-  usePrivyUnlinkAccount(auth);
-  usePrivyWallets(order);
+  usePrivyLogout(auth)
+  usePrivyLogin(auth)
+  usePrivyLinkAccount(auth)
+  usePrivyUnlinkAccount(auth)
+  usePrivyWallets(order)
 
-  return children;
-};
+  return children
+}

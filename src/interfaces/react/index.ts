@@ -1,1 +1,1 @@
-export * from "./loopzproviderprops";
+export * from "./loopzproviderprops"

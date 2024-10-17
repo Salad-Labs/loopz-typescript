@@ -1,13 +1,13 @@
-"use client";
+"use client"
 
-import React, { FC, useEffect, useMemo, useRef, useState } from "react";
-import { Loopz } from "../../loopz";
-import { PrivyClientConfig, PrivyProvider } from "@privy-io/react-auth";
-import { PrivyWrapper } from "./privywrapper";
-import { LoopzProviderProps } from "../../interfaces";
-import { LoopzContext } from "../context/loopzcontext";
-import { ILoopzContext } from "../../interfaces/react/iloopzcontext";
-import { LoopzAccountProvider } from "./loopzaccountprovider";
+import React, { FC, useEffect, useMemo, useRef, useState } from "react"
+import { Loopz } from "../../loopz"
+import { PrivyClientConfig, PrivyProvider } from "@privy-io/react-auth"
+import { PrivyWrapper } from "./privywrapper"
+import { LoopzProviderProps } from "../../interfaces"
+import { LoopzContext } from "../context/loopzcontext"
+import { ILoopzContext } from "../../interfaces/react/iloopzcontext"
+import { LoopzAccountProvider } from "./loopzaccountprovider"
 
 export const LoopzProvider: FC<LoopzProviderProps> = ({
   config,
@@ -15,7 +15,7 @@ export const LoopzProvider: FC<LoopzProviderProps> = ({
   enableStorage,
   children,
 }) => {
-  const initialized = useRef(false);
+  const initialized = useRef(false)
 
   const [loopz, setLoopz] = useState<ILoopzContext>({
     initialized: false,
@@ -26,22 +26,22 @@ export const LoopzProvider: FC<LoopzProviderProps> = ({
       oracle: null,
       chat: null,
     },
-  });
+  })
 
   const privyConfig: PrivyClientConfig = useMemo(() => {
-    const { privyClientConfig } = config;
+    const { privyClientConfig } = config
 
     return {
       embeddedWallets: {
         createOnLogin: "users-without-wallets",
       },
       ...privyClientConfig,
-    };
-  }, [config]);
+    }
+  }, [config])
 
   useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
+    if (initialized.current) return
+    initialized.current = true
 
     //Loopz.boot(config, { runAdapter: false }) -> runAdapter arg is false. Why?
     //It is false because we are executing Loopz in a React context and there is no need to inject a React component in the DOM.
@@ -50,10 +50,10 @@ export const LoopzProvider: FC<LoopzProviderProps> = ({
       devMode,
       runAdapter: false,
       enableStorage,
-    }).then((i) => setLoopz({ initialized: true, instance: i.init() }));
-  }, [config, devMode, enableStorage]);
+    }).then((i) => setLoopz({ initialized: true, instance: i.init() }))
+  }, [config, devMode, enableStorage])
 
-  if (!loopz.initialized) return null;
+  if (!loopz.initialized) return null
   return (
     <LoopzContext.Provider value={loopz}>
       <PrivyProvider appId={config.privyAppId} config={privyConfig}>
@@ -62,5 +62,5 @@ export const LoopzProvider: FC<LoopzProviderProps> = ({
         </PrivyWrapper>
       </PrivyProvider>
     </LoopzContext.Provider>
-  );
-};
+  )
+}

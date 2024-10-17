@@ -1,7 +1,7 @@
-"use client";
+"use client"
 
-import { LoopzAccountHookValue, Maybe } from "../../types";
-import { createContext } from "react";
+import { LoopzAccountHookValue, Maybe } from "../../types"
+import { createContext } from "react"
 
 export const LoopzAccountContext =
-  createContext<Maybe<LoopzAccountHookValue>>(null);
+  createContext<Maybe<LoopzAccountHookValue>>(null)

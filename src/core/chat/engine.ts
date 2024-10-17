@@ -6,21 +6,21 @@ import {
   fetchExchange,
   subscriptionExchange,
   createClient,
-} from "@urql/core";
-import { IEngine } from "../../interfaces/chat/core";
-import { Client as ClientEngine } from "../client";
-import { QIError } from "./qierror";
-import { Maybe } from "../../types/base";
-import { RealTimeWebSocketConnectionParams } from "../../types/chat/realtimewebsocketconnectionparams";
-import { FetchBody } from "@urql/core/dist/urql-core-chunk";
-import UUIDSubscriptionClient from "./uuidsubscriptionclient";
-import { Observable } from "subscriptions-transport-ws";
-import { v4 as uuid4 } from "uuid";
-import { SubscriptionGarbage } from "../../types/chat/subscriptiongarbage";
-import forge from "node-forge";
-import { KeyPairItem } from "../../types/chat/keypairitem";
-import { EngineInitConfig } from "../../types";
-import { Account, DexieStorage } from "../app";
+} from "@urql/core"
+import { IEngine } from "../../interfaces/chat/core"
+import { Client as ClientEngine } from "../client"
+import { QIError } from "./qierror"
+import { Maybe } from "../../types/base"
+import { RealTimeWebSocketConnectionParams } from "../../types/chat/realtimewebsocketconnectionparams"
+import { FetchBody } from "@urql/core/dist/urql-core-chunk"
+import UUIDSubscriptionClient from "./uuidsubscriptionclient"
+import { Observable } from "subscriptions-transport-ws"
+import { v4 as uuid4 } from "uuid"
+import { SubscriptionGarbage } from "../../types/chat/subscriptiongarbage"
+import forge from "node-forge"
+import { KeyPairItem } from "../../types/chat/keypairitem"
+import { EngineInitConfig } from "../../types"
+import { Account, DexieStorage } from "../app"
 
 /**
  * Represents an Engine class that extends Client and implements IEngine interface.
@@ -33,64 +33,63 @@ export class Engine extends ClientEngine implements IEngine {
   /**
    * @property {Maybe<string>} _apiKey - The API key for authentication.
    */
-  protected _apiKey: Maybe<string> = null;
+  protected _apiKey: Maybe<string> = null
   /**
    * @property {Maybe<string>} _realtimeAuthorizationToken - The authorization token for real-time API.
    */
-  protected _realtimeAuthorizationToken: Maybe<string> = null;
+  protected _realtimeAuthorizationToken: Maybe<string> = null
   /**
    * @property {Maybe<EngineInitConfig>} _parentConfig - The parent configuration for the engine.
    */
-  protected _parentConfig: Maybe<EngineInitConfig> = null;
+  protected _parentConfig: Maybe<EngineInitConfig> = null
   /**
    * @property {Maybe<Client>} _client - The client for API connections.
    */
-  protected _client: Maybe<Client> = null;
+  protected _client: Maybe<Client> = null
   /**
    * @property {Maybe<UUIDSubscriptionClient>} _realtimeClient - The UUID subscription client for real-time communication.
    */
-  protected _realtimeClient: Maybe<UUIDSubscriptionClient> = null;
+  protected _realtimeClient: Maybe<UUIDSubscriptionClient> = null
   /**
    * @property {Maybe<forge.pki.rsa.KeyPair>} _userKeyPair - The RSA key pair for the user.
    */
-  protected _userKeyPair: Maybe<forge.pki.rsa.KeyPair> = null;
+  protected _userKeyPair: Maybe<forge.pki.rsa.KeyPair> = null
   /**
    * @property {Maybe<Array<KeyPairItem>>} _keyPairsMap - An array of key pair items.
    */
-  protected _keyPairsMap: Maybe<Array<KeyPairItem>> = null;
+  protected _keyPairsMap: Maybe<Array<KeyPairItem>> = null
   /**
    * @property {DexieStorage} _storage - The storage of the application.
    */
-  protected _storage: DexieStorage;
+  protected _storage: DexieStorage
   /**
    * @property {Maybe<Account>} _account - The account connected to the application.
    */
-  protected _account: Maybe<Account> = null;
+  protected _account: Maybe<Account> = null
   /**
    * @property {boolan} _isConnected - Wheather the client has connected to the server
    */
-  protected _isConnected: boolean = false;
+  protected _isConnected: boolean = false
   /**
    * @property {Maybe<Function>} _connectCallback - The callback function for connecting to real-time services.
    */
-  private _connectCallback: Maybe<Function> = null;
+  private _connectCallback: Maybe<Function> = null
   /**
    * @property {Maybe<RealTimeWebSocketConnectionParams>} _connectionParams - The connection parameters for the WebSocket.
    */
-  private _connectionParams: Maybe<RealTimeWebSocketConnectionParams> = null;
+  private _connectionParams: Maybe<RealTimeWebSocketConnectionParams> = null
   /**
    * @property {Maybe<Array<Function>>} _offEventsFns - an array of off functions callback to remove the listeners from the subscription object
    */
-  private _offEventsFnsCollector: Maybe<Array<Function>> = null;
+  private _offEventsFnsCollector: Maybe<Array<Function>> = null
   /**
    * @property {Maybe<Array<SubscriptionGarbage>>} _unsubscribeGarbageCollector - an array of unsubscribe functions callback to remove the listeners from the subscription object
    */
-  private _unsubscribeGarbageCollector: Maybe<Array<SubscriptionGarbage>> =
-    null;
+  private _unsubscribeGarbageCollector: Maybe<Array<SubscriptionGarbage>> = null
   /**
    * @property {number} WS_TIMEOUT - a static property representing the timeout before to close to the websocket connection
    */
-  static readonly WS_TIMEOUT = 300000; //five minutes
+  static readonly WS_TIMEOUT = 300000 //five minutes
 
   /**
    * Constructs a new instance of the Engine class with the provided configuration.
@@ -98,18 +97,18 @@ export class Engine extends ClientEngine implements IEngine {
    * @constructor
    */
   constructor(config: EngineInitConfig) {
-    super(config.devMode);
+    super(config.devMode)
 
-    this._apiKey = config.apiKey;
-    this._storage = config.storage;
-    this._realtimeAuthorizationToken = `${this._apiKey}##${this._authToken}`;
-    this._parentConfig = config;
+    this._apiKey = config.apiKey
+    this._storage = config.storage
+    this._realtimeAuthorizationToken = `${this._apiKey}##${this._authToken}`
+    this._parentConfig = config
     this._connectionParams = {
       Authorization: null,
       host: null,
-    };
-    this._offEventsFnsCollector = [];
-    this._unsubscribeGarbageCollector = [];
+    }
+    this._offEventsFnsCollector = []
+    this._unsubscribeGarbageCollector = []
   }
 
   /**
@@ -125,7 +124,7 @@ export class Engine extends ClientEngine implements IEngine {
       },
       "QIError: internal _client is not defined.",
       false
-    );
+    )
   }
 
   /**
@@ -141,7 +140,7 @@ export class Engine extends ClientEngine implements IEngine {
       },
       "QIError: no data in the response is available.",
       false
-    );
+    )
   }
 
   /**
@@ -152,15 +151,15 @@ export class Engine extends ClientEngine implements IEngine {
   private _removeDuplicatedFromGarbageCollector(
     objects: SubscriptionGarbage[]
   ): SubscriptionGarbage[] {
-    const seen = new Map<string, SubscriptionGarbage>();
+    const seen = new Map<string, SubscriptionGarbage>()
 
     for (const object of objects) {
       if (!seen.has(object.uuid)) {
-        seen.set(object.uuid, object);
+        seen.set(object.uuid, object)
       }
     }
 
-    return Array.from(seen.values());
+    return Array.from(seen.values())
   }
 
   /**
@@ -170,39 +169,39 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns None
    */
   private _handleWSClient(): void {
-    if (!this._realtimeClient) return;
-    if (!this._offEventsFnsCollector) return;
+    if (!this._realtimeClient) return
+    if (!this._offEventsFnsCollector) return
 
     const offConnecting = this._realtimeClient.on("connecting", () => {
-      console.log("connecting...");
-    });
+      console.log("connecting...")
+    })
 
     const offReconnecting = this._realtimeClient.on("reconnecting", () => {
-      console.log("reconnecting...");
-    });
+      console.log("reconnecting...")
+    })
 
     const offDisconnected = this._realtimeClient.on("disconnected", () => {
-      console.log("disconnected");
-    });
+      console.log("disconnected")
+    })
 
     const offReconnected = this._realtimeClient.on("reconnected", (payload) => {
-      console.log("reconnected", "[payload]:", payload);
+      console.log("reconnected", "[payload]:", payload)
       //reset?
-      if (this._connectCallback) this._connectCallback();
-    });
+      if (this._connectCallback) this._connectCallback()
+    })
 
     const offError = this._realtimeClient.on("error", () => {
-      console.log("websocket error");
-    });
+      console.log("websocket error")
+    })
 
     const offConnected = this._realtimeClient.on(
       "connected",
       (payload: { connectionTimeoutMs: number }) => {
-        console.log("connected", "[payload]:", payload);
+        console.log("connected", "[payload]:", payload)
 
-        if (this._connectCallback) this._connectCallback();
+        if (this._connectCallback) this._connectCallback()
       }
-    );
+    )
 
     this._offEventsFnsCollector = [
       offConnecting,
@@ -211,7 +210,7 @@ export class Engine extends ClientEngine implements IEngine {
       offReconnected,
       offError,
       offConnected,
-    ];
+    ]
   }
 
   /**
@@ -221,10 +220,10 @@ export class Engine extends ClientEngine implements IEngine {
    */
   private _makeWSClient(callback: Function): void {
     try {
-      this._connectionParams!.Authorization = this._realtimeAuthorizationToken;
+      this._connectionParams!.Authorization = this._realtimeAuthorizationToken
       this._connectionParams!.host = this.backendChatUrl()
         .replace("https://", "")
-        .replace("/graphql", "");
+        .replace("/graphql", "")
 
       this._realtimeClient = new UUIDSubscriptionClient(
         this.backendChatRealtimeUrl(),
@@ -233,15 +232,15 @@ export class Engine extends ClientEngine implements IEngine {
           timeout: Engine.WS_TIMEOUT,
         },
         this._connectionParams!
-      );
+      )
 
-      this._connectCallback = callback;
-      this._handleWSClient();
+      this._connectCallback = callback
+      this._handleWSClient()
     } catch (error) {
-      console.log(error);
+      console.log(error)
       throw new Error(
         "Exception during the creation of the websocket client. See the console for more info."
-      );
+      )
     }
   }
 
@@ -259,17 +258,17 @@ export class Engine extends ClientEngine implements IEngine {
           Authorization: this._connectionParams.Authorization,
           host: this._connectionParams.host,
         },
-      };
+      }
     const query = {
       query: operation.query!,
       variables: operation.variables,
-    };
-    operation.data = JSON.stringify(query);
+    }
+    operation.data = JSON.stringify(query)
 
-    delete operation.operationName;
-    delete operation.variables;
+    delete operation.operationName
+    delete operation.variables
 
-    return this._realtimeClient!.request(operation);
+    return this._realtimeClient!.request(operation)
   }
 
   /**
@@ -277,9 +276,9 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns {Maybe<Client>} A client object for making API requests or null if any required parameter is missing.
    */
   private _makeClient(): Maybe<Client> {
-    if (!this._authToken) return null;
-    if (!this._apiKey) return null;
-    if (!this._realtimeClient) return null;
+    if (!this._authToken) return null
+    if (!this._apiKey) return null
+    if (!this._realtimeClient) return null
     if (!this._client) {
       try {
         this._client = createClient({
@@ -288,7 +287,7 @@ export class Engine extends ClientEngine implements IEngine {
             fetchExchange,
             subscriptionExchange({
               forwardSubscription: (op: FetchBody & { data?: string }) => {
-                return this._computeOperation(op);
+                return this._computeOperation(op)
               },
             }),
           ],
@@ -297,16 +296,16 @@ export class Engine extends ClientEngine implements IEngine {
               headers: {
                 Authorization: `${this._apiKey}`,
               },
-            };
+            }
           },
-        });
+        })
       } catch (error) {
-        console.error(error);
-        return null;
+        console.error(error)
+        return null
       }
     }
 
-    return this._client;
+    return this._client
   }
 
   /**
@@ -317,14 +316,14 @@ export class Engine extends ClientEngine implements IEngine {
    */
   private _reset(callback: Function) {
     if (this._realtimeClient) {
-      this._unsubscribeGarbage(); //clear all the subscription generated with _subscription()
-      this._realtimeClient.unsubscribeAll(); //clear all the subscriptions of UUIDSubscriptionClient
-      this._offUUIDSubscriptionEvents(); //clear all the events of UUIDSubscriptionClient
-      this._realtimeClient.close(); //close the websocket connection
+      this._unsubscribeGarbage() //clear all the subscription generated with _subscription()
+      this._realtimeClient.unsubscribeAll() //clear all the subscriptions of UUIDSubscriptionClient
+      this._offUUIDSubscriptionEvents() //clear all the events of UUIDSubscriptionClient
+      this._realtimeClient.close() //close the websocket connection
 
-      this._unsubscribeGarbageCollector = []; //reset the unsubscribe garbage collector array
-      this._offEventsFnsCollector = []; //reset the UUIDSubscriptionClient off events collector array
-      callback();
+      this._unsubscribeGarbageCollector = [] //reset the unsubscribe garbage collector array
+      this._offEventsFnsCollector = [] //reset the UUIDSubscriptionClient off events collector array
+      callback()
     }
   }
 
@@ -337,14 +336,14 @@ export class Engine extends ClientEngine implements IEngine {
     if (this._offEventsFnsCollector) {
       this._offEventsFnsCollector.forEach((fn) => {
         try {
-          fn();
+          fn()
         } catch (error) {
           console.warn(
             "[warning]: an exception occured while the client was clearing the subscription off events. More info -> ",
             error
-          );
+          )
         }
-      });
+      })
     }
   }
 
@@ -359,15 +358,15 @@ export class Engine extends ClientEngine implements IEngine {
       this._unsubscribeGarbageCollector.forEach(
         (garbage: SubscriptionGarbage) => {
           try {
-            garbage.unsubscribe();
+            garbage.unsubscribe()
           } catch (error) {
             console.warn(
               `[warning]: an exception occured while the client was clearing the subscription [${garbage.uuid}] garbage. More info -> `,
               error
-            );
+            )
           }
         }
-      );
+      )
     }
   }
 
@@ -382,16 +381,16 @@ export class Engine extends ClientEngine implements IEngine {
     response: OperationResult<T>
   ): R | QIError {
     if (response.error && (!("data" in response) || !response.data))
-      return new QIError(response.error, "", true);
+      return new QIError(response.error, "", true)
 
     if (
       !("data" in response) ||
       typeof response.data === "undefined" ||
       response.data === null
     )
-      return this._returnQIErrorNoDataAvailable();
+      return this._returnQIErrorNoDataAvailable()
 
-    return response.data[queryName] as R;
+    return response.data[queryName] as R
   }
 
   /**
@@ -416,34 +415,34 @@ export class Engine extends ClientEngine implements IEngine {
             value: OperationResult<
               TSubscriptionResult,
               TArgs & {
-                jwt: string;
+                jwt: string
               }
             >
           ) => void
-        ) => { unsubscribe: () => void };
-        uuid: string;
+        ) => { unsubscribe: () => void }
+        uuid: string
       }
     | QIError {
     try {
-      const client = this._makeClient();
+      const client = this._makeClient()
 
-      if (!client) return this._returnQIErrorInternalClientNotDefined();
+      if (!client) return this._returnQIErrorInternalClientNotDefined()
 
       const subscription = client.subscription<
         TSubscriptionResult,
         TArgs & { jwt: string }
-      >(node, { ...args, jwt: `${this._authToken}` });
+      >(node, { ...args, jwt: `${this._authToken}` })
 
       return {
         subscribe: subscription.subscribe,
         uuid: uuid4(),
-      };
+      }
     } catch (error) {
-      console.error(error);
-      console.error("arguments:", args);
+      console.error(error)
+      console.error("arguments:", args)
       throw new Error(
         `Internal error: ${__functionName} thrown an exception. See the console to have more information.`
-      );
+      )
     }
   }
 
@@ -467,27 +466,27 @@ export class Engine extends ClientEngine implements IEngine {
     args: TArgs
   ): Promise<TResult | QIError> {
     try {
-      const client = this._makeClient();
+      const client = this._makeClient()
 
-      if (!client) return this._returnQIErrorInternalClientNotDefined();
+      if (!client) return this._returnQIErrorInternalClientNotDefined()
 
       const response = await client
         .mutation<TMutationResult, TArgs & { jwt: string }>(node, {
           ...args,
           jwt: `${this._authToken}`,
         })
-        .toPromise();
+        .toPromise()
 
       return this._handleResponse<typeof key, TMutationResult, TResult>(
         key,
         response
-      );
+      )
     } catch (error) {
-      console.error(error);
-      console.error("arguments:", args);
+      console.error(error)
+      console.error("arguments:", args)
       throw new Error(
         `Internal error: ${__functionName} thrown an exception. See the console to have more information.`
-      );
+      )
     }
   }
 
@@ -510,27 +509,27 @@ export class Engine extends ClientEngine implements IEngine {
     args: TArgs
   ): Promise<TResult | QIError> {
     try {
-      const client = this._makeClient();
+      const client = this._makeClient()
 
-      if (!client) return this._returnQIErrorInternalClientNotDefined();
+      if (!client) return this._returnQIErrorInternalClientNotDefined()
 
       const response = await client
         .query<TQueryResult, TArgs & { jwt: string }>(node, {
           ...args,
           jwt: `${this._authToken}`,
         })
-        .toPromise();
+        .toPromise()
 
       return this._handleResponse<typeof key, TQueryResult, TResult>(
         key,
         response
-      );
+      )
     } catch (error) {
-      console.error(error);
-      console.error("arguments:", args);
+      console.error(error)
+      console.error("arguments:", args)
       throw new Error(
         `Internal error: ${__functionName}() thrown an exception. See the console to have more information.`
-      );
+      )
     }
   }
 
@@ -540,8 +539,8 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns void
    */
   refreshJWTToken(jwt: string): void {
-    this._authToken = jwt;
-    this._realtimeAuthorizationToken = `${this._apiKey}##${this._authToken}`;
+    this._authToken = jwt
+    this._realtimeAuthorizationToken = `${this._apiKey}##${this._authToken}`
   }
 
   /**
@@ -551,9 +550,9 @@ export class Engine extends ClientEngine implements IEngine {
   reconnect(): Promise<void> {
     return new Promise((res) => {
       this._reset(() => {
-        this.connect(true).then(res);
-      });
-    });
+        this.connect(true).then(res)
+      })
+    })
   }
 
   /**
@@ -563,16 +562,16 @@ export class Engine extends ClientEngine implements IEngine {
   connect(force = false): Promise<void> {
     return new Promise((_resolve) => {
       const resolve = () => {
-        this._isConnected = true;
-        _resolve();
-      };
+        this._isConnected = true
+        _resolve()
+      }
 
       if (!force) {
-        if (!this._realtimeClient) this._makeWSClient(resolve);
+        if (!this._realtimeClient) this._makeWSClient(resolve)
       } else {
-        this._makeWSClient(resolve);
+        this._makeWSClient(resolve)
       }
-    });
+    })
   }
 
   /**
@@ -582,35 +581,35 @@ export class Engine extends ClientEngine implements IEngine {
    */
   collect(garbage: SubscriptionGarbage | SubscriptionGarbage[]): void {
     if (!this._unsubscribeGarbageCollector) {
-      if (garbage instanceof Array) this._unsubscribeGarbageCollector = garbage;
-      else this._unsubscribeGarbageCollector = [garbage];
+      if (garbage instanceof Array) this._unsubscribeGarbageCollector = garbage
+      else this._unsubscribeGarbageCollector = [garbage]
     } else {
       if (garbage instanceof Array) {
         garbage.forEach((g: SubscriptionGarbage) => {
           if (
             this._unsubscribeGarbageCollector?.findIndex(
               (el: SubscriptionGarbage) => {
-                return el.uuid.toLowerCase() === g.uuid.toLowerCase();
+                return el.uuid.toLowerCase() === g.uuid.toLowerCase()
               }
             ) === -1
           )
-            this._unsubscribeGarbageCollector.push(g);
-        });
+            this._unsubscribeGarbageCollector.push(g)
+        })
       } else {
         if (
           this._unsubscribeGarbageCollector?.findIndex(
             (el: SubscriptionGarbage) => {
-              return el.uuid.toLowerCase() === garbage.uuid.toLowerCase();
+              return el.uuid.toLowerCase() === garbage.uuid.toLowerCase()
             }
           ) === -1
         )
-          this._unsubscribeGarbageCollector.push(garbage);
+          this._unsubscribeGarbageCollector.push(garbage)
       }
     }
 
     this._removeDuplicatedFromGarbageCollector(
       this._unsubscribeGarbageCollector
-    );
+    )
   }
 
   /**
@@ -618,7 +617,7 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns The JWT token as a string, or null if it is not set.
    */
   getJWTToken(): Maybe<string> {
-    return this._authToken;
+    return this._authToken
   }
 
   /**
@@ -626,7 +625,7 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns {Maybe<string>} The API key, or null if it is not set.
    */
   getApiKey(): Maybe<string> {
-    return this._apiKey;
+    return this._apiKey
   }
 
   /**
@@ -634,7 +633,7 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns {string} The API URL as a string or null if not set.
    */
   getApiURL(): string {
-    return this.backendChatUrl();
+    return this.backendChatUrl()
   }
 
   /**
@@ -642,7 +641,7 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns {string} The Realtime API URL as a string or null.
    */
   getRealtimeApiURL(): string {
-    return this.backendChatRealtimeUrl();
+    return this.backendChatRealtimeUrl()
   }
 
   /**
@@ -651,15 +650,15 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns {KeyPairItem[]} - The updated list of KeyPairItems after adding the new item.
    */
   addKeyPairItem(newItem: KeyPairItem): KeyPairItem[] {
-    if (!this._keyPairsMap) this._keyPairsMap = [];
+    if (!this._keyPairsMap) this._keyPairsMap = []
 
     const index = this._keyPairsMap.findIndex((keypair: KeyPairItem) => {
-      return keypair.id.toLowerCase() === newItem.id.toLowerCase();
-    });
+      return keypair.id.toLowerCase() === newItem.id.toLowerCase()
+    })
 
-    if (index === -1) this._keyPairsMap.push(newItem);
+    if (index === -1) this._keyPairsMap.push(newItem)
 
-    return this._keyPairsMap;
+    return this._keyPairsMap
   }
 
   /**
@@ -668,15 +667,15 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns {KeyPairItem[]} - The updated _keyPairsMap after removing the KeyPairItem.
    */
   removeKeyPairItem(id: string): KeyPairItem[] {
-    if (!this._keyPairsMap) this._keyPairsMap = [];
+    if (!this._keyPairsMap) this._keyPairsMap = []
 
     const index = this._keyPairsMap.findIndex((keypair: KeyPairItem) => {
-      return keypair.id.toLowerCase() === id.toLowerCase();
-    });
+      return keypair.id.toLowerCase() === id.toLowerCase()
+    })
 
-    if (index > -1) this._keyPairsMap = this._keyPairsMap.splice(index, 1);
+    if (index > -1) this._keyPairsMap = this._keyPairsMap.splice(index, 1)
 
-    return this._keyPairsMap;
+    return this._keyPairsMap
   }
 
   /**
@@ -684,7 +683,7 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns {KeyPairItem[]} An array of KeyPairItem objects representing the key pair map.
    */
   getKeyPairMap(): KeyPairItem[] {
-    return this._keyPairsMap!;
+    return this._keyPairsMap!
   }
 
   /**
@@ -693,7 +692,7 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns void
    */
   setKeyPairMap(map: KeyPairItem[]): void {
-    this._keyPairsMap = map;
+    this._keyPairsMap = map
   }
 
   /**
@@ -703,15 +702,15 @@ export class Engine extends ClientEngine implements IEngine {
    * or null if the key pairs map is empty or if the key with the specified ID is not found.
    */
   findPublicKeyById(id: string): Maybe<forge.pki.rsa.PublicKey> {
-    if (!this._keyPairsMap) return null;
+    if (!this._keyPairsMap) return null
 
     const item = this._keyPairsMap.find((k: KeyPairItem) => {
-      return k.id.toLowerCase() === id.toLowerCase();
-    });
+      return k.id.toLowerCase() === id.toLowerCase()
+    })
 
-    if (!item) return null;
+    if (!item) return null
 
-    return item.keypair.publicKey;
+    return item.keypair.publicKey
   }
 
   /**
@@ -721,15 +720,15 @@ export class Engine extends ClientEngine implements IEngine {
    * or null if the key is not found.
    */
   findPrivateKeyById(id: string): Maybe<forge.pki.rsa.PrivateKey> {
-    if (!this._keyPairsMap) return null;
+    if (!this._keyPairsMap) return null
 
     const item = this._keyPairsMap.find((k: KeyPairItem) => {
-      return k.id.toLowerCase() === id.toLowerCase();
-    });
+      return k.id.toLowerCase() === id.toLowerCase()
+    })
 
-    if (!item) return null;
+    if (!item) return null
 
-    return item.keypair.privateKey;
+    return item.keypair.privateKey
   }
 
   /**
@@ -739,15 +738,15 @@ export class Engine extends ClientEngine implements IEngine {
    */
 
   findKeyPairById(id: string): Maybe<forge.pki.rsa.KeyPair> {
-    if (!this._keyPairsMap) return null;
+    if (!this._keyPairsMap) return null
 
     const item = this._keyPairsMap.find((k: KeyPairItem) => {
-      return k.id.toLowerCase() === id.toLowerCase();
-    });
+      return k.id.toLowerCase() === id.toLowerCase()
+    })
 
-    if (!item) return null;
+    if (!item) return null
 
-    return item.keypair;
+    return item.keypair
   }
 
   /**
@@ -756,7 +755,7 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns {void}
    */
   setUserKeyPair(userKeyPair: forge.pki.rsa.KeyPair): void {
-    this._userKeyPair = userKeyPair;
+    this._userKeyPair = userKeyPair
   }
 
   /**
@@ -765,10 +764,10 @@ export class Engine extends ClientEngine implements IEngine {
    */
 
   getUserKeyPair(): Maybe<forge.pki.rsa.KeyPair> {
-    return this._userKeyPair;
+    return this._userKeyPair
   }
 
   isConnected(): boolean {
-    return this._isConnected;
+    return this._isConnected
   }
 }
