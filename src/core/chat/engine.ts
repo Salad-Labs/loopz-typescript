@@ -568,17 +568,23 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns {Promise<void>}
    */
   connect(force = false): Promise<void> {
-    return new Promise((_resolve) => {
-      const resolve = () => {
-        this._isConnected = true
-        this._isConnecting = false
-        _resolve()
-      }
+    return new Promise((resolve, reject) => {
+      if (!this._isConnecting) {
+        //we try to establish a connection only if the client hasn't current connections attempts
+        const callback = () => {
+          this._isConnected = true
+          this._isConnecting = false
+          resolve()
+        }
 
-      if (!force) {
-        if (!this._realtimeClient) this._makeWSClient(resolve)
+        if (!force) {
+          if (!this._realtimeClient) this._makeWSClient(callback)
+        } else {
+          this._makeWSClient(callback)
+        }
       } else {
-        this._makeWSClient(resolve)
+        //nothing happens
+        reject()
       }
     })
   }
