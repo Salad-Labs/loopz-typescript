@@ -2,7 +2,7 @@ import { Maybe } from "@src/types"
 import { HTTPRequestInit, HTTPResponse } from "../interfaces/base"
 import { Account } from "./app"
 import { getAccessToken } from "@privy-io/react-auth"
-import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "@src/constants/app"
+import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "../constants/app"
 import { Auth, Chat, Notification, Proposal, Order, Oracle } from ".."
 /**
  * Class representing an HTTP client for making HTTP requests.
