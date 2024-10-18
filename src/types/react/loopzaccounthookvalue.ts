@@ -7,6 +7,6 @@ export type LoopzAccountHookValue =
       account: null
     }
   | ({ isLoading: false } & (
-      | { isAuthenticated: true; account: null }
+      | { isAuthenticated: false; account: null }
       | { isAuthenticated: true; account: Account }
     ))

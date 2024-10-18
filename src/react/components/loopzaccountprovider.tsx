@@ -16,29 +16,45 @@ export const LoopzAccountProvider: FC<{ children: ReactNode }> = ({
     account: null,
   })
 
-  const handleAuthChange = useCallback(() => {
-    if (!initialized) return
+  const setAuthenticated = useCallback(() => {
+    if (!initialized) throw new Error("Loopz has not been initialized yet")
+
+    const account = instance.auth.getCurrentAccount()
+    if (!account)
+      throw new Error(
+        "Cannot set authenticated account as it's not authenticated"
+      )
 
     setAuthStatus({
       isLoading: false,
-      isAuthenticated: instance.auth.isAuthenticated(),
-      account: instance.auth.getCurrentAccount(),
-    } as LoopzAccountHookValue)
+      isAuthenticated: true,
+      account,
+    })
+  }, [initialized, instance])
+
+  const setUnauthenticated = useCallback(() => {
+    if (!initialized) throw new Error("Loopz has not been initialized yet")
+
+    setAuthStatus({
+      isLoading: false,
+      isAuthenticated: false,
+      account: null,
+    })
   }, [initialized, instance])
 
   useEffect(() => {
     if (!initialized) return
 
-    instance.auth.on("auth", handleAuthChange)
-    instance.auth.on("onAuthError", handleAuthChange)
-    instance.auth.on("__logout", handleAuthChange)
+    instance.auth.on("auth", setAuthenticated)
+    instance.auth.on("onAuthError", setUnauthenticated)
+    instance.auth.on("__logout", setUnauthenticated)
 
     return () => {
-      instance.auth.off("auth", handleAuthChange)
-      instance.auth.off("onAuthError", handleAuthChange)
-      instance.auth.off("__logout", handleAuthChange)
+      instance.auth.off("auth", setAuthenticated)
+      instance.auth.off("onAuthError", setUnauthenticated)
+      instance.auth.off("__logout", setUnauthenticated)
     }
-  }, [initialized, instance])
+  }, [initialized, instance, setAuthenticated, setUnauthenticated])
 
   return (
     <LoopzAccountContext.Provider value={authStatus}>
