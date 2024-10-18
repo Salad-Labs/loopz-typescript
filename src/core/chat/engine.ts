@@ -67,9 +67,13 @@ export class Engine extends ClientEngine implements IEngine {
    */
   protected _account: Maybe<Account> = null
   /**
-   * @property {boolan} _isConnected - Wheather the client has connected to the server
+   * @property {boolean} _isConnected - Wheather the client has connected to the server
    */
   protected _isConnected: boolean = false
+  /**
+   * @property {boolean} _isConnecting - Wheather the client has connected to the server
+   */
+  protected _isConnecting: boolean = false
   /**
    * @property {Maybe<Function>} _connectCallback - The callback function for connecting to real-time services.
    */
@@ -173,15 +177,19 @@ export class Engine extends ClientEngine implements IEngine {
     if (!this._offEventsFnsCollector) return
 
     const offConnecting = this._realtimeClient.on("connecting", () => {
+      this._isConnecting = true
       console.log("connecting...")
     })
 
     const offReconnecting = this._realtimeClient.on("reconnecting", () => {
+      this._isConnecting = true
       console.log("reconnecting...")
     })
 
     const offDisconnected = this._realtimeClient.on("disconnected", () => {
-      console.log("disconnected")
+      this._isConnecting = false
+      this._isConnected = false
+      console.log("disconnected.")
     })
 
     const offReconnected = this._realtimeClient.on("reconnected", (payload) => {
@@ -191,7 +199,7 @@ export class Engine extends ClientEngine implements IEngine {
     })
 
     const offError = this._realtimeClient.on("error", () => {
-      console.log("websocket error")
+      console.log("websocket error.")
     })
 
     const offConnected = this._realtimeClient.on(
@@ -563,6 +571,7 @@ export class Engine extends ClientEngine implements IEngine {
     return new Promise((_resolve) => {
       const resolve = () => {
         this._isConnected = true
+        this._isConnecting = false
         _resolve()
       }
 
@@ -762,12 +771,23 @@ export class Engine extends ClientEngine implements IEngine {
    * Get the user's key pair.
    * @returns {Maybe<forge.pki.rsa.KeyPair>} The user's key pair, if available.
    */
-
   getUserKeyPair(): Maybe<forge.pki.rsa.KeyPair> {
     return this._userKeyPair
   }
 
+  /**
+   * Get the status of the connection with the server
+   * @returns {boolean} _isConnected - a boolean representing the status of the connection with the server
+   */
   isConnected(): boolean {
     return this._isConnected
+  }
+
+  /**
+   * Get the status of attempting of connection with the server
+   * @returns {boolean} _isConnecting - a boolean representing the status of attempting the connection with the server
+   */
+  isConnecting(): boolean {
+    return this._isConnecting
   }
 }
