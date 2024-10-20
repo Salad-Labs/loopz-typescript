@@ -3,6 +3,9 @@ import { LoopzAuthContext } from "../context/loopzauthcontext"
 import { UseLoopzAuth } from "../../types/react/useloopzauth"
 import { useLoopz } from "./useLoopz"
 import { AuthLinkMethod } from "@src/types/auth/authlinkmethod"
+import { NotInitializedError } from "@src/errors/NotInitializedError"
+import { AuthLoadingError } from "@src/errors/AuthLoadingError"
+import { UnauthenticatedError } from "@src/errors/UnauthenticatedError"
 
 export const useLoopzAuth: UseLoopzAuth = () => {
   const { initialized, instance } = useLoopz()
@@ -10,26 +13,34 @@ export const useLoopzAuth: UseLoopzAuth = () => {
   if (!context)
     throw new Error("useLoopzAuth() must be used within a <LoopzProvider />.")
 
-  const authenticate = useCallback(() => {
-    // TODO separate checks and for each throw specific error (every function)
-    if (!initialized || context.isAuthenticated || context.isLoading) return
+  const { isAuthenticated, isLoading, account, auth } = context
 
-    // TODO make context has the same values as those returned from authenticate()
-    return instance.auth.authenticate()
-  }, [initialized, context, instance])
+  const authenticate = useCallback(() => {
+    if (!initialized) throw new NotInitializedError()
+    if (isLoading) throw new AuthLoadingError("authenticate()")
+
+    return !isAuthenticated
+      ? instance.auth.authenticate()
+      : Promise.resolve({
+          auth: auth!,
+          account: account!,
+        })
+  }, [initialized, isLoading, isAuthenticated, auth, account, instance])
 
   const link = useCallback(
     (method: AuthLinkMethod) => {
-      if (!initialized || !context.isAuthenticated || context.isLoading) return
+      if (!initialized) throw new NotInitializedError()
+      if (!isAuthenticated) throw new UnauthenticatedError()
+      if (isLoading) throw new AuthLoadingError("link()")
 
       return instance.auth.link(method)
     },
-    [initialized, context, instance]
+    [initialized, isAuthenticated, isLoading, instance]
   )
 
   const sendEmailOTPCode = useCallback(
     (email: string) => {
-      if (!initialized) return
+      if (!initialized) throw new NotInitializedError()
 
       return instance.auth.sendEmailOTPCode(email)
     },
@@ -38,7 +49,7 @@ export const useLoopzAuth: UseLoopzAuth = () => {
 
   const sendEmailOTPCodeAfterAuth = useCallback(
     (email: string) => {
-      if (!initialized) return
+      if (!initialized) throw new NotInitializedError()
 
       return instance.auth.sendEmailOTPCodeAfterAuth(email)
     },
@@ -47,7 +58,7 @@ export const useLoopzAuth: UseLoopzAuth = () => {
 
   const sendPhoneOTPCode = useCallback(
     (phone: string) => {
-      if (!initialized) return
+      if (!initialized) throw new NotInitializedError()
 
       return instance.auth.sendPhoneOTPCode(phone)
     },
@@ -56,7 +67,7 @@ export const useLoopzAuth: UseLoopzAuth = () => {
 
   const sendPhoneOTPCodeAfterAuth = useCallback(
     (phone: string) => {
-      if (!initialized) return
+      if (!initialized) throw new NotInitializedError()
 
       return instance.auth.sendPhoneOTPCodeAfterAuth(phone)
     },
@@ -65,18 +76,22 @@ export const useLoopzAuth: UseLoopzAuth = () => {
 
   const unlink = useCallback(
     (method: AuthLinkMethod) => {
-      if (!initialized || !context.isAuthenticated || context.isLoading) return
+      if (!initialized) throw new NotInitializedError()
+      if (!isAuthenticated) throw new UnauthenticatedError()
+      if (isLoading) throw new AuthLoadingError("unlink()")
 
       return instance.auth.unlink(method)
     },
-    [initialized, context, instance]
+    [initialized, isAuthenticated, isLoading, instance]
   )
 
   const logout = useCallback(() => {
-    if (!initialized || !context.isAuthenticated || context.isLoading) return
+    if (!initialized) throw new NotInitializedError()
+    if (!isAuthenticated) throw new UnauthenticatedError()
+    if (isLoading) throw new AuthLoadingError("logout()")
 
     return instance.auth.logout()
-  }, [initialized, context, instance])
+  }, [initialized, isAuthenticated, isLoading, instance])
 
   return {
     ...context,

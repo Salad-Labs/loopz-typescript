@@ -3,7 +3,7 @@ import { HTTPRequestInit, HTTPResponse } from "../interfaces/base"
 import { Account } from "./app"
 import { getAccessToken } from "@privy-io/react-auth"
 import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "../constants/app"
-import { Auth, Chat, Notification, Proposal, Order, Oracle } from ".."
+import { Auth, Chat, Notification, Proposal, Order, Oracle, AuthInfo } from ".."
 /**
  * Class representing an HTTP client for making HTTP requests.
  * @class Client
@@ -20,6 +20,11 @@ export class Client {
    * @type {Maybe<string>} _authToken - The JWT token, which may be null.
    */
   protected _authToken: Maybe<string> = null
+
+  /**
+   * @type {Maybe<AuthInfo>} _authInfo - The auth info, which may be null.
+   */
+  protected _authInfo: Maybe<AuthInfo> = null
 
   /**
    * @type {Maybe<Account>} account - The account object, which may be null.
@@ -276,6 +281,14 @@ export class Client {
 
   setAuthToken(authToken: Maybe<string>): void {
     this._authToken = authToken
+  }
+
+  setAuthInfo(authInfo: AuthInfo) {
+    this._authInfo = authInfo
+  }
+
+  getAuthInfo() {
+    return this._authInfo
   }
 
   setCurrentAccount(account: Account) {

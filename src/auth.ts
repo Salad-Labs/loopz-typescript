@@ -525,12 +525,16 @@ export class Auth extends Client implements AuthInternalEvents {
       //reset auth attempts in case this function is called because a 401 error
       this.resetRequestNewAuthToken()
 
+      const auth = {
+        isConnected: true,
+        ...authInfo,
+        authToken,
+      }
+
+      this.setAuthInfo(auth)
+
       resolve({
-        auth: {
-          isConnected: true,
-          ...authInfo,
-          authToken,
-        },
+        auth,
         account,
       })
     } catch (error) {
@@ -1076,6 +1080,7 @@ export class Auth extends Client implements AuthInternalEvents {
           "__onLogoutComplete",
         ])
         console.warn(error)
+        // TODO either resolve(true) | reject(error) -> "throw false" doesn't inform about the exception
         reject(false)
       }
     })

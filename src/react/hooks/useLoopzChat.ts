@@ -3,6 +3,9 @@ import { UseLoopzChat } from "@src/types/react/useloopzchat"
 import { LoopzChatContext } from "../context/loopzchatcontext"
 import { useLoopz } from "./useLoopz"
 import { useLoopzAuth } from "./useLoopzAuth"
+import { NotInitializedError } from "@src/errors/NotInitializedError"
+import { UnauthenticatedError } from "@src/errors/UnauthenticatedError"
+import { NotConnectedError } from "@src/errors/NotConnectedError"
 
 export const useLoopzChat: UseLoopzChat = () => {
   const { initialized, instance } = useLoopz()
@@ -14,21 +17,28 @@ export const useLoopzChat: UseLoopzChat = () => {
   const { isConnected, setIsConnected } = context
 
   const connect = useCallback(() => {
-    if (!initialized || !isAuthenticated || isConnected) return
+    if (!initialized) throw new NotInitializedError()
+    if (!isAuthenticated) throw new UnauthenticatedError()
 
-    return instance.chat
-      .connect()
-      .finally(() => setIsConnected(instance.chat.isConnected()))
+    return !isConnected
+      ? instance.chat
+          .connect()
+          .finally(() => setIsConnected(instance.chat.isConnected()))
+      : Promise.resolve()
   }, [initialized, isAuthenticated, isConnected, instance])
 
   const reconnect = useCallback(() => {
-    if (!initialized || !isAuthenticated || !isConnected) return
+    if (!initialized) throw new NotInitializedError()
+    if (!isAuthenticated) throw new UnauthenticatedError()
+    if (!isConnected) throw new NotConnectedError()
 
     return instance.chat.reconnect()
   }, [initialized, isAuthenticated, isConnected, instance])
 
   const disconnect = useCallback(() => {
-    if (!initialized || !isAuthenticated || !isConnected) return
+    if (!initialized) throw new NotInitializedError()
+    if (!isAuthenticated) throw new UnauthenticatedError()
+    if (!isConnected) throw new NotConnectedError()
 
     return instance.chat.disconnect()
   }, [initialized, isAuthenticated, isConnected, instance])

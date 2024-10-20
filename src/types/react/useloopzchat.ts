@@ -1,4 +1,11 @@
 import { LoopzChatContextValue } from "./loopzchatcontextvalue"
 
-// TODO change return value to one with functions signatures
-export type UseLoopzChat = () => Omit<LoopzChatContextValue, "setIsConnected">
+export type UseLoopzChat = () => Omit<
+  LoopzChatContextValue,
+  "setIsConnected"
+> & {
+  // TODO add remaining functions signatures
+  connect(): Promise<void>
+  reconnect(): Promise<void>
+  disconnect(): void
+}

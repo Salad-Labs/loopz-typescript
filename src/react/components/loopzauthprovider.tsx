@@ -23,17 +23,20 @@ export const LoopzAuthProvider: FC<
     isLoading: true,
     isAuthenticated: false,
     account: null,
+    auth: null,
   })
 
   const handleAuth = useCallback(() => {
     if (!initialized) return
 
-    const isAuthenticated = instance.auth.isAuthenticated() ?? false
-    const currentAccount = instance.auth.getCurrentAccount() ?? null
+    const isAuthenticated = instance.auth.isAuthenticated()
+    const authInfo = instance.auth.getAuthInfo()
+    const currentAccount = instance.auth.getCurrentAccount()
 
     setAuthStatus({
       isLoading: false,
       isAuthenticated: isAuthenticated,
+      auth: isAuthenticated ? authInfo : null,
       account: isAuthenticated ? currentAccount : null,
     } as LoopzAuthContextValue)
   }, [initialized, instance])
