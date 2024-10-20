@@ -1,28 +1,42 @@
 "use client"
 
-import React, { FC, ReactNode, useEffect, useRef, useState } from "react"
+import React, {
+  FC,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react"
 import { useLoopz, useLoopzAuth } from "../hooks"
 import { LoopzChatContext } from "../context/loopzchatcontext"
+import { LoopzProviderChatConfig } from "@src/types/react/loopzproviderchatconfig"
 
-export const LoopzChatProvider: FC<{ children?: ReactNode }> = ({
-  children,
-}) => {
+export const LoopzChatProvider: FC<
+  LoopzProviderChatConfig & { children?: ReactNode }
+> = ({ autoConnect, children }) => {
   const { instance, initialized } = useLoopz()
-  const [{ account }] = useLoopzAuth()
+  const { account } = useLoopzAuth()
   const hasStartedConnection = useRef(false)
   const [connectedStatus, setConnectedStatus] = useState({ isConnected: false })
+
+  const setIsConnected = useCallback(
+    (isConnected: boolean) =>
+      setConnectedStatus((cs) => ({ ...cs, isConnected })),
+    []
+  )
 
   useEffect(() => {
     if (
       !initialized ||
       !account ||
+      !autoConnect ||
       connectedStatus.isConnected ||
       hasStartedConnection.current
     )
       return
     hasStartedConnection.current = true
 
-    // TODO (improvement) make it optional by using a prop to let users decide whether to auto connect on render or call manually
     instance.chat
       .connect()
       .then(() => setConnectedStatus({ isConnected: true }))
@@ -30,10 +44,10 @@ export const LoopzChatProvider: FC<{ children?: ReactNode }> = ({
         hasStartedConnection.current = false
         setConnectedStatus({ isConnected: false })
       })
-  }, [initialized, account, connectedStatus, instance])
+  }, [initialized, account, autoConnect, connectedStatus, instance])
 
   return (
-    <LoopzChatContext.Provider value={connectedStatus}>
+    <LoopzChatContext.Provider value={{ ...connectedStatus, setIsConnected }}>
       {children}
     </LoopzChatContext.Provider>
   )

@@ -319,20 +319,18 @@ export class Engine extends ClientEngine implements IEngine {
   /**
    * Resets the state of the object by unsubscribing from all events, closing the realtime client,
    * and executing a callback function.
-   * @param {Function} callback - The function to be executed after resetting the state.
    * @returns None
    */
-  private _reset(callback: Function) {
-    if (this._realtimeClient) {
-      this._unsubscribeGarbage() //clear all the subscription generated with _subscription()
-      this._realtimeClient.unsubscribeAll() //clear all the subscriptions of UUIDSubscriptionClient
-      this._offUUIDSubscriptionEvents() //clear all the events of UUIDSubscriptionClient
-      this._realtimeClient.close() //close the websocket connection
+  private _reset(): void {
+    if (!this._realtimeClient) return
 
-      this._unsubscribeGarbageCollector = [] //reset the unsubscribe garbage collector array
-      this._offEventsFnsCollector = [] //reset the UUIDSubscriptionClient off events collector array
-      callback()
-    }
+    this._unsubscribeGarbage() //clear all the subscription generated with _subscription()
+    this._realtimeClient.unsubscribeAll() //clear all the subscriptions of UUIDSubscriptionClient
+    this._offUUIDSubscriptionEvents() //clear all the events of UUIDSubscriptionClient
+    this._realtimeClient.close() //close the websocket connection
+
+    this._unsubscribeGarbageCollector = [] //reset the unsubscribe garbage collector array
+    this._offEventsFnsCollector = [] //reset the UUIDSubscriptionClient off events collector array
   }
 
   /**
@@ -553,19 +551,16 @@ export class Engine extends ClientEngine implements IEngine {
 
   /**
    * Reconnects to a service by resetting and then connecting again.
-   * @returns {Promise<void>}
    */
   reconnect(): Promise<void> {
     return new Promise((res) => {
-      this._reset(() => {
-        this.connect(true).then(res)
-      })
+      this._reset()
+      this.connect(true).then(res)
     })
   }
 
   /**
    * Connects to a WebSocket server and executes the provided callback function.
-   * @returns {Promise<void>}
    */
   connect(force = false): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -587,6 +582,10 @@ export class Engine extends ClientEngine implements IEngine {
         reject()
       }
     })
+  }
+
+  disconnect(): void {
+    return this._reset()
   }
 
   /**

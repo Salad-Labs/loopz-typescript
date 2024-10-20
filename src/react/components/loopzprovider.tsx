@@ -12,6 +12,8 @@ import { LoopzChatProvider } from "./loopzchatprovider"
 
 export const LoopzProvider: FC<LoopzProviderProps> = ({
   config,
+  authConfig,
+  chatConfig,
   devMode = false,
   enableStorage,
   children,
@@ -60,8 +62,8 @@ export const LoopzProvider: FC<LoopzProviderProps> = ({
     <LoopzContext.Provider value={loopz}>
       <PrivyProvider appId={config.privyAppId} config={privyConfig}>
         <PrivyWrapper auth={loopz.instance.auth} order={loopz.instance.order}>
-          <LoopzAuthProvider>
-            <LoopzChatProvider>{children}</LoopzChatProvider>
+          <LoopzAuthProvider {...authConfig}>
+            <LoopzChatProvider {...chatConfig}>{children}</LoopzChatProvider>
           </LoopzAuthProvider>
         </PrivyWrapper>
       </PrivyProvider>

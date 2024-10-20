@@ -4,14 +4,13 @@ import React, { FC, ReactNode, useCallback, useEffect, useState } from "react"
 import { LoopzAuthContext } from "../context/loopzauthcontext"
 import { useLoopz } from "../hooks"
 import { LoopzAuthContextValue } from "@src/types/react/loopzauthcontextvalue"
+import { LoopzProviderAuthConfig } from "@src/types/react/loopzproviderauthconfig"
 
-export const LoopzAuthProvider: FC<{
-  onSendEmailOTPCode?: Function
-  onSendEmailOTPCodeAfterAuth?: Function
-  onSendPhoneOTPCode?: Function
-  onSendPhoneOTPCodeAfterAuth?: Function
-  children?: ReactNode
-}> = ({
+export const LoopzAuthProvider: FC<
+  LoopzProviderAuthConfig & {
+    children?: ReactNode
+  }
+> = ({
   onSendEmailOTPCode,
   onSendPhoneOTPCode,
   onSendEmailOTPCodeAfterAuth,
