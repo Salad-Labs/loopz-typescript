@@ -44,6 +44,7 @@ export const useLoopzChat: UseLoopzChat = () => {
   }, [initialized, isAuthenticated, isConnected, instance])
 
   return {
+    initialized,
     isConnected,
     connect,
     reconnect,

@@ -3,6 +3,7 @@ import { AuthLinkMethod } from "../auth/authlinkmethod"
 import { LoopzAuthContextValue } from "./loopzauthcontextvalue"
 
 export type UseLoopzAuth = () => LoopzAuthContextValue & {
+  initialized: boolean
   authenticate(): Promise<{ auth: AuthInfo; account: Account }>
   link(method: AuthLinkMethod): Promise<LinkAccountInfo>
   sendEmailOTPCode(email: string): Promise<{ email: string }>
