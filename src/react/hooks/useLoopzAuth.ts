@@ -94,7 +94,6 @@ export const useLoopzAuth: UseLoopzAuth = () => {
   }, [initialized, isAuthenticated, isLoading, instance])
 
   return {
-    initialized,
     ...context,
     authenticate,
     link,
