@@ -1,20 +1,22 @@
 import { useCallback, useContext } from "react"
 import { UseLoopzChat } from "@src/types/react/useloopzchat"
 import { LoopzChatContext } from "../context/loopzchatcontext"
-import { useLoopz } from "./useLoopz"
-import { useLoopzAuth } from "./useLoopzAuth"
 import { NotInitializedError } from "@src/errors/NotInitializedError"
 import { UnauthenticatedError } from "@src/errors/UnauthenticatedError"
 import { NotConnectedError } from "@src/errors/NotConnectedError"
+import { LoopzContext } from "../context/loopzcontext"
+import { LoopzAuthContext } from "../context/loopzauthcontext"
 
 export const useLoopzChat: UseLoopzChat = () => {
-  const { initialized, instance } = useLoopz()
-  const { isAuthenticated } = useLoopzAuth()
-  const context = useContext(LoopzChatContext)
-  if (!context)
+  const loopzContext = useContext(LoopzContext)
+  const authContext = useContext(LoopzAuthContext)
+  const chatContext = useContext(LoopzChatContext)
+  if (!loopzContext || !authContext || !chatContext)
     throw new Error("useLoopzChat() must be used within a <LoopzProvider />.")
 
-  const { isConnected, setIsConnected } = context
+  const { initialized, instance } = loopzContext
+  const { isAuthenticated } = authContext
+  const { isConnected, setIsConnected } = chatContext
 
   const connect = useCallback(() => {
     if (!initialized) throw new NotInitializedError()

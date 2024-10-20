@@ -1,19 +1,20 @@
 import { useCallback, useContext } from "react"
 import { LoopzAuthContext } from "../context/loopzauthcontext"
 import { UseLoopzAuth } from "../../types/react/useloopzauth"
-import { useLoopz } from "./useLoopz"
 import { AuthLinkMethod } from "@src/types/auth/authlinkmethod"
 import { NotInitializedError } from "@src/errors/NotInitializedError"
 import { AuthLoadingError } from "@src/errors/AuthLoadingError"
 import { UnauthenticatedError } from "@src/errors/UnauthenticatedError"
+import { LoopzContext } from "../context/loopzcontext"
 
 export const useLoopzAuth: UseLoopzAuth = () => {
-  const { initialized, instance } = useLoopz()
-  const context = useContext(LoopzAuthContext)
-  if (!context)
+  const loopzContext = useContext(LoopzContext)
+  const authContext = useContext(LoopzAuthContext)
+  if (!loopzContext || !authContext)
     throw new Error("useLoopzAuth() must be used within a <LoopzProvider />.")
 
-  const { isAuthenticated, isLoading, account, auth } = context
+  const { initialized, instance } = loopzContext
+  const { isAuthenticated, isLoading, account, auth } = authContext
 
   const authenticate = useCallback(() => {
     if (!initialized) throw new NotInitializedError()
@@ -94,7 +95,7 @@ export const useLoopzAuth: UseLoopzAuth = () => {
   }, [initialized, isAuthenticated, isLoading, instance])
 
   return {
-    ...context,
+    ...authContext,
     authenticate,
     link,
     sendEmailOTPCode,
