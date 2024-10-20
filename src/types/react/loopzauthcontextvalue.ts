@@ -1,6 +1,6 @@
 import { Account } from "../../core"
 
-export type LoopzAccountHookValue =
+export type LoopzAuthContextValue =
   | {
       isLoading: true
       isAuthenticated: false

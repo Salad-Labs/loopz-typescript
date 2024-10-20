@@ -7,7 +7,8 @@ import { PrivyWrapper } from "./privywrapper"
 import { LoopzProviderProps } from "../../interfaces"
 import { LoopzContext } from "../context/loopzcontext"
 import { ILoopzContext } from "../../interfaces/react/iloopzcontext"
-import { LoopzAccountProvider } from "./loopzaccountprovider"
+import { LoopzAuthProvider } from "./loopzauthprovider"
+import { LoopzChatProvider } from "./loopzchatprovider"
 
 export const LoopzProvider: FC<LoopzProviderProps> = ({
   config,
@@ -59,7 +60,9 @@ export const LoopzProvider: FC<LoopzProviderProps> = ({
     <LoopzContext.Provider value={loopz}>
       <PrivyProvider appId={config.privyAppId} config={privyConfig}>
         <PrivyWrapper auth={loopz.instance.auth} order={loopz.instance.order}>
-          <LoopzAccountProvider>{children}</LoopzAccountProvider>
+          <LoopzAuthProvider>
+            <LoopzChatProvider>{children}</LoopzChatProvider>
+          </LoopzAuthProvider>
         </PrivyWrapper>
       </PrivyProvider>
     </LoopzContext.Provider>

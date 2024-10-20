@@ -1,2 +1,2 @@
 export * from "./useLoopz"
-export * from "./useLoopzAccount"
+export * from "./useLoopzAuth"

@@ -18,6 +18,7 @@ import { PrivyAuthInfo } from "./types/adapter"
 import forge from "node-forge"
 import { AccountInitConfig } from "./types/auth/account"
 import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "./constants/app"
+import { AuthLinkMethod } from "./types/auth/authlinkmethod"
 
 /**
  * Represents an authentication client that interacts with a backend server for user authentication.
@@ -908,22 +909,7 @@ export class Auth extends Client implements AuthInternalEvents {
   private _handleDesktopLink(
     resolve: (value: PrivyAuthInfo | PromiseLike<PrivyAuthInfo>) => void,
     reject: (reason?: any) => void,
-
-    method:
-      | "apple"
-      | "discord"
-      | "email"
-      | "farcaster"
-      | "github"
-      | "google"
-      | "instagram"
-      | "linkedin"
-      | "phone"
-      | "spotify"
-      | "tiktok"
-      | "twitter"
-      | "wallet"
-      | "telegram"
+    method: AuthLinkMethod
   ) {
     try {
       this.on("__onLinkAccountComplete", async (authInfo: PrivyAuthInfo) => {
@@ -1103,45 +1089,13 @@ export class Auth extends Client implements AuthInternalEvents {
     return this._isAuthenticated === true
   }
 
-  link(
-    method:
-      | "apple"
-      | "discord"
-      | "email"
-      | "farcaster"
-      | "github"
-      | "google"
-      | "instagram"
-      | "linkedin"
-      | "phone"
-      | "spotify"
-      | "tiktok"
-      | "twitter"
-      | "wallet"
-      | "telegram"
-  ): Promise<LinkAccountInfo> {
+  link(method: AuthLinkMethod): Promise<LinkAccountInfo> {
     return new Promise((resolve, reject) => {
       this._handleDesktopLink(resolve, reject, method)
     })
   }
 
-  unlink(
-    method:
-      | "apple"
-      | "discord"
-      | "email"
-      | "farcaster"
-      | "github"
-      | "google"
-      | "instagram"
-      | "linkedin"
-      | "phone"
-      | "spotify"
-      | "tiktok"
-      | "twitter"
-      | "wallet"
-      | "telegram"
-  ): Promise<boolean> {
+  unlink(method: AuthLinkMethod): Promise<boolean> {
     return new Promise((resolve, reject) => {
       try {
         this.on("__onUnlinkAccountComplete", (status: boolean) => {
