@@ -718,7 +718,7 @@ export class Oracle extends Client {
   }
 
   /**
-   * Checks if the given collections are supported by the backend server.
+   * Looks for the given address and return a promise with an object that represents the collection.
    * @param collectionAddress - string - The collection address.
    * @param networkId - string - An identifier representing the network in which looking for.
    * @returns {Promise<Maybe<Collection>>} A promise that resolves to a collection or null if no data is returned.
@@ -753,6 +753,133 @@ export class Oracle extends Client {
                 this._account?.storeLastUserLoggedKey()
 
                 return await this.findCollection(collectionAddress, networkId)
+              },
+              async (error) => {
+                console.log(error)
+                await this._authRef?.logout()
+              }
+            )
+          } else {
+            //if we're here this means the second call encountered again a 401 error, so we logout the user
+            console.log(error)
+            await this._authRef?.logout()
+          }
+        }
+      )
+
+      if (!response || !response.data) return null
+
+      return response.data[0]
+    } catch (error) {
+      console.warn(error)
+    }
+
+    return null
+  }
+
+  /**
+   * Get the pair coins rate value using the Coinbase API.
+   * @param pair - string - The pair of coins to compare
+   * @returns {Promise<Maybe<{ amount: string; base: string; currency: string }>>} A promise that resolves to a pair rate value or null if no data is returned.
+   * @throws {Error} If an error occurs during the API call.
+   */
+  async getCoinsPairRate(
+    pair: `${string}-${string}`
+  ): Promise<Maybe<{ amount: string; base: string; currency: string }>> {
+    try {
+      const { response } = await this._fetch<
+        ApiResponse<{ amount: string; base: string; currency: string }>
+      >(
+        `${this.backendUrl()}/coinbase/get/pair/value/${pair}`,
+        {
+          method: "GET",
+          headers: {
+            "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
+          },
+        },
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              async (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                this._setAllAuthToken(authToken)
+                this._account?.setAuthToken(authToken)
+                this._account?.storeLastUserLoggedKey()
+
+                return await this.getCoinsPairRate(pair)
+              },
+              async (error) => {
+                console.log(error)
+                await this._authRef?.logout()
+              }
+            )
+          } else {
+            //if we're here this means the second call encountered again a 401 error, so we logout the user
+            console.log(error)
+            await this._authRef?.logout()
+          }
+        }
+      )
+
+      if (!response || !response.data) return null
+
+      return response.data[0]
+    } catch (error) {
+      console.warn(error)
+    }
+
+    return null
+  }
+
+  /**
+   * List the current network available supported by the platform.
+   * @returns {Promise<Maybe<Array<{ networkId: string; name: string; evmLogo: string}>>>} A promise that resolves to a network array value or null if no data is returned.
+   * @throws {Error} If an error occurs during the API call.
+   */
+  async listNetworks(): Promise<
+    Maybe<
+      Array<{
+        networkId: string
+        name: string
+        evmLogo: string
+      }>
+    >
+  > {
+    try {
+      const { response } = await this._fetch<
+        ApiResponse<
+          Array<{
+            networkId: string
+            name: string
+            evmLogo: string
+          }>
+        >
+      >(
+        `${this.backendUrl()}/networks/get/all`,
+        {
+          method: "GET",
+          headers: {
+            "x-api-key": `${this._apiKey}`,
+            Authorization: `Bearer ${this._authToken}`,
+          },
+        },
+        async (error) => {
+          //safety check, _account could be null and this method destroy the local storage values stored
+          this.destroyLastUserLoggedKey()
+
+          if (this.countRequestNewAuthToken() === 0) {
+            await this.obtainNewAuthToken(
+              async (authToken: string) => {
+                this.incrementRequestNewAuthToken()
+                this._setAllAuthToken(authToken)
+                this._account?.setAuthToken(authToken)
+                this._account?.storeLastUserLoggedKey()
+
+                return await this.listNetworks()
               },
               async (error) => {
                 console.log(error)

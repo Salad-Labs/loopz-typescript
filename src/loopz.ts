@@ -92,7 +92,7 @@ export class Loopz {
       devMode: Loopz._devMode,
     })
 
-    //set the references between the object, the target is making objects able to know each other
+    //set the references between the objects, the target is making objects able to know each other
     Loopz._auth.setLoopzObjectsReference({
       auth: Loopz._auth,
       oracle: Loopz._oracle,
