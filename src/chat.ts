@@ -713,7 +713,7 @@ export class Chat
           this._removeSubscribtionsSync(conversation.id)
     }
 
-    if (syncingCounter === 0) this._emit("sync")
+    if (syncingCounter === 0) this._isSyncing = false
     else this._emit("syncUpdate", this._syncingCounter)
 
     this._syncingCounter++
@@ -6328,7 +6328,7 @@ export class Chat
 
   /** Syncing methods */
 
-  async sync(callback: Function) {
+  async sync(): Promise<void> {
     if (!this._account)
       throw new Error("You must be authenticated before to sync.")
     if (!this._storage.isStorageEnabled())
@@ -6350,7 +6350,6 @@ export class Chat
     await this.connect()
     this.on("sync", () => {
       this._isSyncing = false
-      callback()
     })
 
     await this._sync(this._syncingCounter)
