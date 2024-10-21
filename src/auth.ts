@@ -31,7 +31,7 @@ export class Auth extends Client implements AuthInternalEvents {
   private _privyConfig?: PrivyClientConfig
   private _eventsCallbacks: Array<{
     callbacks: Function[]
-    eventName: AuthEvents
+    event: AuthEvents
   }> = []
   private _isLoggingOut: boolean = false
   private _isAuthenticated: boolean = false
@@ -880,7 +880,7 @@ export class Auth extends Client implements AuthInternalEvents {
   private _clearEventsCallbacks(events: Array<AuthEvents>) {
     events.forEach((event: AuthEvents) => {
       const index = this._eventsCallbacks.findIndex((item) => {
-        return item.eventName === event
+        return item.event === event
       })
 
       if (index > -1) this._eventsCallbacks[index].callbacks = []
@@ -930,9 +930,9 @@ export class Auth extends Client implements AuthInternalEvents {
     }
   }
 
-  _emit(eventName: AuthEvents, params?: any) {
+  _emit(event: AuthEvents, params?: any) {
     const index = this._eventsCallbacks.findIndex((item) => {
-      return item.eventName === eventName
+      return item.event === event
     })
 
     if (index > -1)
@@ -950,14 +950,14 @@ export class Auth extends Client implements AuthInternalEvents {
     if (config.storage) this._storage = config.storage
   }
 
-  on(eventName: AuthEvents, callback: Function, onlyOnce?: boolean) {
+  on(event: AuthEvents, callback: Function, onlyOnce?: boolean) {
     const index = this._eventsCallbacks.findIndex((item) => {
-      return item.eventName === eventName
+      return item.event === event
     })
 
     if (index < 0)
       this._eventsCallbacks.push({
-        eventName,
+        event,
         callbacks: [callback],
       })
     else {
@@ -966,9 +966,9 @@ export class Auth extends Client implements AuthInternalEvents {
     }
   }
 
-  off(eventName: AuthEvents, callback?: Function) {
+  off(event: AuthEvents, callback?: Function) {
     const index = this._eventsCallbacks.findIndex((item) => {
-      return item.eventName === eventName
+      return item.event === event
     })
 
     if (index < 0) return
