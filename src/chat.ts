@@ -6742,6 +6742,10 @@ export class Chat
     if (this._syncTimeout) clearTimeout(this._syncTimeout)
   }
 
+  isSyncing() {
+    return this._isSyncing
+  }
+
   /** read local database */
 
   fetchLocalDBMessages(
