@@ -238,6 +238,7 @@ import { wordlist } from "@scure/bip39/wordlists/english"
 import { ApiResponse } from "./types/base/apiresponse"
 import { md, mgf, pki } from "node-forge"
 import { Order } from "./order"
+import { ChatEvents, EngineInitConfig } from "."
 
 export class Chat
   extends Engine
@@ -259,8 +260,8 @@ export class Chat
 
   private _syncingCounter: number = 0
 
-  private _eventsCallback: Array<{
-    event: "sync" | "syncing" | "syncError" | "syncUpdate"
+  private _eventsCallbacks: Array<{
+    event: ChatEvents
     callbacks: Array<Function>
   }> = []
 
@@ -300,19 +301,202 @@ export class Chat
 
   private _canChat: boolean = true
 
+  private _hookMessageCreated: boolean = false
+
+  private _hookMessageUpdated: boolean = false
+
+  private _hookMessageDeleted: boolean = false
+
+  private _hookConversationCreated: boolean = false
+
+  private _hookConversationUpdated: boolean = false
+
+  private _hookMessageCreatingFn: (
+    primaryKey: string,
+    record: LocalDBMessage
+  ) => void
+
+  private _hookMessageUpdatingFn: (
+    modifications: Object,
+    primaryKey: string,
+    record: LocalDBMessage
+  ) => void
+
+  private _hookConversationCreatingFn: (
+    primaryKey: string,
+    record: LocalDBConversation
+  ) => void
+
+  private _hookConversationUpdatingFn: (
+    modifications: Object,
+    primaryKey: string,
+    record: LocalDBConversation
+  ) => void
+
+  private _syncTimeout: Maybe<NodeJS.Timeout> = null
+
   static readonly SYNCING_TIME = 60000
 
-  private _emit(
-    event: "sync" | "syncing" | "syncError" | "syncUpdate",
-    args?: any
-  ) {
-    const index = this._eventsCallback.findIndex((item) => {
+  constructor(config: EngineInitConfig) {
+    super(config)
+
+    this._hookMessageCreatingFn = (primaryKey, record) => {
+      const _message = {
+        ...record,
+        content: Crypto.decryptStringOrFail(
+          this.findPrivateKeyById(record.conversationId),
+          record.content
+        ),
+        reactions: record.reactions
+          ? record.reactions.map((reaction) => {
+              return {
+                ...reaction,
+                content: Crypto.decryptStringOrFail(
+                  this.findPrivateKeyById(record.conversationId),
+                  reaction.content
+                ),
+              }
+            })
+          : null,
+      }
+
+      _message.messageRoot = record.messageRoot
+        ? {
+            ...record.messageRoot,
+            content: Crypto.decryptStringOrFail(
+              this.findPrivateKeyById(record.conversationId),
+              record.messageRoot.content
+            ),
+            reactions: record.messageRoot.reactions
+              ? record.messageRoot.reactions.map((reaction) => {
+                  return {
+                    ...reaction,
+                    content: Crypto.decryptStringOrFail(
+                      this.findPrivateKeyById(record.conversationId),
+                      reaction.content
+                    ),
+                  }
+                })
+              : null,
+          }
+        : null
+
+      this._emit("messageCreatedLDB", _message)
+    }
+
+    this._hookMessageUpdatingFn = (modifications, primaryKey, record) => {
+      const _message = {
+        ...record,
+        content: Crypto.decryptStringOrFail(
+          this.findPrivateKeyById(record.conversationId),
+          record.content
+        ),
+        reactions: record.reactions
+          ? record.reactions.map((reaction) => {
+              return {
+                ...reaction,
+                content: Crypto.decryptStringOrFail(
+                  this.findPrivateKeyById(record.conversationId),
+                  reaction.content
+                ),
+              }
+            })
+          : null,
+      }
+
+      _message.messageRoot = record.messageRoot
+        ? {
+            ...record.messageRoot,
+            content: Crypto.decryptStringOrFail(
+              this.findPrivateKeyById(record.conversationId),
+              record.messageRoot.content
+            ),
+            reactions: record.messageRoot.reactions
+              ? record.messageRoot.reactions.map((reaction) => {
+                  return {
+                    ...reaction,
+                    content: Crypto.decryptStringOrFail(
+                      this.findPrivateKeyById(record.conversationId),
+                      reaction.content
+                    ),
+                  }
+                })
+              : null,
+          }
+        : null
+
+      this._emit("messageUpdatedLDB", _message)
+    }
+
+    this._hookConversationCreatingFn = (primaryKey, record) => {
+      const _conversation = {
+        ...record,
+        name: Crypto.decryptStringOrFail(
+          this.findPrivateKeyById(record.id),
+          record.name
+        ),
+        description: Crypto.decryptStringOrFail(
+          this.findPrivateKeyById(record.id),
+          record.description
+        ),
+        imageURL: Crypto.decryptStringOrFail(
+          this.findPrivateKeyById(record.id),
+          record.imageURL
+        ),
+        bannerImageURL: Crypto.decryptStringOrFail(
+          this.findPrivateKeyById(record.id),
+          record.bannerImageURL
+        ),
+        settings: JSON.parse(
+          Crypto.decryptStringOrFail(
+            this.findPrivateKeyById(record.id),
+            record.settings
+          )
+        ),
+      }
+
+      this._emit("conversationCreatedLDB", _conversation)
+    }
+
+    this._hookConversationUpdatingFn = (modifications, primaryKey, record) => {
+      const _conversation = {
+        ...record,
+        name: Crypto.decryptStringOrFail(
+          this.findPrivateKeyById(record.id),
+          record.name
+        ),
+        description: Crypto.decryptStringOrFail(
+          this.findPrivateKeyById(record.id),
+          record.description
+        ),
+        imageURL: Crypto.decryptStringOrFail(
+          this.findPrivateKeyById(record.id),
+          record.imageURL
+        ),
+        bannerImageURL: Crypto.decryptStringOrFail(
+          this.findPrivateKeyById(record.id),
+          record.bannerImageURL
+        ),
+        settings: JSON.parse(
+          Crypto.decryptStringOrFail(
+            this.findPrivateKeyById(record.id),
+            record.settings
+          )
+        ),
+      }
+
+      this._emit("conversationUpdatedLDB", _conversation)
+    }
+  }
+
+  private _emit(event: ChatEvents, args?: any) {
+    const index = this._eventsCallbacks.findIndex((item) => {
       return item.event === event
     })
 
     if (index > -1)
       this,
-        this._eventsCallback[index].callbacks.forEach((callback) => {
+        this._eventsCallbacks[index].callbacks.forEach((callback) => {
           callback(args)
         })
   }
@@ -377,6 +561,21 @@ export class Chat
 
       //? Serpens
       //stores/update the conversations into the local db
+
+      if (this._syncingCounter > 0) {
+        //if this sync is not the first one, we disable the hook for the creation and update of the conversations
+        //because potentially could be detrimental for the performance
+        this._storage.conversation
+          .hook("creating")
+          .unsubscribe(this._hookConversationCreatingFn)
+        this._storage.conversation
+          .hook("updating")
+          .unsubscribe(this._hookConversationUpdatingFn)
+
+        this._hookConversationCreated = false
+        this._hookConversationUpdated = false
+      }
+
       await this._storage.insertBulkSafe<LocalDBConversation>(
         "conversation",
         conversationsItems.map((conversation: Conversation) => {
@@ -599,8 +798,21 @@ export class Chat
           }
 
           //let's store the messages without create duplicates
-          if (messages.length > 0)
-            //?
+          if (messages.length > 0) {
+            //if this sync is not the first one, we disable the hook for the creation and update of the messages
+            //because potentially could be detrimental for the performance
+            if (this._syncingCounter > 0) {
+              this._storage.message
+                .hook("creating")
+                .unsubscribe(this._hookMessageCreatingFn)
+              this._storage.message
+                .hook("updating")
+                .unsubscribe(this._hookMessageUpdatingFn)
+
+              this._hookMessageCreated = false
+              this._hookMessageUpdated = false
+            }
+            //Serpens?
             //it's possible this array is empty when the chat history settings has value 'false'
             this._storage.insertBulkSafe(
               "message",
@@ -619,6 +831,7 @@ export class Chat
                 )
               })
             )
+          }
         }
       }
 
@@ -713,12 +926,19 @@ export class Chat
           this._removeSubscribtionsSync(conversation.id)
     }
 
+    //we add the internal events for the local database
+    if (!this._hookMessageCreated) this._onMessageCreatedLDB()
+    if (!this._hookMessageUpdated) this._onMessageUpdatedLDB()
+    if (!this._hookMessageDeleted) this._onMessageDeletedLDB()
+    if (!this._hookConversationCreated) this._onConversationCreatedLDB()
+    if (!this._hookConversationUpdated) this._onConversationUpdatedLDB()
+
     if (syncingCounter === 0) this._isSyncing = false
     else this._emit("syncUpdate", this._syncingCounter)
 
     this._syncingCounter++
 
-    setTimeout(async () => {
+    this._syncTimeout = setTimeout(async () => {
       await this._sync(this._syncingCounter)
     }, Chat.SYNCING_TIME)
   }
@@ -1425,6 +1645,136 @@ export class Chat
     })
 
     if (index > -1) this._conversationsMap[index].type = "CANCELED"
+  }
+
+  /** local database events */
+
+  private _onMessageCreatedLDB() {
+    try {
+      this._storage.query(
+        (db: Dexie, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
+          this._hookMessageCreated = true
+          message.hook("creating", this._hookMessageCreatingFn)
+        },
+        "message"
+      )
+    } catch (error) {
+      console.log(error)
+      this._hookMessageCreated = false
+      this._emit("messageCreatedLDBError", error)
+    }
+  }
+
+  private _onMessageDeletedLDB() {
+    try {
+      this._storage.query(
+        (db: Dexie, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
+          this._hookMessageDeleted = true
+          message.hook("deleting", (primaryKey, record) => {
+            const _message = {
+              ...record,
+              content: Crypto.decryptStringOrFail(
+                this.findPrivateKeyById(record.conversationId),
+                record.content
+              ),
+              reactions: record.reactions
+                ? record.reactions.map((reaction) => {
+                    return {
+                      ...reaction,
+                      content: Crypto.decryptStringOrFail(
+                        this.findPrivateKeyById(record.conversationId),
+                        reaction.content
+                      ),
+                    }
+                  })
+                : null,
+            }
+
+            _message.messageRoot = record.messageRoot
+              ? {
+                  ...record.messageRoot,
+                  content: Crypto.decryptStringOrFail(
+                    this.findPrivateKeyById(record.conversationId),
+                    record.messageRoot.content
+                  ),
+                  reactions: record.messageRoot.reactions
+                    ? record.messageRoot.reactions.map((reaction) => {
+                        return {
+                          ...reaction,
+                          content: Crypto.decryptStringOrFail(
+                            this.findPrivateKeyById(record.conversationId),
+                            reaction.content
+                          ),
+                        }
+                      })
+                    : null,
+                }
+              : null
+
+            this._emit("messageDeletedLDB", _message)
+          })
+        },
+        "message"
+      )
+    } catch (error) {
+      console.log(error)
+      this._hookMessageDeleted = false
+      this._emit("messageDeletedLDBError", error)
+    }
+  }
+
+  private _onMessageUpdatedLDB() {
+    try {
+      this._storage.query(
+        (db: Dexie, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
+          this._hookMessageUpdated = true
+          message.hook("updating", this._hookMessageUpdatingFn)
+        },
+        "message"
+      )
+    } catch (error) {
+      console.log(error)
+      this._hookMessageUpdated = false
+      this._emit("messageUpdatedLDBError", error)
+    }
+  }
+
+  private _onConversationCreatedLDB() {
+    try {
+      this._storage.query(
+        (
+          db: Dexie,
+          conversation: Table<LocalDBConversation, string, LocalDBConversation>
+        ) => {
+          this._hookConversationCreated = true
+          conversation.hook("creating", this._hookConversationCreatingFn)
+        },
+        "conversation"
+      )
+    } catch (error) {
+      console.log(error)
+      this._hookConversationCreated = false
+      this._emit("conversationCreatedLDBError", error)
+    }
+  }
+
+  private _onConversationUpdatedLDB() {
+    try {
+      this._storage.query(
+        (
+          db: Dexie,
+          conversation: Table<LocalDBConversation, string, LocalDBConversation>
+        ) => {
+          this._hookConversationUpdated = true
+          conversation.hook("updating", this._hookConversationUpdatingFn)
+        },
+        "conversation"
+      )
+    } catch (error) {
+      console.log(error)
+      this._hookConversationUpdated = false
+      this._emit("conversationUpdatedLDBError", error)
+    }
   }
 
   /** Mutations */
@@ -6302,28 +6652,29 @@ export class Chat
 
   /** Chat events methods */
 
-  on(
-    event: "sync" | "syncing" | "syncError" | "syncUpdate",
-    callback: Function
-  ) {
-    const index = this._eventsCallback.findIndex((item) => {
+  on(event: ChatEvents, callback: Function) {
+    const index = this._eventsCallbacks.findIndex((item) => {
       return item.event === event
     })
 
-    if (index > -1) this._eventsCallback[index].callbacks.push(callback)
+    if (index > -1) this._eventsCallbacks[index].callbacks.push(callback)
     else
-      this._eventsCallback.push({
+      this._eventsCallbacks.push({
         event,
         callbacks: [callback],
       })
   }
 
-  off(event: "sync" | "syncing" | "syncError" | "syncUpdate") {
-    const index = this._eventsCallback.findIndex((item) => {
+  off(event: ChatEvents, callback?: Function) {
+    const index = this._eventsCallbacks.findIndex((item) => {
       return item.event === event
     })
 
-    if (index > -1) this._eventsCallback[index].callbacks = []
+    if (index < 0) return
+
+    this._eventsCallbacks[index].callbacks = callback
+      ? this._eventsCallbacks[index].callbacks.filter((cb) => cb !== callback)
+      : []
   }
 
   /** Syncing methods */
@@ -6334,20 +6685,19 @@ export class Chat
     if (!this._storage.isStorageEnabled())
       throw new Error("sync() is available only if you enable the storage.")
     if (
-      this._eventsCallback.findIndex((item) => {
+      this._eventsCallbacks.findIndex((item) => {
         return item.event === "sync"
       }) > -1
     )
       throw new Error("You have already launched sync().")
+    if (!this._isConnected)
+      throw new Error(
+        "You must be connected in order to call sync(). Call connect() first..."
+      )
     if (!this._canChat)
       throw new Error(
         "This client cannot start to chat. Are you missing to pairing the keys?"
       )
-
-    //in order to run queries, mutations or subscriptions we need to call connect() to establish a connection between
-    //the client and the server otherwise the internal _client instance of the Engine class cannot be created because one of the requirements
-    //is to create a _realtimeClient that use the websocket protocol to communicate with the server.
-    await this.connect()
 
     await this._sync(this._syncingCounter)
 
@@ -6388,277 +6738,8 @@ export class Chat
     })
   }
 
-  /** local database events */
-
-  onLocalDBNewMessage(
-    conversationId: string,
-    callback: (message: LocalDBMessage) => void,
-    callbackError: (error: unknown) => void
-  ) {
-    try {
-      this._storage.query(
-        (db: Dexie, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
-          message.hook("creating", (primaryKey, record) => {
-            const _message = {
-              ...record,
-              content: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(conversationId),
-                record.content
-              ),
-              reactions: record.reactions
-                ? record.reactions.map((reaction) => {
-                    return {
-                      ...reaction,
-                      content: Crypto.decryptStringOrFail(
-                        this.findPrivateKeyById(conversationId),
-                        reaction.content
-                      ),
-                    }
-                  })
-                : null,
-            }
-
-            _message.messageRoot = record.messageRoot
-              ? {
-                  ...record.messageRoot,
-                  content: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(conversationId),
-                    record.messageRoot.content
-                  ),
-                  reactions: record.messageRoot.reactions
-                    ? record.messageRoot.reactions.map((reaction) => {
-                        return {
-                          ...reaction,
-                          content: Crypto.decryptStringOrFail(
-                            this.findPrivateKeyById(conversationId),
-                            reaction.content
-                          ),
-                        }
-                      })
-                    : null,
-                }
-              : null
-
-            callback(_message)
-          })
-        },
-        "message"
-      )
-    } catch (error) {
-      callbackError(error)
-    }
-  }
-
-  onLocalDBDeleteMessage(
-    conversationId: string,
-    callback: (message: LocalDBMessage) => void,
-    callbackError: (error: unknown) => void
-  ) {
-    try {
-      this._storage.query(
-        (db: Dexie, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
-          message.hook("deleting", (primaryKey, record) => {
-            const _message = {
-              ...record,
-              content: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(conversationId),
-                record.content
-              ),
-              reactions: record.reactions
-                ? record.reactions.map((reaction) => {
-                    return {
-                      ...reaction,
-                      content: Crypto.decryptStringOrFail(
-                        this.findPrivateKeyById(conversationId),
-                        reaction.content
-                      ),
-                    }
-                  })
-                : null,
-            }
-
-            _message.messageRoot = record.messageRoot
-              ? {
-                  ...record.messageRoot,
-                  content: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(conversationId),
-                    record.messageRoot.content
-                  ),
-                  reactions: record.messageRoot.reactions
-                    ? record.messageRoot.reactions.map((reaction) => {
-                        return {
-                          ...reaction,
-                          content: Crypto.decryptStringOrFail(
-                            this.findPrivateKeyById(conversationId),
-                            reaction.content
-                          ),
-                        }
-                      })
-                    : null,
-                }
-              : null
-
-            callback(_message)
-          })
-        },
-        "message"
-      )
-    } catch (error) {
-      callbackError(error)
-    }
-  }
-
-  onLocalDBUpdateMessage(
-    conversationId: string,
-    callback: (message: LocalDBMessage) => void,
-    callbackError: (error: unknown) => void
-  ) {
-    try {
-      this._storage.query(
-        (db: Dexie, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
-          message.hook("updating", (modifications, primaryKey, record) => {
-            const _message = {
-              ...record,
-              content: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(conversationId),
-                record.content
-              ),
-              reactions: record.reactions
-                ? record.reactions.map((reaction) => {
-                    return {
-                      ...reaction,
-                      content: Crypto.decryptStringOrFail(
-                        this.findPrivateKeyById(conversationId),
-                        reaction.content
-                      ),
-                    }
-                  })
-                : null,
-            }
-
-            _message.messageRoot = record.messageRoot
-              ? {
-                  ...record.messageRoot,
-                  content: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(conversationId),
-                    record.messageRoot.content
-                  ),
-                  reactions: record.messageRoot.reactions
-                    ? record.messageRoot.reactions.map((reaction) => {
-                        return {
-                          ...reaction,
-                          content: Crypto.decryptStringOrFail(
-                            this.findPrivateKeyById(conversationId),
-                            reaction.content
-                          ),
-                        }
-                      })
-                    : null,
-                }
-              : null
-
-            callback(_message)
-          })
-        },
-        "message"
-      )
-    } catch (error) {
-      callbackError(error)
-    }
-  }
-
-  onLocalDBNewConversation(
-    callback: (conversation: LocalDBConversation) => void,
-    callbackError: (error: unknown) => void
-  ) {
-    try {
-      this._storage.query(
-        (
-          db: Dexie,
-          conversation: Table<LocalDBConversation, string, LocalDBConversation>
-        ) => {
-          conversation.hook("creating", (primaryKey, record) => {
-            const _conversation = {
-              ...record,
-              name: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(record.id),
-                record.name
-              ),
-              description: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(record.id),
-                record.description
-              ),
-              imageURL: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(record.id),
-                record.imageURL
-              ),
-              bannerImageURL: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(record.id),
-                record.bannerImageURL
-              ),
-              settings: JSON.parse(
-                Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(record.id),
-                  record.settings
-                )
-              ),
-            }
-
-            callback(_conversation)
-          })
-        },
-        "conversation"
-      )
-    } catch (error) {
-      callbackError(error)
-    }
-  }
-
-  onLocalDBUpdateConversation(
-    callback: (conversation: LocalDBConversation) => void,
-    callbackError: (error: unknown) => void
-  ) {
-    try {
-      this._storage.query(
-        (
-          db: Dexie,
-          conversation: Table<LocalDBConversation, string, LocalDBConversation>
-        ) => {
-          conversation.hook("updating", (modifications, primaryKey, record) => {
-            const _conversation = {
-              ...record,
-              name: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(record.id),
-                record.name
-              ),
-              description: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(record.id),
-                record.description
-              ),
-              imageURL: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(record.id),
-                record.imageURL
-              ),
-              bannerImageURL: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(record.id),
-                record.bannerImageURL
-              ),
-              settings: JSON.parse(
-                Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(record.id),
-                  record.settings
-                )
-              ),
-            }
-
-            callback(_conversation)
-          })
-        },
-        "conversation"
-      )
-    } catch (error) {
-      callbackError(error)
-    }
+  unsync() {
+    if (this._syncTimeout) clearTimeout(this._syncTimeout)
   }
 
   /** read local database */
