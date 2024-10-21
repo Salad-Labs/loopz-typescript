@@ -93,54 +93,21 @@ export class Loopz {
     })
 
     //set the references between the objects, the target is making objects able to know each other
-    Loopz._auth.setLoopzObjectsReference({
+    const objectsReference = {
       auth: Loopz._auth,
       oracle: Loopz._oracle,
       proposal: Loopz._proposal,
       order: Loopz._order,
       chat: Loopz._chat,
       notification: Loopz._notification,
-    })
-    Loopz._oracle.setLoopzObjectsReference({
-      auth: Loopz._auth,
-      oracle: Loopz._oracle,
-      proposal: Loopz._proposal,
-      order: Loopz._order,
-      chat: Loopz._chat,
-      notification: Loopz._notification,
-    })
-    Loopz._proposal.setLoopzObjectsReference({
-      auth: Loopz._auth,
-      oracle: Loopz._oracle,
-      proposal: Loopz._proposal,
-      order: Loopz._order,
-      chat: Loopz._chat,
-      notification: Loopz._notification,
-    })
-    Loopz._order.setLoopzObjectsReference({
-      auth: Loopz._auth,
-      oracle: Loopz._oracle,
-      proposal: Loopz._proposal,
-      order: Loopz._order,
-      chat: Loopz._chat,
-      notification: Loopz._notification,
-    })
-    Loopz._notification.setLoopzObjectsReference({
-      auth: Loopz._auth,
-      oracle: Loopz._oracle,
-      proposal: Loopz._proposal,
-      order: Loopz._order,
-      chat: Loopz._chat,
-      notification: Loopz._notification,
-    })
-    Loopz._chat.setLoopzObjectsReference({
-      auth: Loopz._auth,
-      oracle: Loopz._oracle,
-      proposal: Loopz._proposal,
-      order: Loopz._order,
-      chat: Loopz._chat,
-      notification: Loopz._notification,
-    })
+    }
+
+    Loopz._auth.setLoopzObjectsReference(objectsReference)
+    Loopz._oracle.setLoopzObjectsReference(objectsReference)
+    Loopz._proposal.setLoopzObjectsReference(objectsReference)
+    Loopz._order.setLoopzObjectsReference(objectsReference)
+    Loopz._notification.setLoopzObjectsReference(objectsReference)
+    Loopz._chat.setLoopzObjectsReference(objectsReference)
 
     if (Loopz._privyAdapter)
       Loopz._privyAdapter.render(Loopz._auth, Loopz._order)
