@@ -6348,9 +6348,6 @@ export class Chat
     //the client and the server otherwise the internal _client instance of the Engine class cannot be created because one of the requirements
     //is to create a _realtimeClient that use the websocket protocol to communicate with the server.
     await this.connect()
-    this.on("sync", () => {
-      this._isSyncing = false
-    })
 
     await this._sync(this._syncingCounter)
 
