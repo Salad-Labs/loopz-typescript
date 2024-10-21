@@ -317,30 +317,6 @@ export class Chat
         })
   }
 
-  private _on(
-    event: "sync" | "syncing" | "syncError" | "syncUpdate",
-    callback: Function
-  ) {
-    const index = this._eventsCallback.findIndex((item) => {
-      return item.event === event
-    })
-
-    if (index > -1) this._eventsCallback[index].callbacks.push(callback)
-    else
-      this._eventsCallback.push({
-        event,
-        callbacks: [callback],
-      })
-  }
-
-  private _off(event: "sync" | "syncing" | "syncError" | "syncUpdate") {
-    const index = this._eventsCallback.findIndex((item) => {
-      return item.event === event
-    })
-
-    if (index > -1) this._eventsCallback[index].callbacks = []
-  }
-
   /** syncing data with backend*/
 
   private async recoverUserConversations(
@@ -399,6 +375,7 @@ export class Chat
       if (currentUser instanceof QIError)
         throw new Error(JSON.stringify(currentUser))
 
+      //? Serpens
       //stores/update the conversations into the local db
       await this._storage.insertBulkSafe<LocalDBConversation>(
         "conversation",
@@ -623,6 +600,7 @@ export class Chat
 
           //let's store the messages without create duplicates
           if (messages.length > 0)
+            //?
             //it's possible this array is empty when the chat history settings has value 'false'
             this._storage.insertBulkSafe(
               "message",
@@ -735,7 +713,7 @@ export class Chat
           this._removeSubscribtionsSync(conversation.id)
     }
 
-    if (syncingCounter === 0) this._emit("sync")
+    if (syncingCounter === 0) this._isSyncing = false
     else this._emit("syncUpdate", this._syncingCounter)
 
     this._syncingCounter++
@@ -6322,9 +6300,35 @@ export class Chat
     return { unsubscribe, uuid }
   }
 
+  /** Chat events methods */
+
+  on(
+    event: "sync" | "syncing" | "syncError" | "syncUpdate",
+    callback: Function
+  ) {
+    const index = this._eventsCallback.findIndex((item) => {
+      return item.event === event
+    })
+
+    if (index > -1) this._eventsCallback[index].callbacks.push(callback)
+    else
+      this._eventsCallback.push({
+        event,
+        callbacks: [callback],
+      })
+  }
+
+  off(event: "sync" | "syncing" | "syncError" | "syncUpdate") {
+    const index = this._eventsCallback.findIndex((item) => {
+      return item.event === event
+    })
+
+    if (index > -1) this._eventsCallback[index].callbacks = []
+  }
+
   /** Syncing methods */
 
-  async sync(callback: Function) {
+  async sync(): Promise<void> {
     if (!this._account)
       throw new Error("You must be authenticated before to sync.")
     if (!this._storage.isStorageEnabled())
@@ -6344,10 +6348,6 @@ export class Chat
     //the client and the server otherwise the internal _client instance of the Engine class cannot be created because one of the requirements
     //is to create a _realtimeClient that use the websocket protocol to communicate with the server.
     await this.connect()
-    this._on("sync", () => {
-      this._isSyncing = false
-      callback()
-    })
 
     await this._sync(this._syncingCounter)
 
@@ -6377,13 +6377,13 @@ export class Chat
   }
 
   syncing(callback: (isSyncing: boolean, syncingCounter: number) => void) {
-    this._on("syncing", (syncingCounter: number) => {
+    this.on("syncing", (syncingCounter: number) => {
       callback(this._isSyncing, syncingCounter)
     })
   }
 
   syncUpdate(callback: (syncingCounter: number) => void) {
-    this._on("syncUpdate", (syncingCounter: number) => {
+    this.on("syncUpdate", (syncingCounter: number) => {
       callback(syncingCounter)
     })
   }
