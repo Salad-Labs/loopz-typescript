@@ -923,7 +923,7 @@ export class Chat
 
       if (removed.length > 0)
         for (const conversation of removed)
-          this._removeSubscribtionsSync(conversation.id)
+          this._removeSubscriptionsSync(conversation.id)
     }
 
     //we add the internal events for the local database
@@ -933,10 +933,10 @@ export class Chat
     if (!this._hookConversationCreated) this._onConversationCreatedLDB()
     if (!this._hookConversationUpdated) this._onConversationUpdatedLDB()
 
-    if (syncingCounter === 0) this._isSyncing = false
-    else this._emit("syncUpdate", this._syncingCounter)
-
+    this._isSyncing = false
     this._syncingCounter++
+
+    if (syncingCounter > 0) this._emit("syncUpdate", this._syncingCounter)
 
     this._syncTimeout = setTimeout(async () => {
       await this._sync(this._syncingCounter)
@@ -1061,8 +1061,8 @@ export class Chat
 
           //let's remove all the subscriptions previously added
           if (subscriptionConversationCheck.conversationWasActive) {
-            this._removeSubscribtionsSync(conversationId)
-            this._conversationsMap[index].type = "ACTIVE" //assign again "type" the value "ACTIVE" because _removeSubscribtionsSync() turns type to "CANCELED"
+            this._removeSubscriptionsSync(conversationId)
+            this._conversationsMap[index].type = "ACTIVE" //assign again "type" the value "ACTIVE" because _removeSubscriptionsSync() turns type to "CANCELED"
           }
 
           //let's add the subscriptions in order to keep synchronized this conversation
@@ -1327,7 +1327,7 @@ export class Chat
     try {
       if (!(response instanceof QIError)) {
         const conversationId = response.conversationId
-        this._removeSubscribtionsSync(conversationId)
+        this._removeSubscriptionsSync(conversationId)
 
         this._storage.insertBulkSafe("message", [
           {
@@ -1372,7 +1372,7 @@ export class Chat
     try {
       if (!(response instanceof QIError)) {
         const conversationId = response.conversationId
-        this._removeSubscribtionsSync(conversationId)
+        this._removeSubscriptionsSync(conversationId)
 
         //handling system messages that shows the user left the conversation
         this._storage.insertBulkSafe("message", [
@@ -1620,7 +1620,7 @@ export class Chat
     }
   }
 
-  private _removeSubscribtionsSync(conversationId: string) {
+  private _removeSubscriptionsSync(conversationId: string) {
     //let's remove first the subscriptions
     const unsubscribeItems = this._unsubscribeSyncSet.filter((item) => {
       return item.conversationId === conversationId
@@ -6740,6 +6740,16 @@ export class Chat
 
   unsync() {
     if (this._syncTimeout) clearTimeout(this._syncTimeout)
+    this._isSyncing = false
+    this._syncingCounter = 0
+    for (const { conversationId } of this._conversationsMap.filter(
+      (conversation) => conversation.type === "ACTIVE"
+    )) {
+      this._removeSubscriptionsSync(conversationId)
+    }
+    this._conversationsMap = []
+    this._keyPairsMap = []
+    this._userKeyPair = null
   }
 
   isSyncing() {
