@@ -1064,10 +1064,16 @@ export class Chat
 
           //let's add the subscriptions in order to keep synchronized this conversation
           this._addSubscriptionsSync(conversationId)
+
+          this._emit("conversationNewMembers", {
+            conversation,
+            conversationId,
+          })
         }
       }
     } catch (error) {
       console.log("[ERROR]: _onAddMembersToConversationSync() -> ", error)
+      this._emit("conversationNewMembersError", error)
     }
   }
 
@@ -1094,9 +1100,15 @@ export class Chat
             "USER"
           ),
         ])
+
+        this._emit("reactionAdded", {
+          message: response,
+          conversationId: response.conversationId,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onAddReactionSync() -> ", error)
+      this._emit("reactionAddedError", error)
     }
   }
 
@@ -1123,9 +1135,15 @@ export class Chat
             "USER"
           ),
         ])
+
+        this._emit("reactionRemoved", {
+          message: response,
+          conversationId: response.conversationId,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onRemoveReactionSync() -> ", error)
+      this._emit("reactionRemovedError", error)
     }
   }
 
@@ -1173,9 +1191,15 @@ export class Chat
           },
           "conversation"
         )
+
+        this._emit("messageReceived", {
+          message: response,
+          conversationId: response.conversationId,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onSendMessageSync() -> ", error)
+      this._emit("messageReceivedError", error)
     }
   }
 
@@ -1202,9 +1226,15 @@ export class Chat
             "USER"
           ),
         ])
+
+        this._emit("messageUpdated", {
+          message: response,
+          conversationId: response.conversationId,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onEditMessageSync() -> ", error)
+      this._emit("messageUpdatedError", error)
     }
   }
 
@@ -1222,16 +1252,19 @@ export class Chat
   ) {
     try {
       if (!(response instanceof QIError)) {
-        await this._storage.deleteItem(
-          "message",
-          this._storage instanceof DexieStorage ? `[id+userDid]` : ``,
-          this._storage instanceof DexieStorage
-            ? [response.id, this._account!.did]
-            : `${response.id}-${this._account!.did}`
-        )
+        await this._storage.deleteItem("message", "[id+userDid]", [
+          response.id,
+          this._account!.did,
+        ])
+
+        this._emit("messageDeleted", {
+          message: response,
+          conversationId: response.conversationId,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onDeleteMessageSync() -> ", error)
+      this._emit("messageDeletedError", error)
     }
   }
 
@@ -1255,17 +1288,19 @@ export class Chat
     try {
       if (!(response instanceof QIError)) {
         for (const id of response.messagesIds) {
-          await this._storage.deleteItem(
-            "message",
-            this._storage instanceof DexieStorage ? `[id+userDid]` : ``,
-            this._storage instanceof DexieStorage
-              ? [id, this._account!.did]
-              : `${id}-${this._account!.did}`
-          )
+          await this._storage.deleteItem("message", "[id+userDid]", [
+            id,
+            this._account!.did,
+          ])
         }
+
+        this._emit("batchMessagesDeleted", {
+          messagesIds: response.messagesIds,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onBatchDeleteMessagesSync() -> ", error)
+      this._emit("batchMessagesDeletedError", error)
     }
   }
 
@@ -1285,12 +1320,8 @@ export class Chat
       if (!(response instanceof QIError)) {
         const conversationStored = (await this._storage.get(
           "conversation",
-          this._storage instanceof DexieStorage
-            ? "[id+userDid]"
-            : `compositeKey`,
-          this._storage instanceof DexieStorage
-            ? [response.id, this._account!.did]
-            : `${response.id}-${this._account!.did}`
+          "[id+userDid]",
+          [(response.id, this._account!.did)]
         )) as Maybe<LocalDBConversation>
 
         this._storage.insertBulkSafe("conversation", [
@@ -1301,9 +1332,14 @@ export class Chat
             conversationStored ? conversationStored.isArchived : false
           ),
         ])
+
+        this._emit("conversationGroupUpdated", {
+          conversation: response,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onUpdateConversationGroupSync() -> ", error)
+      this._emit("conversationGroupUpdatedError", error)
     }
   }
 
@@ -1325,29 +1361,35 @@ export class Chat
       if (!(response instanceof QIError)) {
         const conversationId = response.conversationId
         this._removeSubscriptionsSync(conversationId)
+        const message = {
+          id: uuidv4(),
+          userId: response.memberOut.id,
+          organizationId: this._account!.organizationId,
+          userDid: this._account!.did,
+          conversationId: response.conversationId,
+          content: "",
+          reactions: [],
+          isImportant: false,
+          type: "EJECTED",
+          origin: "SYSTEM",
+          messageRoot: null,
+          messageRootId: null,
+          createdAt: new Date(),
+          updateAt: null,
+          deletedAt: null,
+        }
 
-        this._storage.insertBulkSafe("message", [
-          {
-            id: uuidv4(),
-            userId: response.memberOut.id,
-            organizationId: this._account!.organizationId,
-            userDid: this._account!.did,
-            conversationId: response.conversationId,
-            content: "",
-            reactions: [],
-            isImportant: false,
-            type: "EJECTED",
-            origin: "SYSTEM",
-            messageRoot: null,
-            messageRootId: null,
-            createdAt: new Date(),
-            updateAt: null,
-            deletedAt: null,
-          },
-        ])
+        this._storage.insertBulkSafe("message", [message])
+
+        this._emit("messageReceived", {
+          message,
+          conversationId,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onEjectMemberSync() -> ", error)
+      this._emit("memberEjectedError", error)
+      this._emit("messageReceivedError", error)
     }
   }
 
@@ -1370,30 +1412,36 @@ export class Chat
       if (!(response instanceof QIError)) {
         const conversationId = response.conversationId
         this._removeSubscriptionsSync(conversationId)
+        const message = {
+          id: uuidv4(),
+          userId: response.memberOut.id,
+          organizationId: this._account!.organizationId,
+          userDid: this._account!.did,
+          conversationId: response.conversationId,
+          content: "",
+          reactions: [],
+          isImportant: false,
+          type: "LEFT",
+          origin: "SYSTEM",
+          messageRoot: null,
+          messageRootId: null,
+          createdAt: new Date(),
+          updateAt: null,
+          deletedAt: null,
+        }
 
         //handling system messages that shows the user left the conversation
-        this._storage.insertBulkSafe("message", [
-          {
-            id: uuidv4(),
-            userId: response.memberOut.id,
-            organizationId: this._account!.organizationId,
-            userDid: this._account!.did,
-            conversationId: response.conversationId,
-            content: "",
-            reactions: [],
-            isImportant: false,
-            type: "LEFT",
-            origin: "SYSTEM",
-            messageRoot: null,
-            messageRootId: null,
-            createdAt: new Date(),
-            updateAt: null,
-            deletedAt: null,
-          },
-        ])
+        this._storage.insertBulkSafe("message", [message])
+
+        this._emit("messageReceived", {
+          message,
+          conversationId,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onLeaveConversationSync() -> ", error)
+      this._emit("memberLeftError", error)
+      this._emit("messageReceivedError", error)
     }
   }
 
@@ -1412,9 +1460,13 @@ export class Chat
     //TODO socket notification handling
     try {
       if (!(response instanceof QIError)) {
+        this._emit("conversationMuted", {
+          conversation: response,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onMuteConversationSync() -> ", error)
+      this._emit("conversationMutedError", error)
     }
   }
 
@@ -1433,9 +1485,13 @@ export class Chat
     //TODO socket notification handling
     try {
       if (!(response instanceof QIError)) {
+        this._emit("conversationUnmuted", {
+          conversation: response,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onUnmuteConversationSync() -> ", error)
+      this._emit("conversationMutedError", error)
     }
   }
 
