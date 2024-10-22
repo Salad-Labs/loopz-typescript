@@ -95,7 +95,6 @@ import {
   SubscriptionOnUpdateUserArgs,
   SubscriptionOnRequestTradeArgs,
   SubscriptionOnDeleteRequestTradeArgs,
-  SubscriptionOnAddMembersToConversationArgs,
   QueryListMessagesImportantByUserConversationIdArgs,
   ListMessagesImportantByUserConversationIdResult as ListMessagesImportantByUserConversationIdResultGraphQL,
   QueryListConversationsPinnedByCurrentUserArgs,
@@ -103,9 +102,6 @@ import {
   QueryListConversationMemberByUserIdArgs,
   ListConversationMemberByUserIdResult as ListConversationMemberByUserIdResultGraphQL,
   SubscriptionOnUnmuteConversationArgs,
-  MutationAddMemberToConversationArgs,
-  AddMemberToConversationResult as AddMemberToConversationResultGraphQL,
-  SubscriptionOnAddMemberToConversationArgs,
   BatchDeleteMessagesResult as BatchDeleteMessagesResultGraphQL,
   SubscriptionOnBatchDeleteMessagesArgs,
   MemberOutResult as MemberOutResultGraphQL,
@@ -187,7 +183,6 @@ import {
   UpdateUserArgs,
   AddMembersToConversationArgs,
   EjectMemberArgs,
-  AddMemberToConversationArgs,
   UpdateRequestTradeArgs,
   ListTradesByConversationIdArgs,
 } from "./types/chat/schema/args"
@@ -213,7 +208,6 @@ import {
   onDeleteRequestTrade,
   onUpdateRequestTrade,
   onAddMembersToConversation,
-  onAddMemberToConversation,
   onBatchDeleteMessages,
 } from "./constants/chat/subscriptions"
 import { OperationResult } from "@urql/core"
@@ -267,7 +261,7 @@ export class Chat
 
   private _unsubscribeSyncSet: Array<{
     type:
-      | "onAddMemberToConversation"
+      | "onAddMembersToConversation"
       | "onAddReaction"
       | "onSendMessage"
       | "onEditMessage"
@@ -943,19 +937,19 @@ export class Chat
     }, Chat.SYNCING_TIME)
   }
 
-  private async _onAddMemberToConversationSync(
+  private async _onAddMembersToConversationSync(
     response:
       | QIError
       | {
           conversationId: string
-          memberId: string
-          item: ConversationMember
+          membersIds: Array<string>
+          items: Array<ConversationMember>
         },
     source: OperationResult<
       {
-        onAddMemberToConversation: AddMemberToConversationResultGraphQL
+        onAddMembersToConversation: ListConversationMembersGraphQL
       },
-      SubscriptionOnAddMemberToConversationArgs & {
+      {
         jwt: string
       }
     >,
@@ -964,11 +958,14 @@ export class Chat
     try {
       if (!(response instanceof QIError)) {
         //we need to update the _keyPairsMap with the new keys of the new conversation
-        const { conversationId } = response
+        const { conversationId, items } = response
+        const item = items.find(
+          (item) => item.userId === this._account?.dynamoDBUserID
+        )
         const {
           encryptedConversationPrivateKey,
           encryptedConversationPublicKey,
-        } = response.item
+        } = item!
         //these pair is encrypted with the public key of the current user, so we need to decrypt them
         const conversationPrivateKeyPem = Crypto.decryptStringOrFail(
           this._userKeyPair!.privateKey,
@@ -1015,7 +1012,7 @@ export class Chat
 
           //this is an additional check that it's used to avoid to add the subscriptions to a conversation that potentially
           //could have them already. This could happen potentially if the _sync() is executed
-          //immediately before the _onAddMemberToConversationSync() in the javascript event loop
+          //immediately before the _onAddMembersToConversationSync() in the javascript event loop
           const subscriptionConversationCheck = {
             conversationWasActive: false,
           }
@@ -1070,7 +1067,7 @@ export class Chat
         }
       }
     } catch (error) {
-      console.log("[ERROR]: _onAddMemberToConversationSync() -> ", error)
+      console.log("[ERROR]: _onAddMembersToConversationSync() -> ", error)
     }
   }
 
@@ -1894,44 +1891,6 @@ export class Chat
     }
 
     return listConversationMembers
-  }
-
-  async addMemberToConversation(
-    args: AddMemberToConversationArgs
-  ): Promise<ConversationMember | QIError> {
-    const response = await this._mutation<
-      MutationAddMemberToConversationArgs,
-      { addMemberToConversation: AddMemberToConversationResultGraphQL },
-      AddMemberToConversationResultGraphQL
-    >(
-      "addMembersToConversation",
-      addMembersToConversation,
-      "_mutation() -> addMembersToConversation()",
-      {
-        input: {
-          conversationId: (args as AddMemberToConversationArgs).id,
-          member: (args as AddMemberToConversationArgs).member,
-        },
-      }
-    )
-
-    if (response instanceof QIError) return response
-
-    return new ConversationMember({
-      ...this._parentConfig!,
-      id: response.item.id,
-      conversationId: response.item.conversationId,
-      userId: response.item.userId,
-      type: response.item.type,
-      encryptedConversationPublicKey:
-        response.item.encryptedConversationPublicKey,
-      encryptedConversationPrivateKey:
-        response.item.encryptedConversationPrivateKey,
-      createdAt: response.item.createdAt,
-      updatedAt: response.item.updatedAt,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-    })
   }
 
   async pinMessage(): Promise<Message | QIError>
@@ -6274,23 +6233,26 @@ export class Chat
   }
 
   onAddMembersToConversation(
-    conversationId: string,
     callback: (
       response:
         | QIError
-        | { conversationId: string; items: ConversationMember[] },
+        | {
+            conversationId: string
+            items: ConversationMember[]
+            membersIds: Array<string>
+          },
       source: OperationResult<
         { onAddMembersToConversation: ListConversationMembersGraphQL },
-        SubscriptionOnAddMembersToConversationArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void
   ): QIError | SubscriptionGarbage {
     const key = "onAddMembersToConversation"
     const metasubcription = this._subscription<
-      SubscriptionOnAddMembersToConversationArgs,
+      null,
       { onAddMembersToConversation: ListConversationMembersGraphQL }
-    >(onAddMembersToConversation, key, { conversationId })
+    >(onAddMembersToConversation, key, null)
 
     if (metasubcription instanceof QIError) return metasubcription
 
@@ -6327,72 +6289,7 @@ export class Chat
               realtimeClient: this._realtimeClient!,
             })
           }),
-        },
-        result,
-        uuid
-      )
-    })
-
-    return { unsubscribe, uuid }
-  }
-
-  onAddMemberToConversation(
-    memberId: string,
-    callback: (
-      response:
-        | QIError
-        | {
-            conversationId: string
-            memberId: string
-            item: ConversationMember
-          },
-      source: OperationResult<
-        { onAddMemberToConversation: AddMemberToConversationResultGraphQL },
-        SubscriptionOnAddMemberToConversationArgs & { jwt: string }
-      >,
-      uuid: string
-    ) => void
-  ): QIError | SubscriptionGarbage {
-    const key = "onAddMemberToConversation"
-    const metasubcription = this._subscription<
-      SubscriptionOnAddMemberToConversationArgs,
-      { onAddMemberToConversation: AddMemberToConversationResultGraphQL }
-    >(onAddMemberToConversation, key, { memberId })
-
-    if (metasubcription instanceof QIError) return metasubcription
-
-    const { subscribe, uuid } = metasubcription
-    const { unsubscribe } = subscribe((result) => {
-      const r = this._handleResponse<
-        typeof key,
-        { onAddMemberToConversation: AddMemberToConversationResultGraphQL },
-        AddMemberToConversationResultGraphQL
-      >("onAddMemberToConversation", result)
-
-      if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
-      }
-
-      callback(
-        {
-          conversationId: r.conversationId,
-          memberId: r.memberId,
-          item: new ConversationMember({
-            ...this._parentConfig!,
-            id: r.item.id,
-            conversationId: r.item.conversationId,
-            userId: r.item.userId,
-            type: r.item.type,
-            encryptedConversationPublicKey:
-              r.item.encryptedConversationPublicKey,
-            encryptedConversationPrivateKey:
-              r.item.encryptedConversationPrivateKey,
-            createdAt: r.item.createdAt,
-            updatedAt: r.item.updatedAt,
-            client: this._client!,
-            realtimeClient: this._realtimeClient!,
-          }),
+          membersIds: r.membersIds,
         },
         result,
         uuid
@@ -6703,15 +6600,14 @@ export class Chat
 
     //add member to conversation. This event is global, basically the user is always listening if
     //someone wants to add him into a conversation.
-    const onAddMemberToConversation = this.onAddMemberToConversation(
-      this._account!.dynamoDBUserID,
-      this._onAddMemberToConversationSync
+    const onAddMembersToConversation = this.onAddMembersToConversation(
+      this._onAddMembersToConversationSync
     )
 
-    if (!(onAddMemberToConversation instanceof QIError)) {
-      const { unsubscribe, uuid } = onAddMemberToConversation
+    if (!(onAddMembersToConversation instanceof QIError)) {
+      const { unsubscribe, uuid } = onAddMembersToConversation
       this._unsubscribeSyncSet.push({
-        type: "onAddMemberToConversation",
+        type: "onAddMembersToConversation",
         unsubscribe,
         uuid,
         conversationId: "", //this value is updated inside the callback fired by the subscription
