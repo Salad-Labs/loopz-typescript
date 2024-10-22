@@ -175,7 +175,7 @@ export class Proposal extends Client {
   ): Promise<Maybe<ListProposalsResponse>> {
     const filtersInput = filtersOptions ? { ...filtersOptions } : null
 
-    let filters = null
+    let filters: any = null
     if (filtersInput) {
       try {
         validateListProposalsFilters(filtersInput)

@@ -156,9 +156,9 @@ export class Loopz {
     }
   ): Promise<Loopz> {
     if (!Loopz._instance) {
-      let runAdapter = undefined
-      let enableStorage = undefined
-      let devMode = undefined
+      let runAdapter: boolean | undefined = undefined
+      let enableStorage: boolean | undefined = undefined
+      let devMode: boolean | undefined = undefined
 
       if (options && "runAdapter" in options) runAdapter = options.runAdapter
       if (options && "enableStorage" in options)
