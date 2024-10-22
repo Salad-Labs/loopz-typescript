@@ -2,9 +2,9 @@ import { useCallback, useContext } from "react"
 import { LoopzAuthContext } from "../context/loopzauthcontext"
 import { UseLoopzAuth } from "../../types/react/useloopzauth"
 import { AuthLinkMethod } from "@src/types/auth/authlinkmethod"
-import { NotInitializedError } from "../../errors/NotInitializedError"
-import { AuthLoadingError } from "../../errors/AuthLoadingError"
-import { UnauthenticatedError } from "../../errors/UnauthenticatedError"
+import { NotInitializedError } from "@src/errors/NotInitializedError"
+import { LoadingError } from "@src/errors/AuthLoadingError"
+import { UnauthenticatedError } from "@src/errors/UnauthenticatedError"
 import { LoopzContext } from "../context/loopzcontext"
 
 export const useLoopzAuth: UseLoopzAuth = () => {
@@ -18,7 +18,7 @@ export const useLoopzAuth: UseLoopzAuth = () => {
 
   const authenticate = useCallback(() => {
     if (!initialized) throw new NotInitializedError()
-    if (isLoading) throw new AuthLoadingError("authenticate()")
+    if (isLoading) throw new LoadingError("authenticate()", "Auth")
 
     return !isAuthenticated
       ? instance.auth.authenticate()
@@ -32,7 +32,7 @@ export const useLoopzAuth: UseLoopzAuth = () => {
     (method: AuthLinkMethod) => {
       if (!initialized) throw new NotInitializedError()
       if (!isAuthenticated) throw new UnauthenticatedError()
-      if (isLoading) throw new AuthLoadingError("link()")
+      if (isLoading) throw new LoadingError("link()", "Auth")
 
       return instance.auth.link(method)
     },
@@ -79,7 +79,7 @@ export const useLoopzAuth: UseLoopzAuth = () => {
     (method: AuthLinkMethod) => {
       if (!initialized) throw new NotInitializedError()
       if (!isAuthenticated) throw new UnauthenticatedError()
-      if (isLoading) throw new AuthLoadingError("unlink()")
+      if (isLoading) throw new LoadingError("unlink()", "Auth")
 
       return instance.auth.unlink(method)
     },
@@ -89,7 +89,7 @@ export const useLoopzAuth: UseLoopzAuth = () => {
   const logout = useCallback(() => {
     if (!initialized) throw new NotInitializedError()
     if (!isAuthenticated) throw new UnauthenticatedError()
-    if (isLoading) throw new AuthLoadingError("logout()")
+    if (isLoading) throw new LoadingError("logout()", "Auth")
 
     return instance.auth.logout()
   }, [initialized, isAuthenticated, isLoading, instance])
