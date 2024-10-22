@@ -21,8 +21,9 @@ export const LoopzChatProvider: FC<
   const hasStartedConnection = useRef(false)
   const hasStartedSynchronization = useRef(false)
   const [chatStatus, setChatStatus] = useState({
-    isLoading: true,
+    isConnecting: true,
     isConnected: false,
+    isSynching: false,
     isSynched: false,
   })
 
@@ -48,25 +49,39 @@ export const LoopzChatProvider: FC<
 
     if (!autoConnect)
       return setChatStatus({
-        isLoading: false,
+        isConnecting: false,
         isConnected: false,
+        isSynching: false,
         isSynched: false,
       })
 
     instance.chat
       .connect()
       .then(() =>
-        setChatStatus({ isLoading: false, isConnected: true, isSynched: false })
+        setChatStatus({
+          isConnecting: false,
+          isConnected: true,
+          isSynching: autoSync ?? false,
+          isSynched: false,
+        })
       )
       .catch(() => {
         hasStartedConnection.current = false
         setChatStatus({
-          isLoading: false,
+          isConnecting: false,
           isConnected: false,
+          isSynching: false,
           isSynched: false,
         })
       })
-  }, [initialized, isAuthenticated, chatStatus, autoConnect, instance])
+  }, [
+    initialized,
+    isAuthenticated,
+    chatStatus,
+    autoConnect,
+    instance,
+    autoSync,
+  ])
 
   useEffect(() => {
     if (
@@ -80,19 +95,30 @@ export const LoopzChatProvider: FC<
 
     if (!autoSync)
       return setChatStatus({
-        isLoading: false,
+        isConnecting: false,
         isConnected: true,
+        isSynching: false,
         isSynched: false,
       })
 
     instance.chat
       .sync()
       .then(() =>
-        setChatStatus({ isLoading: false, isConnected: true, isSynched: true })
+        setChatStatus({
+          isConnecting: false,
+          isConnected: true,
+          isSynching: false,
+          isSynched: true,
+        })
       )
       .catch(() => {
         hasStartedSynchronization.current = false
-        setChatStatus({ isLoading: false, isConnected: true, isSynched: false })
+        setChatStatus({
+          isConnecting: false,
+          isConnected: true,
+          isSynching: false,
+          isSynched: false,
+        })
       })
   }, [initialized, chatStatus, autoSync, instance])
 
