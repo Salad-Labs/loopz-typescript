@@ -950,6 +950,13 @@ export class Auth extends Client implements AuthInternalEvents {
     if (config.storage) this._storage = config.storage
   }
 
+  /**
+   * Add a new event and the associated callback.
+   * @param {AuthEvents} event - The event to listen.
+   * @param {Function} callback - The callback related to this event.
+   * @param {boolean} onlyOnce - An optional flag, it allows the adding of only one callback associated to this event.
+   * @returns None
+   */
   on(event: AuthEvents, callback: Function, onlyOnce?: boolean) {
     const index = this._eventsCallbacks.findIndex((item) => {
       return item.event === event
@@ -966,6 +973,12 @@ export class Auth extends Client implements AuthInternalEvents {
     }
   }
 
+  /**
+   * Remove an event and the associated callback or all the callbacks associated to that event.
+   * @param {AuthEvents} event - The event to unlisten.
+   * @param {Function} callback - The callback related to this event.
+   * @returns None
+   */
   off(event: AuthEvents, callback?: Function) {
     const index = this._eventsCallbacks.findIndex((item) => {
       return item.event === event

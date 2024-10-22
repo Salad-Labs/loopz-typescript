@@ -305,6 +305,8 @@ export class Chat
 
   private _hookConversationUpdated: boolean = false
 
+  private _syncRunning: boolean = false
+
   private _hookMessageCreatingFn: (
     primaryKey: string,
     record: LocalDBMessage
@@ -851,7 +853,8 @@ export class Chat
     )
 
     if (!activeConversations || !unactiveConversations) {
-      this._emit("syncError", { error: `error during conversation sincying.` })
+      this._emit("syncError", { error: `error during conversation syncing.` })
+      this.unsync()
       return
     }
 
@@ -861,6 +864,7 @@ export class Chat
       this._emit("syncError", {
         error: `error during recovering of the keys from conversations.`,
       })
+      this.unsync()
       return
     }
 
@@ -874,6 +878,7 @@ export class Chat
       this._emit("syncError", {
         error: `error during recovering of the messages from conversations.`,
       })
+      this.unsync()
       return
     }
 
@@ -928,9 +933,12 @@ export class Chat
     if (!this._hookConversationUpdated) this._onConversationUpdatedLDB()
 
     this._isSyncing = false
-    this._syncingCounter++
 
-    if (syncingCounter > 0) this._emit("syncUpdate", this._syncingCounter)
+    syncingCounter === 0
+      ? this._emit("sync")
+      : this._emit("syncUpdate", this._syncingCounter)
+
+    this._syncingCounter++
 
     this._syncTimeout = setTimeout(async () => {
       await this._sync(this._syncingCounter)
@@ -6605,19 +6613,35 @@ export class Chat
 
   /** Chat events methods */
 
-  on(event: ChatEvents, callback: Function) {
+  /**
+   * Add a new event and the associated callback.
+   * @param {AuthEvents} event - The event to listen.
+   * @param {Function} callback - The callback related to this event.
+   * @param {boolean} onlyOnce - An optional flag, it allows the adding of only one callback associated to this event.
+   * @returns None
+   */
+  on(event: ChatEvents, callback: Function, onlyOnce?: boolean) {
     const index = this._eventsCallbacks.findIndex((item) => {
       return item.event === event
     })
 
-    if (index > -1) this._eventsCallbacks[index].callbacks.push(callback)
-    else
+    if (index < 0)
       this._eventsCallbacks.push({
         event,
         callbacks: [callback],
       })
+    else {
+      if (onlyOnce) return
+      this._eventsCallbacks[index].callbacks.push(callback)
+    }
   }
 
+  /**
+   * Remove an event and the associated callback or all the callbacks associated to that event.
+   * @param {AuthEvents} event - The event to unlisten.
+   * @param {Function} callback - The callback related to this event.
+   * @returns None
+   */
   off(event: ChatEvents, callback?: Function) {
     const index = this._eventsCallbacks.findIndex((item) => {
       return item.event === event
@@ -6632,17 +6656,16 @@ export class Chat
 
   /** Syncing methods */
 
+  /**
+   * Sync the current client with the backend.
+   * @returns {Promise<void>}
+   */
   async sync(): Promise<void> {
     if (!this._account)
       throw new Error("You must be authenticated before to sync.")
     if (!this._storage.isStorageEnabled())
       throw new Error("sync() is available only if you enable the storage.")
-    if (
-      this._eventsCallbacks.findIndex((item) => {
-        return item.event === "sync"
-      }) > -1
-    )
-      throw new Error("You have already launched sync().")
+    if (this._syncRunning) throw new Error("You have already launched sync().")
     if (!this._isConnected)
       throw new Error(
         "You must be connected in order to call sync(). Call connect() first..."
@@ -6652,6 +6675,10 @@ export class Chat
         "This client cannot start to chat. Are you missing to pairing the keys?"
       )
 
+    //we're running sync
+    this._syncRunning = true
+
+    //let's call all the logics
     await this._sync(this._syncingCounter)
 
     //add member to conversation. This event is global, basically the user is always listening if
@@ -6678,18 +6705,32 @@ export class Chat
     }
   }
 
+  /**
+   * An utility event method that allows the client to track the activity of the Chat object, while it's syncing with the backend.
+   * @param {Function} callback - the callback that will run once the Chat object is syncing with the backend
+   * @returns none
+   */
   syncing(callback: (isSyncing: boolean, syncingCounter: number) => void) {
     this.on("syncing", (syncingCounter: number) => {
       callback(this._isSyncing, syncingCounter)
     })
   }
 
+  /**
+   * An utility event method that allows the client to track the activity of the Chat object, once it's performed a new sync with the backend.
+   * @param {Function} callback - the callback that will run once the Chat object has performed another sync with the backend
+   * @returns none
+   */
   syncUpdate(callback: (syncingCounter: number) => void) {
     this.on("syncUpdate", (syncingCounter: number) => {
       callback(syncingCounter)
     })
   }
 
+  /**
+   * Unsync the client.
+   * @returns none
+   */
   unsync() {
     if (this._syncTimeout) clearTimeout(this._syncTimeout)
     this._isSyncing = false
@@ -6702,8 +6743,13 @@ export class Chat
     this._conversationsMap = []
     this._keyPairsMap = []
     this._userKeyPair = null
+    this._syncRunning = false
   }
 
+  /**
+   * Check if the current Chat object is currently syncing with the backend.
+   * @returns {boolean} isSyncing
+   */
   isSyncing() {
     return this._isSyncing
   }
