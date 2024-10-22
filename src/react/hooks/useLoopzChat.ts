@@ -1,5 +1,5 @@
 import { useCallback, useContext } from "react"
-import { UseLoopzChat } from "@src/types/react/useloopzchat"
+import { UseLoopzChat } from "../../types/react/useloopzchat"
 import { LoopzChatContext } from "../context/loopzchatcontext"
 import { NotInitializedError } from "@src/errors/NotInitializedError"
 import { UnauthenticatedError } from "@src/errors/UnauthenticatedError"
