@@ -894,7 +894,7 @@ export class Chat
           conversation: unactiveConversation,
         })
     } else {
-      //this situation happens when a subscription between onAddMemberToConversation, onEjectMember, onLeaveConversation doesn't fire properly.
+      //this situation happens when a subscription between onAddMembersToConversation, onEjectMember, onLeaveConversation doesn't fire properly.
       //here we can check if there are differences between the previous sync and the current one
       //theoretically since we have subscriptions, we should be in a situation in which we don't have any difference
       //since the subscription role is to keep the array _conversationsMap synchronized.

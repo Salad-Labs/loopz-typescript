@@ -8,7 +8,6 @@ import {
 } from "../../../../core/chat"
 import {
   AddMembersToConversationArgs,
-  AddMemberToConversationArgs,
   AddReportToConversationArgs,
   EjectMemberArgs,
   MuteConversationArgs,
