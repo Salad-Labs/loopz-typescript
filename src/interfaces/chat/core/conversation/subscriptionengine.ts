@@ -9,8 +9,6 @@ import { SubscriptionGarbage } from "../../../../types/chat/subscriptiongarbage"
 import {
   Conversation as ConversationGraphQL,
   ListConversationMembers as ListConversationMembersGraphQL,
-  SubscriptionOnAddMembersToConversationArgs,
-  SubscriptionOnAddMemberToConversationArgs,
   SubscriptionOnAddPinConversationArgs,
   SubscriptionOnEjectMemberArgs,
   SubscriptionOnLeaveConversationArgs,
@@ -18,7 +16,6 @@ import {
   SubscriptionOnRemovePinConversationArgs,
   SubscriptionOnUnmuteConversationArgs,
   SubscriptionOnUpdateConversationGroupArgs,
-  AddMemberToConversationResult as AddMemberToConversationResultGraphQL,
   MemberOutResult as MemberOutResultGraphQL,
 } from "../../../../graphql/generated/graphql"
 
@@ -117,31 +114,17 @@ export interface ConversationSubscriptionEngine {
     ) => void
   ): QIError | SubscriptionGarbage
   onAddMembersToConversation(
-    conversationId: string,
-    callback: (
-      response:
-        | QIError
-        | { conversationId: string; items: Array<ConversationMember> },
-      source: OperationResult<
-        { onAddMembersToConversation: ListConversationMembersGraphQL },
-        SubscriptionOnAddMembersToConversationArgs & { jwt: string }
-      >,
-      uuid: string
-    ) => void
-  ): QIError | SubscriptionGarbage
-  onAddMemberToConversation(
-    conversationId: string,
     callback: (
       response:
         | QIError
         | {
             conversationId: string
-            memberId: string
-            item: ConversationMember
+            items: Array<ConversationMember>
+            membersIds: Array<string>
           },
       source: OperationResult<
-        { onAddMemberToConversation: AddMemberToConversationResultGraphQL },
-        SubscriptionOnAddMemberToConversationArgs & { jwt: string }
+        { onAddMembersToConversation: ListConversationMembersGraphQL },
+        { jwt: string }
       >,
       uuid: string
     ) => void

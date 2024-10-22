@@ -32,8 +32,6 @@ import {
   MutationAddPinToConversationArgs,
   MutationRemovePinFromConversationArgs,
   User as UserGraphQL,
-  MutationAddMemberToConversationArgs,
-  AddMemberToConversationResult as AddMemberToConversationResultGraphQL,
   MemberOutResult as MemberOutResultGraphQL,
 } from "../../graphql/generated/graphql"
 import {
@@ -44,7 +42,6 @@ import { ConversationInitConfig } from "../../types/chat/core/conversation"
 import { ConversationSchema } from "../../interfaces/chat/schema"
 import {
   AddMembersToConversationArgs,
-  AddMemberToConversationArgs,
   AddReportToConversationArgs,
   EjectMemberArgs,
   MuteConversationArgs,
@@ -323,7 +320,12 @@ export class Conversation
   async addMembersToConversation(
     args: Pick<AddMembersToConversationArgs, "members">
   ): Promise<
-    QIError | { conversationId: string; items: ConversationMember[] }
+    | QIError
+    | {
+        conversationId: string
+        items: ConversationMember[]
+        membersIds: Array<string>
+      }
   > {
     const response = await this._mutation<
       MutationAddMembersToConversationArgs,
@@ -346,6 +348,7 @@ export class Conversation
     const listConversations: {
       conversationId: string
       items: Array<ConversationMember>
+      membersIds: Array<string>
     } = {
       conversationId: response.conversationId,
       items: response.items.map((item) => {
@@ -363,53 +366,10 @@ export class Conversation
           realtimeClient: this._realtimeClient!,
         })
       }),
+      membersIds: response.membersIds,
     }
 
     return listConversations
-  }
-
-  /**
-   * Asynchronously adds members to a conversation.
-   * @param {Pick<AddMemberToConversationArgs, "member">} args - An object containing the member IDs to add to the conversation.
-   * @returns {Promise<QIError | { conversationId: string; items: ConversationMember[] }>} A promise that resolves to either a QIError object if there was an error, or an object containing the conversation ID and an array of ConversationMember objects.
-   */
-
-  async addMemberToConversation(
-    args: AddMemberToConversationArgs
-  ): Promise<ConversationMember | QIError> {
-    const response = await this._mutation<
-      MutationAddMemberToConversationArgs,
-      { addMemberToConversation: AddMemberToConversationResultGraphQL },
-      AddMemberToConversationResultGraphQL
-    >(
-      "addMembersToConversation",
-      addMembersToConversation,
-      "_mutation() -> addMembersToConversation()",
-      {
-        input: {
-          conversationId: (args as AddMemberToConversationArgs).id,
-          member: (args as AddMemberToConversationArgs).member,
-        },
-      }
-    )
-
-    if (response instanceof QIError) return response
-
-    return new ConversationMember({
-      ...this._parentConfig!,
-      id: response.item.id,
-      conversationId: response.item.conversationId,
-      userId: response.item.userId,
-      type: response.item.type,
-      encryptedConversationPublicKey:
-        response.item.encryptedConversationPublicKey,
-      encryptedConversationPrivateKey:
-        response.item.encryptedConversationPrivateKey,
-      createdAt: response.item.createdAt,
-      updatedAt: response.item.updatedAt,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-    })
   }
 
   /**

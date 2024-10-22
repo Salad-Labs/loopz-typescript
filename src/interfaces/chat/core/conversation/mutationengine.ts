@@ -8,7 +8,6 @@ import {
 } from "../../../../core/chat"
 import {
   AddMembersToConversationArgs,
-  AddMemberToConversationArgs,
   AddReportToConversationArgs,
   EjectMemberArgs,
   MuteConversationArgs,
@@ -26,9 +25,6 @@ export interface ConversationMutationEngine {
   ): Promise<
     { conversationId: string; items: Array<ConversationMember> } | QIError
   >
-  addMemberToConversation(
-    args: AddMemberToConversationArgs
-  ): Promise<ConversationMember | QIError>
   addReportToConversation(
     args: AddReportToConversationArgs
   ): Promise<ConversationReport | QIError>
