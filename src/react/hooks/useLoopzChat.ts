@@ -17,58 +17,72 @@ export const useLoopzChat: UseLoopzChat = () => {
 
   const { initialized, instance } = loopzContext
   const { isAuthenticated } = authContext
-  const { isLoading, isConnected, isSynched, setIsConnected, setIsSynched } =
-    chatContext
+  const {
+    isConnecting,
+    isConnected,
+    isSynching,
+    isSynched,
+    setIsConnected,
+    setIsSynched,
+  } = chatContext
 
   const connect = useCallback(() => {
     if (!initialized) throw new NotInitializedError()
     if (!isAuthenticated) throw new UnauthenticatedError()
-    if (isLoading) throw new LoadingError("connect()", "Chat")
+    if (isConnecting) throw new LoadingError("connect()", "Chat")
 
     return !isConnected
       ? instance.chat
           .connect()
           .finally(() => setIsConnected(instance.chat.isConnected()))
       : Promise.resolve()
-  }, [initialized, isAuthenticated, isLoading, isConnected, instance])
+  }, [initialized, isAuthenticated, isConnecting, isConnected, instance])
 
   const reconnect = useCallback(() => {
     if (!initialized) throw new NotInitializedError()
     if (!isAuthenticated) throw new UnauthenticatedError()
-    if (isLoading) throw new LoadingError("reconnect()", "Chat")
+    if (isConnecting) throw new LoadingError("reconnect()", "Chat")
     if (!isConnected) throw new NotConnectedError()
 
     return instance.chat.reconnect()
-  }, [initialized, isAuthenticated, isLoading, isConnected, instance])
+  }, [initialized, isAuthenticated, isConnecting, isConnected, instance])
 
   const disconnect = useCallback(() => {
     if (!initialized) throw new NotInitializedError()
     if (!isAuthenticated) throw new UnauthenticatedError()
-    if (isLoading) throw new LoadingError("disconnect()", "Chat")
+    if (isConnecting) throw new LoadingError("disconnect()", "Chat")
     if (!isConnected) throw new NotConnectedError()
 
     return instance.chat.disconnect()
-  }, [initialized, isAuthenticated, isLoading, isConnected, instance])
+  }, [initialized, isAuthenticated, isConnecting, isConnected, instance])
 
   const sync = useCallback(() => {
     if (!initialized) throw new NotInitializedError()
     if (!isAuthenticated) throw new UnauthenticatedError()
-    if (isLoading) throw new LoadingError("disconnect()", "Chat")
+    if (isConnecting) throw new LoadingError("sync()", "Chat")
     if (!isConnected) throw new NotConnectedError()
+    if (isSynching) throw new LoadingError("sync()", "Chat")
 
-    return !isSynched ? instance.chat.sync() : Promise.resolve()
+    return !isSynched
+      ? instance.chat
+          .sync()
+          .then(() => setIsSynched(true))
+          .catch(() => setIsSynched(false))
+      : Promise.resolve()
   }, [
     initialized,
     isAuthenticated,
-    isLoading,
+    isConnecting,
     isConnected,
+    isSynching,
     isSynched,
     instance,
   ])
 
   return {
-    isLoading,
+    isConnecting,
     isConnected,
+    isSynching,
     isSynched,
     connect,
     reconnect,
