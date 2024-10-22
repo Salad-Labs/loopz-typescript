@@ -1,6 +1,5 @@
 import { Client } from "@urql/core"
-import { Maybe } from "../../../../types/base"
-import UUIDSubscriptionClient from "@src/core/chat/uuidsubscriptionclient"
+import UUIDSubscriptionClient from "../../../../core/chat/uuidsubscriptionclient"
 
 /**
  * Represents the initialization configuration for a conversation member.

@@ -1,4 +1,4 @@
-import { Maybe } from "@src/types"
+import { Maybe } from "../types"
 import { HTTPRequestInit, HTTPResponse } from "../interfaces/base"
 import { Account } from "./app"
 import { getAccessToken } from "@privy-io/react-auth"

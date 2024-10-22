@@ -1,10 +1,10 @@
 import { useCallback, useContext } from "react"
 import { LoopzAuthContext } from "../context/loopzauthcontext"
 import { UseLoopzAuth } from "../../types/react/useloopzauth"
-import { AuthLinkMethod } from "@src/types/auth/authlinkmethod"
-import { NotInitializedError } from "@src/errors/NotInitializedError"
-import { LoadingError } from "@src/errors/AuthLoadingError"
-import { UnauthenticatedError } from "@src/errors/UnauthenticatedError"
+import { AuthLinkMethod } from "../../types/auth/authlinkmethod"
+import { NotInitializedError } from "../../errors/NotInitializedError"
+import { LoadingError } from "../../errors/AuthLoadingError"
+import { UnauthenticatedError } from "../../errors/UnauthenticatedError"
 import { LoopzContext } from "../context/loopzcontext"
 
 export const useLoopzAuth: UseLoopzAuth = () => {

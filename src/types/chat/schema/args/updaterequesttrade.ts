@@ -1,4 +1,4 @@
-import { ConversationTradingPoolStatus } from "@src/enums"
+import { ConversationTradingPoolStatus } from "../../../../enums"
 
 /**
  * Represents the arguments needed to update a request a trade.

@@ -1,4 +1,4 @@
-import { AccountEngine, AccountSchema } from "@src/interfaces/auth"
+import { AccountEngine, AccountSchema } from "../../interfaces/auth"
 import { Maybe, Network } from "../../types"
 import { AccountInitConfig } from "../../types/auth/account"
 import { ConnectedWallet, EIP1193Provider } from "@privy-io/react-auth"
@@ -7,10 +7,10 @@ import { encodeFunctionData } from "viem"
 import { erc1155Abi, erc20Abi, erc721Abi } from "../../constants"
 import { Client } from "../client"
 import { QIError } from ".."
-import { ApiResponse } from "@src/types/base/apiresponse"
+import { ApiResponse } from "../../types/base/apiresponse"
 import { DexieStorage } from "../app"
-import { Chat } from "@src/chat"
-import { AddGroupFrom, ReceiveMessageFrom, UserOnlineStatus } from "@src/enums"
+import { Chat } from "../../chat"
+import { AddGroupFrom, ReceiveMessageFrom, UserOnlineStatus } from "../../enums"
 
 export class Account extends Client implements AccountSchema, AccountEngine {
   readonly did: string

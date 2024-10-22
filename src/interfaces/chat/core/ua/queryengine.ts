@@ -12,7 +12,7 @@ import {
   ListAllActiveUserConversationIdsArgs,
   ListMessagesByConversationIdArgs,
   ListMessagesImportantByUserConversationIdArgs,
-} from "@src/types"
+} from "../../../../types"
 
 /**
  * Interface for a User Query Engine that provides methods to interact with user conversations and messages.

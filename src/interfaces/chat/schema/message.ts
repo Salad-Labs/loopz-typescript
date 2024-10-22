@@ -1,6 +1,6 @@
-import { Reaction } from "@src/core/chat/reaction"
+import { Reaction } from "../../../core/chat/reaction"
 import { Maybe } from "../../../types/base"
-import { Message } from "@src/core"
+import { Message } from "../../../core"
 
 /**
  * Represents the schema for a message in a conversation.

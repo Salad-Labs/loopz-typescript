@@ -4,7 +4,7 @@
  */
 import { Client } from "@urql/core"
 import { Message } from "../../../../core/chat"
-import UUIDSubscriptionClient from "@src/core/chat/uuidsubscriptionclient"
+import UUIDSubscriptionClient from "../../../../core/chat/uuidsubscriptionclient"
 
 export type MessageImportantInitConfig = {
   /**

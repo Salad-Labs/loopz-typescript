@@ -13,9 +13,6 @@
     "allowUnreachableCode": true,
     "moduleResolution": "node",
     "baseUrl": ".",
-    "paths": {
-      "@src/*": ["src/*"]
-    },
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "jsx": "react",

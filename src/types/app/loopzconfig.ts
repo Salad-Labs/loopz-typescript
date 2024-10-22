@@ -1,5 +1,5 @@
 import { PrivyClientConfig } from "@privy-io/react-auth"
-import { DexieStorage } from "@src/core/app"
+import { DexieStorage } from "../../core/app"
 
 export type LoopzConfig = {
   apiKey: string

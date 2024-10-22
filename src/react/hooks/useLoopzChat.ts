@@ -1,12 +1,12 @@
 import { useCallback, useContext } from "react"
 import { UseLoopzChat } from "../../types/react/useloopzchat"
 import { LoopzChatContext } from "../context/loopzchatcontext"
-import { NotInitializedError } from "@src/errors/NotInitializedError"
-import { UnauthenticatedError } from "@src/errors/UnauthenticatedError"
-import { NotConnectedError } from "@src/errors/NotConnectedError"
+import { NotInitializedError } from "../../errors/NotInitializedError"
+import { UnauthenticatedError } from "../../errors/UnauthenticatedError"
+import { NotConnectedError } from "../../errors/NotConnectedError"
 import { LoopzContext } from "../context/loopzcontext"
 import { LoopzAuthContext } from "../context/loopzauthcontext"
-import { LoadingError } from "@src/errors/AuthLoadingError"
+import { LoadingError } from "../../errors/AuthLoadingError"
 
 export const useLoopzChat: UseLoopzChat = () => {
   const loopzContext = useContext(LoopzContext)

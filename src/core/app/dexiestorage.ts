@@ -2,7 +2,7 @@ import {
   LocalDBConversation,
   LocalDBMessage,
   LocalDBUser,
-} from "@src/core/app/database"
+} from "../../core/app/database"
 import { BaseStorage } from "./basestorage"
 import { CreateOrConnectDexieArgs } from "../../types/app"
 import Dexie, { Table } from "dexie"

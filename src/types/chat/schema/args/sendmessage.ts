@@ -1,4 +1,4 @@
-import { Asset } from "@src/types/base"
+import { Asset } from "../../../../types/base"
 import { MessageType } from "../../../../enums/chat/messagetype"
 
 /**

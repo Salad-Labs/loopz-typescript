@@ -1,7 +1,7 @@
 "use client"
 
 import { FC } from "react"
-import { PrivyWrapperProps } from "@src/interfaces/adapter/privywrapperprops"
+import { PrivyWrapperProps } from "../../interfaces/adapter/privywrapperprops"
 import { usePrivyLinkAccount } from "../hooks/usePrivyLinkAccount"
 import { usePrivyLogin } from "../hooks/usePrivyLogin"
 import { usePrivyLogout } from "../hooks/usePrivyLogout"

@@ -1,4 +1,4 @@
-import { ListTradesByConversationIdArgs, Maybe } from "@src/index"
+import { ListTradesByConversationIdArgs, Maybe } from "../../../../index"
 import { ConversationTradingPool, QIError } from "../../../../core/chat"
 
 export interface ConversationTradingPoolQueryEngine {

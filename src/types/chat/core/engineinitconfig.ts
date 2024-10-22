@@ -1,4 +1,4 @@
-import { DexieStorage } from "@src/core/app"
+import { DexieStorage } from "../../../core/app"
 
 /**
  * Represents the configuration needed to initialize the engine.

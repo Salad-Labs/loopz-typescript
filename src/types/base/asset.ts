@@ -1,4 +1,4 @@
-import { Collection } from "@src/interfaces"
+import { Collection } from "../../interfaces"
 import { AssetTypeName } from "./assettypename"
 import { AssetTypeValue } from "./assettypevalue"
 import { Maybe } from "./maybe"

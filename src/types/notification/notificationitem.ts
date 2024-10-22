@@ -1,6 +1,6 @@
-import { NotificationSubType, NotificationType } from "@src/enums/notification"
+import { NotificationSubType, NotificationType } from "../../enums/notification"
 import { NotificationOperation } from "./notificationoperation"
-import { Collector } from "@src/interfaces"
+import { Collector } from "../../interfaces"
 
 export type NotificationItem = {
   id: number

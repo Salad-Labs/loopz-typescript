@@ -1,4 +1,4 @@
-import { Maybe } from "@src/types"
+import { Maybe } from "../../../../types"
 
 export interface LocalDBConversation {
   id: string //primary key

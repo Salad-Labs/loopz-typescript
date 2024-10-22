@@ -1,4 +1,4 @@
-import { ConversationTradingPoolStatus } from "@src/enums"
+import { ConversationTradingPoolStatus } from "../../../../enums"
 
 export type ListTradesByConversationIdArgs = {
   conversationId: string

@@ -1,11 +1,11 @@
 import React from "react"
-import { Maybe } from "@src/types"
-import { PrivyAdapterOptions } from "@src/types/adapter"
+import { Maybe } from "../types"
+import { PrivyAdapterOptions } from "../types/adapter"
 import { createRoot, Root } from "react-dom/client"
 import { v4 as uuid } from "uuid"
 import { PrivyClientConfig } from "@privy-io/react-auth"
-import { Auth } from "@src/auth"
-import { Order } from "@src/order"
+import { Auth } from "../auth"
+import { Order } from "../order"
 import { PrivyContext } from "../react/components/privycontext"
 
 export class PrivyAdapter {

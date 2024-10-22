@@ -1,6 +1,10 @@
 import { ConnectedWallet } from "@privy-io/react-auth"
-import { AddGroupFrom, ReceiveMessageFrom, UserOnlineStatus } from "@src/enums"
-import { Maybe, Network } from "@src/types"
+import {
+  AddGroupFrom,
+  ReceiveMessageFrom,
+  UserOnlineStatus,
+} from "../../../enums"
+import { Maybe, Network } from "../../../types"
 
 export interface AccountEngine {
   destroyLastUserLoggedKey(): void

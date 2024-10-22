@@ -1,6 +1,6 @@
 "use client"
 
-import { LoopzAuthContextValue } from "@src/types/react/loopzauthcontextvalue"
+import { LoopzAuthContextValue } from "../../types/react/loopzauthcontextvalue"
 import { Maybe } from "../../types"
 import { createContext } from "react"
 
