@@ -1,4 +1,4 @@
-import { Maybe, Network } from "@src/types"
+import { Maybe, Network } from "../../../../types"
 
 export interface LocalDBUser {
   did: string //primary key

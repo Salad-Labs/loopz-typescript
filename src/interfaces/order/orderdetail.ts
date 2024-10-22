@@ -1,5 +1,5 @@
 import { AssetStatusVerification, Maybe } from "../.."
-import { AssetTypeName } from "@src/types/base/assettypename"
+import { AssetTypeName } from "../../types/base/assettypename"
 /**
  * Represents a detailed object with various properties related to a collection.
  */

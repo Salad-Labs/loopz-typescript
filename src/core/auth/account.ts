@@ -1,4 +1,4 @@
-import { AccountEngine, AccountSchema } from "@src/interfaces/auth"
+import { AccountEngine, AccountSchema } from "../../interfaces/auth"
 import { Maybe, Network } from "../../types"
 import { AccountInitConfig } from "../../types/auth/account"
 import { ConnectedWallet, EIP1193Provider } from "@privy-io/react-auth"
@@ -9,8 +9,8 @@ import { Client } from "../client"
 import { QIError } from ".."
 import { ApiResponse } from "../../types/base/apiresponse"
 import { DexieStorage } from "../app"
-import { AddGroupFrom, ReceiveMessageFrom, UserOnlineStatus } from "@src/enums"
-import { Auth, Chat } from "../../"
+import { Auth, Chat } from "../.."
+import { AddGroupFrom, ReceiveMessageFrom, UserOnlineStatus } from "../../enums"
 
 export class Account implements AccountSchema, AccountEngine {
   readonly did: string

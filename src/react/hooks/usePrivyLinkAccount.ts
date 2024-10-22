@@ -1,4 +1,4 @@
-import { Auth } from "../.."
+import { Auth } from "../../auth"
 import { useEffect, useRef } from "react"
 import { useLinkAccount, usePrivy } from "@privy-io/react-auth"
 

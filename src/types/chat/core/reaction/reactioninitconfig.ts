@@ -1,4 +1,4 @@
-import UUIDSubscriptionClient from "@src/core/chat/uuidsubscriptionclient"
+import UUIDSubscriptionClient from "../../../../core/chat/uuidsubscriptionclient"
 import { Client } from "@urql/core"
 
 /**

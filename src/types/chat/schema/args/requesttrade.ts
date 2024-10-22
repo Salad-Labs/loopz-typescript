@@ -1,5 +1,4 @@
-import { Asset } from "@src/index"
-import { AssetTypeName } from "@src/types/base/assettypename"
+import { Asset } from "../../../index"
 
 /**
  * Represents the arguments needed to request a trade.

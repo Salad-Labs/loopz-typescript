@@ -2,7 +2,7 @@
 
 import React, { FC, useMemo } from "react"
 import { PrivyClientConfig, PrivyProvider } from "@privy-io/react-auth"
-import { PrivyAdapterProps } from "@src/interfaces/adapter/privyadapterprops"
+import { PrivyAdapterProps } from "../../interfaces/adapter/privyadapterprops"
 import { PrivyWrapper } from "./privywrapper"
 
 export const PrivyContext: FC<PrivyAdapterProps> = ({ appId, config }) => {

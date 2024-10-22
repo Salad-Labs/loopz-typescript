@@ -6,7 +6,7 @@ import { UnauthenticatedError } from "../../errors/UnauthenticatedError"
 import { NotConnectedError } from "../../errors/NotConnectedError"
 import { LoopzContext } from "../context/loopzcontext"
 import { LoopzAuthContext } from "../context/loopzauthcontext"
-import { LoadingError } from "@src/errors/AuthLoadingError"
+import { LoadingError } from "../../errors/AuthLoadingError"
 
 export const useLoopzChat: UseLoopzChat = () => {
   const loopzContext = useContext(LoopzContext)

@@ -6,14 +6,14 @@ import {
   QIError,
   User,
 } from "../../../../core/chat"
-import { Maybe } from "../../../../types/base"
 import {
+  Maybe,
   FindUsersByUsernameOrAddressArgs,
   ListAllActiveUserConversationIdsArgs,
   ListMessagesByConversationIdArgs,
-  ListMessagesImportantByUserConversationIdArgs,
   ListMessagesByRangeOrderArgs,
-} from "@src/types"
+  ListMessagesImportantByUserConversationIdArgs,
+} from "../../../../types"
 
 /**
  * Interface for a User Query Engine that provides methods to interact with user conversations and messages.

@@ -1,8 +1,8 @@
 import { Client } from "@urql/core"
 import { Maybe } from "../../../../types/base"
-import { Reaction } from "@src/core/chat/reaction"
-import { Message } from "@src/core"
-import UUIDSubscriptionClient from "@src/core/chat/uuidsubscriptionclient"
+import { Reaction } from "../../../../core/chat/reaction"
+import { Message } from "../../../../core"
+import UUIDSubscriptionClient from "../../../../core/chat/uuidsubscriptionclient"
 
 /**
  * Represents the configuration for initializing a message.

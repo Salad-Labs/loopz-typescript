@@ -1,6 +1,6 @@
 import { Client } from "@urql/core"
 import { Conversation } from "../../../../core/chat"
-import UUIDSubscriptionClient from "@src/core/chat/uuidsubscriptionclient"
+import UUIDSubscriptionClient from "../../../../core/chat/uuidsubscriptionclient"
 
 /**
  * Interface for Conversation Pin Initialization Configuration.

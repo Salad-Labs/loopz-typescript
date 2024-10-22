@@ -1,4 +1,4 @@
-import { LocalDBConversation, LocalDBMessage } from "@src/core/app/database"
+import { LocalDBConversation, LocalDBMessage } from "../../core/app/database"
 import { Conversation, Message } from "../chat"
 
 export class Converter {

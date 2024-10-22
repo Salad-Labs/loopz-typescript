@@ -1,5 +1,5 @@
 import { usePrivy } from "@privy-io/react-auth"
-import { Auth } from "../.."
+import { Auth } from "../../auth"
 import { useEffect, useRef } from "react"
 
 export const usePrivyUnlinkAccount = () => {

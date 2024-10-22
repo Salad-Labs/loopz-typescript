@@ -1,4 +1,4 @@
-import { IOrder } from "@src/index"
+import { IOrder } from "../../index"
 
 /**
  * Represents the response object for the global orders list.
