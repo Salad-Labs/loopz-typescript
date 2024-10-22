@@ -1,6 +1,8 @@
-export class AuthLoadingError extends Error {
-  constructor(method: string) {
-    super(`Cannot call ${method}. Auth is still loading`)
-    this.name = "AuthLoadingError"
+type LoadingErrorService = "Auth" | "Chat"
+
+export class LoadingError extends Error {
+  constructor(method: string, service: LoadingErrorService) {
+    super(`Cannot call ${method}. ${service} is still loading`)
+    this.name = "LoadingError"
   }
 }
