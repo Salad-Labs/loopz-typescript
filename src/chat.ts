@@ -233,6 +233,7 @@ import { ApiResponse } from "./types/base/apiresponse"
 import { md, mgf, pki } from "node-forge"
 import { Order } from "./order"
 import { ChatEvents, EngineInitConfig } from "."
+import { DetectiveMessage } from "./core/detectivemessage"
 
 export class Chat
   extends Engine
@@ -307,35 +308,39 @@ export class Chat
 
   private _syncRunning: boolean = false
 
-  private _hookMessageCreatingFn: (
-    primaryKey: string,
-    record: LocalDBMessage
-  ) => void
+  private _hookMessageCreatingFn: Maybe<
+    (primaryKey: string, record: LocalDBMessage) => void
+  > = null
 
-  private _hookMessageUpdatingFn: (
-    modifications: Object,
-    primaryKey: string,
-    record: LocalDBMessage
-  ) => void
+  private _hookMessageUpdatingFn: Maybe<
+    (modifications: Object, primaryKey: string, record: LocalDBMessage) => void
+  > = null
 
-  private _hookConversationCreatingFn: (
-    primaryKey: string,
-    record: LocalDBConversation
-  ) => void
+  private _hookConversationCreatingFn: Maybe<
+    (primaryKey: string, record: LocalDBConversation) => void
+  > = null
 
-  private _hookConversationUpdatingFn: (
-    modifications: Object,
-    primaryKey: string,
-    record: LocalDBConversation
-  ) => void
+  private _hookConversationUpdatingFn: Maybe<
+    (
+      modifications: Object,
+      primaryKey: string,
+      record: LocalDBConversation
+    ) => void
+  > = null
 
   private _syncTimeout: Maybe<NodeJS.Timeout> = null
+
+  private _detectiveMessage: DetectiveMessage
 
   static readonly SYNCING_TIME = 60000
 
   constructor(config: EngineInitConfig) {
     super(config)
+    this._detectiveMessage = new DetectiveMessage(config.storage)
+    this._prepareIndexedDBTablesFnHooks()
+  }
 
+  private _prepareIndexedDBTablesFnHooks() {
     this._hookMessageCreatingFn = (primaryKey, record) => {
       const _message = {
         ...record,
@@ -563,10 +568,10 @@ export class Chat
         //because potentially could be detrimental for the performance
         this._storage.conversation
           .hook("creating")
-          .unsubscribe(this._hookConversationCreatingFn)
+          .unsubscribe(this._hookConversationCreatingFn!)
         this._storage.conversation
           .hook("updating")
-          .unsubscribe(this._hookConversationUpdatingFn)
+          .unsubscribe(this._hookConversationUpdatingFn!)
 
         this._hookConversationCreated = false
         this._hookConversationUpdated = false
@@ -800,10 +805,10 @@ export class Chat
             if (this._syncingCounter > 0) {
               this._storage.message
                 .hook("creating")
-                .unsubscribe(this._hookMessageCreatingFn)
+                .unsubscribe(this._hookMessageCreatingFn!)
               this._storage.message
                 .hook("updating")
-                .unsubscribe(this._hookMessageUpdatingFn)
+                .unsubscribe(this._hookMessageUpdatingFn!)
 
               this._hookMessageCreated = false
               this._hookMessageUpdated = false
@@ -1715,7 +1720,7 @@ export class Chat
       this._storage.query(
         (db: Dexie, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
           this._hookMessageCreated = true
-          message.hook("creating", this._hookMessageCreatingFn)
+          message.hook("creating", this._hookMessageCreatingFn!)
         },
         "message"
       )
@@ -1789,7 +1794,7 @@ export class Chat
       this._storage.query(
         (db: Dexie, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
           this._hookMessageUpdated = true
-          message.hook("updating", this._hookMessageUpdatingFn)
+          message.hook("updating", this._hookMessageUpdatingFn!)
         },
         "message"
       )
@@ -1808,7 +1813,7 @@ export class Chat
           conversation: Table<LocalDBConversation, string, LocalDBConversation>
         ) => {
           this._hookConversationCreated = true
-          conversation.hook("creating", this._hookConversationCreatingFn)
+          conversation.hook("creating", this._hookConversationCreatingFn!)
         },
         "conversation"
       )
@@ -1827,7 +1832,7 @@ export class Chat
           conversation: Table<LocalDBConversation, string, LocalDBConversation>
         ) => {
           this._hookConversationUpdated = true
-          conversation.hook("updating", this._hookConversationUpdatingFn)
+          conversation.hook("updating", this._hookConversationUpdatingFn!)
         },
         "conversation"
       )
