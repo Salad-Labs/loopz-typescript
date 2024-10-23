@@ -9,6 +9,7 @@ import { Auth, Chat, Notification, Proposal, Order, Oracle, AuthInfo } from ".."
  * @class Client
  */
 export class Client {
+  private static MAX_REFRESH_TOKEN_CALLS = 1
   private _devMode: "development" | "production" = "production"
 
   /**
@@ -32,9 +33,9 @@ export class Client {
   protected _account: Maybe<Account> = null
 
   /**
-   * @type {number} _requestAuthToken - The number of auth attempts the client is doing in case of 401 unauthorized error.
+   * @type {number} _refreshTokenCallCount - The number of auth attempts the client is doing in case of 401 unauthorized error.
    */
-  protected _requestAuthToken: number = 0
+  protected _refreshTokenCallCount: number = 0
 
   /**
    * @type {Maybe<Auth>} _authRef -
@@ -135,29 +136,33 @@ export class Client {
       method: "GET",
       headers: undefined,
       body: undefined,
-    },
-    callbackUnauthorized: (error: unknown) => void
+    }
   ): Promise<HTTPResponse<ReturnType>> {
     options.headers = {
       ...options.headers,
       "Content-Type": "application/json",
-      mode: "loopz",
+      mode: "loopz", // TODO maybe "test"?
     }
 
-    return new Promise(async (resolve, reject) => {
-      try {
-        resolve(await this._fetchXHR<ReturnType>(url, options))
-      } catch (error) {
-        if (
-          "statusCode" in (error as any) &&
-          (error as any).statusCode === 401
-        ) {
-          //handle 401 error
-          callbackUnauthorized(error)
-        } else {
-          reject(error)
-        }
-      }
+    return this._fetchXHR<ReturnType>(url, options).catch(async (e) => {
+      if (
+        !("statusCode" in e) ||
+        e.statusCode !== 401 ||
+        this._refreshTokenCallCount++ >= Client.MAX_REFRESH_TOKEN_CALLS
+      )
+        throw e
+
+      // try refresh the token N times then throws
+      const authToken = await getAccessToken()
+
+      this.setAuthToken(authToken)
+      this._setAllAuthToken(authToken)
+
+      // set tokens and whatever
+      return this._fetch(url, options).then((res) => {
+        this._refreshTokenCallCount = 0
+        return res
+      })
     })
   }
 
@@ -214,37 +219,6 @@ export class Client {
         ? `wss://develop.api.graphql.loopz.xyz/graphql/realtime` //url server chat graphql development
         : `wss://api.graphql.loopz.xyz/graphql/realtime` //url server chat graphql production
     }`
-  }
-
-  protected resetRequestNewAuthToken() {
-    this._requestAuthToken = 0
-  }
-
-  protected incrementRequestNewAuthToken() {
-    this._requestAuthToken = this._requestAuthToken + 1
-  }
-
-  protected countRequestNewAuthToken(): number {
-    return this._requestAuthToken
-  }
-
-  protected async obtainNewAuthToken(
-    callbackSuccess: (authToken: string) => void,
-    callbackError: (error: unknown) => void
-  ) {
-    try {
-      const authToken = await getAccessToken()
-
-      if (authToken) {
-        callbackSuccess(authToken)
-      } else {
-        callbackError({
-          error: "error: authToken is null.",
-        })
-      }
-    } catch (error) {
-      callbackError(error)
-    }
   }
 
   protected _setAllAuthToken(authToken: Maybe<string>) {
