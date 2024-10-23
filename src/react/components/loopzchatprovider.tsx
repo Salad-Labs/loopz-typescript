@@ -21,7 +21,7 @@ export const LoopzChatProvider: FC<
   const hasStartedConnection = useRef(false)
   const hasStartedSynchronization = useRef(false)
   const [chatStatus, setChatStatus] = useState({
-    isConnecting: true,
+    isConnecting: false,
     isConnected: false,
     isSynching: false,
     isSynched: false,
@@ -41,19 +41,19 @@ export const LoopzChatProvider: FC<
     if (
       !initialized ||
       !isAuthenticated ||
+      !autoConnect ||
       chatStatus.isConnected ||
       hasStartedConnection.current
     )
       return
     hasStartedConnection.current = true
 
-    if (!autoConnect)
-      return setChatStatus({
-        isConnecting: false,
-        isConnected: false,
-        isSynching: false,
-        isSynched: false,
-      })
+    setChatStatus({
+      isConnecting: true,
+      isConnected: false,
+      isSynching: false,
+      isSynched: false,
+    })
 
     instance.chat
       .connect()
@@ -77,8 +77,8 @@ export const LoopzChatProvider: FC<
   }, [
     initialized,
     isAuthenticated,
-    chatStatus,
     autoConnect,
+    chatStatus,
     instance,
     autoSync,
   ])
