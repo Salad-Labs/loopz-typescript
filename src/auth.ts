@@ -26,330 +26,300 @@ import { AuthLinkMethod } from "./types/auth/authlinkmethod"
  * @extends Client
  */
 export class Auth extends Client implements AuthInternalEvents {
-  private _storage?: DexieStorage
-  private _privyAppId: string
-  private _privyConfig?: PrivyClientConfig
-  private _eventsCallbacks: Array<{
+  private static _config: Maybe<AuthConfig & ApiKeyAuthorized> = null
+  private static _instance: Maybe<Auth> = null
+
+  private static _apiKey: string
+  private static _authToken: Maybe<string> = null
+  private static _account: Maybe<Account> = null
+  private static _authInfo: Maybe<AuthInfo> = null
+
+  private static _storage: DexieStorage
+  private static _eventsCallbacks: Array<{
     callbacks: Function[]
     event: AuthEvents
   }> = []
-  private _isLoggingOut: boolean = false
-  private _isAuthenticated: boolean = false
-  private _isDevMode: boolean = false
+  private static _isLoggingOut = false
+  private static _isAuthenticated = false
+
+  public static get authToken() {
+    return Auth._authToken
+  }
+
+  public static get apiKey() {
+    return Auth._apiKey
+  }
 
   /**
    * Constructs a new instance of Auth with the provided configuration.
-   * @param {AuthConfig} config - The configuration object for authentication.
-   * @returns None
+   * @param config - The configuration object for authentication.
+   * @returns The instance
    */
-  constructor(config: AuthConfig & ApiKeyAuthorized) {
+  public static config(config: AuthConfig & ApiKeyAuthorized) {
+    if (!!Auth._config) throw new Error("Auth already configured")
+
+    Auth._config = config
+  }
+
+  public static getInstance() {
+    if (!!!Auth._config)
+      throw new Error("Auth must be configured before getting the instance")
+
+    return Auth._instance ?? new Auth(Auth._config)
+  }
+
+  private constructor(config: AuthConfig & ApiKeyAuthorized) {
     super(config.devMode)
 
-    this._isDevMode = config.devMode
-    this._storage = config.storage
-    this._apiKey = config.apiKey
-    this._privyAppId = config.privyAppId
-    this._privyConfig = config.privyConfig
+    Auth._storage = config.storage
+    Auth._apiKey = config.apiKey
 
     //OAuth providers like Google, Instagram etc bring the user from the current web application page to
     //their authentication pages. When the user is redirect from their auth pages to the web application page again
     //this event is fired.
-    this.on("__onOAuthAuthenticatedDesktop", (authInfo: PrivyAuthInfo) => {
-      this._callBackendAuthAfterOAuthRedirect(authInfo, authInfo.authToken)
-    })
+    this.on(
+      "__onOAuthAuthenticatedDesktop",
+      Auth._callBackendAuthAfterOAuthRedirect
+    )
 
     // same but for linking an account to a user already registered
-    this.on("__onOAuthLinkAuthenticatedDesktop", (authInfo: PrivyAuthInfo) => {
-      this._callBackendLinkAfterOAuthRedirect(authInfo, authInfo.authToken)
-    })
+    this.on(
+      "__onOAuthLinkAuthenticatedDesktop",
+      Auth._callBackendLinkAfterOAuthRedirect
+    )
 
     //OAuth providers login error handling
     this.on("__onLoginError", (error: PrivyErrorCode) => {
       this._emit("onAuthError", error)
     })
+
     this.on("__onLinkAccountError", (error: PrivyErrorCode) => {
       this._emit("onLinkError", error)
     })
+
+    Auth._instance = this
   }
 
-  private async _generateKeys(): Promise<boolean | forge.pki.rsa.KeyPair> {
-    const keys = await Crypto.generateKeys("HIGH")
-
-    if (!keys) return false
-
-    return keys
-  }
-
-  private async _getUserE2EPublicKey(
-    did: string,
-    organizationId: string
-  ): Promise<Maybe<string | "error">> {
+  private static async _generateKeys() {
     try {
-      const storage = this._storage as DexieStorage
-      const e2ePublicKey = await storage.transaction(
-        "rw",
-        storage.user,
-        async () => {
-          const existingUser = await storage.user
-            .where("[did+organizationId]")
-            .equals([did, organizationId])
-            .first()
+      const keys = await Crypto.generateKeys("HIGH")
+      if (!keys)
+        throw new Error("Error during generation of public/private keys.")
 
-          if (!existingUser) return null
-
-          return existingUser!.e2ePublicKey
-        }
-      )
-
-      return e2ePublicKey
+      return keys
     } catch (error) {
-      console.log(error)
-      return "error"
+      throw error
     }
   }
 
-  private _setAllCurrentAccount(account: Account) {
-    this._chatRef?.setCurrentAccount(account)
-    this._orderRef?.setCurrentAccount(account)
-    this._oracleRef?.setCurrentAccount(account)
-    this._proposalRef?.setCurrentAccount(account)
-    this._notificationRef?.setCurrentAccount(account)
+  private static async _getUserE2EPublicKey(
+    did: string,
+    organizationId: string
+  ) {
+    try {
+      const e2ePublicKey = await Auth._storage.transaction(
+        "rw",
+        Auth._storage.user,
+        () =>
+          Auth._storage.user
+            .where("[did+organizationId]")
+            .equals([did, organizationId])
+            .first()
+            .then((existingUser) => existingUser?.e2ePublicKey ?? null)
+      )
+      if (!e2ePublicKey) throw new Error("Error retrieven e2e public key.")
 
-    //this must be the last because it fires event "auth"
-    this.setCurrentAccount(account)
-
-    //account now knows the other objects
-    account.setLoopzObjectsReference({
-      auth: this,
-      oracle: this._oracleRef,
-      order: this._orderRef,
-      proposal: this._proposalRef,
-      chat: this._chatRef,
-      notification: this._notificationRef,
-    })
+      return e2ePublicKey
+    } catch (error) {
+      throw error
+    }
   }
 
-  private async _handleDexie(account: Account) {
-    const storage = this._storage as DexieStorage
+  private static async _handleDexie() {
     try {
-      const keys = await this._generateKeys()
-      if (!keys || typeof keys === "boolean")
-        throw new Error("Error during generation of public/private keys.")
+      if (!Auth._account) throw new Error("Account is not set")
+      const keys = await Auth._generateKeys()
 
       //let's encrypt first the private key. Private key will be always calculated runtime.
       const encryptedPrivateKey = Crypto.encryptAES_CBC(
         Crypto.convertRSAPrivateKeyToPem(keys.privateKey),
-        Buffer.from(account.e2eSecret, "hex").toString("base64"),
-        Buffer.from(account.e2eSecretIV, "hex").toString("base64")
+        Buffer.from(Auth._account.e2eSecret, "hex").toString("base64"),
+        Buffer.from(Auth._account.e2eSecretIV, "hex").toString("base64")
       )
       const publicKey = Crypto.convertRSAPublicKeyToPem(keys.publicKey)
 
       //save all the data related to this user into the db
-      await storage.transaction("rw", storage.user, async () => {
-        const existingUser = await storage.user
-          .where("[did+organizationId]")
-          .equals([account.did, account.organizationId])
-          .first()
+      await Auth._storage.transaction("rw", Auth._storage.user, async () => {
+        if (!Auth._account) throw new Error("Account is not set")
 
-        if (!existingUser)
-          await storage.user.add({
-            did: account.did,
-            organizationId: account.organizationId,
-            username: account.username,
-            email: account.email,
-            bio: account.bio,
-            avatarUrl: account.avatarUrl,
-            isVerified: account.isVerified,
-            isPfpNft: account.isPfpNft,
-            pfp: account.pfp ? account.pfp : null,
-            wallet: {
-              address: account.walletAddress,
-              connectorType: account.walletConnectorType,
-              imported: account.walletImported,
-              recoveryMethod: account.walletRecoveryMethod,
-              clientType: account.walletClientType,
-            },
-            apple: account.appleSubject
-              ? {
-                  subject: account.appleSubject,
-                  email: account.email,
-                }
-              : null,
-            discord: account.discordSubject
-              ? {
-                  subject: account.discordSubject,
-                  email: account.discordEmail,
-                  username: account.username,
-                }
-              : null,
-            farcaster: account.farcasterFid
-              ? {
-                  fid: account.farcasterFid,
-                  displayName: account.farcasterDisplayName,
-                  ownerAddress: account.farcasterOwnerAddress,
-                  pfp: account.farcasterPfp,
-                  username: account.farcasterUsername,
-                  signerPublicKey: account.farcasterSignerPublicKey,
-                }
-              : null,
-            github: account.githubSubject
-              ? {
-                  subject: account.githubSubject,
-                  email: account.githubEmail,
-                  name: account.githubName,
-                  username: account.githubUsername,
-                }
-              : null,
-            google: account.googleSubject
-              ? {
-                  subject: account.googleSubject,
-                  email: account.googleEmail,
-                  name: account.googleName,
-                }
-              : null,
-            instagram: account.instagramSubject
-              ? {
-                  subject: account.instagramSubject,
-                  username: account.instagramUsername,
-                }
-              : null,
-            linkedin: account.linkedinSubject
-              ? {
-                  subject: account.linkedinSubject,
-                  email: account.linkedinEmail,
-                  name: account.linkedinName,
-                  vanityName: account.linkedinVanityName,
-                }
-              : null,
-            spotify: account.spotifySubject
-              ? {
-                  subject: account.spotifySubject,
-                  email: account.spotifyEmail,
-                  name: account.spotifyName,
-                }
-              : null,
-            telegram: account.telegramUserId
-              ? {
-                  firstName: account.telegramFirstName,
-                  lastName: account.telegramLastName,
-                  photoUrl: account.telegramPhotoUrl,
-                  userId: account.telegramUserId,
-                  username: account.telegramUsername,
-                }
-              : null,
-            tiktok: account.tiktokSubject
-              ? {
-                  name: account.tiktokName,
-                  subject: account.tiktokSubject,
-                  username: account.tiktokUsername,
-                }
-              : null,
-            twitter: account.twitterSubject
-              ? {
-                  name: account.twitterName,
-                  subject: account.twitterSubject,
-                  profilePictureUrl: account.twitterProfilePictureUrl,
-                  username: account.twitterUsername,
-                }
-              : null,
-            proposalNotificationPush: account.proposalNotificationPush,
-            proposalNotificationSystem: account.proposalNotificationSystem,
-            orderNotificationPush: account.orderNotificationPush,
-            orderNotificationSystem: account.orderNotificationSystem,
-            followNotificationPush: account.followNotificationPush,
-            followNotificationSystem: account.followNotificationSystem,
-            collectionNotificationPush: account.collectionNotificationPush,
-            collectionNotificationSystem: account.collectionNotificationSystem,
-            generalNotificationPush: account.generalNotificationPush,
-            generalNotificationSystem: account.generalNotificationSystem,
-            accountSuspended: account.accountSuspended,
-            allowNotification: account.allowNotification,
-            allowNotificationSound: account.allowNotificationSound,
-            visibility: account.visibility,
-            onlineStatus: account.onlineStatus,
-            allowReadReceipt: account.allowReadReceipt,
-            allowReceiveMessageFrom: account.allowReceiveMessageFrom,
-            allowAddToGroupsFrom: account.allowAddToGroupsFrom,
-            allowGroupsSuggestion: account.allowGroupsSuggestion,
-            e2ePublicKey: publicKey,
-            e2eEncryptedPrivateKey: encryptedPrivateKey,
-            createdAt: account.createdAt,
-            updatedAt: account.updatedAt,
-          })
+        const existingUser = await Auth._storage.user
+          .where("[did+organizationId]")
+          .equals([Auth._account.did, Auth._account.organizationId])
+          .first()
+        if (existingUser) return
+
+        await Auth._storage.user.add({
+          did: Auth._account.did,
+          organizationId: Auth._account.organizationId,
+          username: Auth._account.username,
+          email: Auth._account.email,
+          bio: Auth._account.bio,
+          avatarUrl: Auth._account.avatarUrl,
+          isVerified: Auth._account.isVerified,
+          isPfpNft: Auth._account.isPfpNft,
+          pfp: Auth._account.pfp ? Auth._account.pfp : null,
+          wallet: {
+            address: Auth._account.walletAddress,
+            connectorType: Auth._account.walletConnectorType,
+            imported: Auth._account.walletImported,
+            recoveryMethod: Auth._account.walletRecoveryMethod,
+            clientType: Auth._account.walletClientType,
+          },
+          apple: Auth._account.appleSubject
+            ? {
+                subject: Auth._account.appleSubject,
+                email: Auth._account.email,
+              }
+            : null,
+          discord: Auth._account.discordSubject
+            ? {
+                subject: Auth._account.discordSubject,
+                email: Auth._account.discordEmail,
+                username: Auth._account.username,
+              }
+            : null,
+          farcaster: Auth._account.farcasterFid
+            ? {
+                fid: Auth._account.farcasterFid,
+                displayName: Auth._account.farcasterDisplayName,
+                ownerAddress: Auth._account.farcasterOwnerAddress,
+                pfp: Auth._account.farcasterPfp,
+                username: Auth._account.farcasterUsername,
+                signerPublicKey: Auth._account.farcasterSignerPublicKey,
+              }
+            : null,
+          github: Auth._account.githubSubject
+            ? {
+                subject: Auth._account.githubSubject,
+                email: Auth._account.githubEmail,
+                name: Auth._account.githubName,
+                username: Auth._account.githubUsername,
+              }
+            : null,
+          google: Auth._account.googleSubject
+            ? {
+                subject: Auth._account.googleSubject,
+                email: Auth._account.googleEmail,
+                name: Auth._account.googleName,
+              }
+            : null,
+          instagram: Auth._account.instagramSubject
+            ? {
+                subject: Auth._account.instagramSubject,
+                username: Auth._account.instagramUsername,
+              }
+            : null,
+          linkedin: Auth._account.linkedinSubject
+            ? {
+                subject: Auth._account.linkedinSubject,
+                email: Auth._account.linkedinEmail,
+                name: Auth._account.linkedinName,
+                vanityName: Auth._account.linkedinVanityName,
+              }
+            : null,
+          spotify: Auth._account.spotifySubject
+            ? {
+                subject: Auth._account.spotifySubject,
+                email: Auth._account.spotifyEmail,
+                name: Auth._account.spotifyName,
+              }
+            : null,
+          telegram: Auth._account.telegramUserId
+            ? {
+                firstName: Auth._account.telegramFirstName,
+                lastName: Auth._account.telegramLastName,
+                photoUrl: Auth._account.telegramPhotoUrl,
+                userId: Auth._account.telegramUserId,
+                username: Auth._account.telegramUsername,
+              }
+            : null,
+          tiktok: Auth._account.tiktokSubject
+            ? {
+                name: Auth._account.tiktokName,
+                subject: Auth._account.tiktokSubject,
+                username: Auth._account.tiktokUsername,
+              }
+            : null,
+          twitter: Auth._account.twitterSubject
+            ? {
+                name: Auth._account.twitterName,
+                subject: Auth._account.twitterSubject,
+                profilePictureUrl: Auth._account.twitterProfilePictureUrl,
+                username: Auth._account.twitterUsername,
+              }
+            : null,
+          proposalNotificationPush: Auth._account.proposalNotificationPush,
+          proposalNotificationSystem: Auth._account.proposalNotificationSystem,
+          orderNotificationPush: Auth._account.orderNotificationPush,
+          orderNotificationSystem: Auth._account.orderNotificationSystem,
+          followNotificationPush: Auth._account.followNotificationPush,
+          followNotificationSystem: Auth._account.followNotificationSystem,
+          collectionNotificationPush: Auth._account.collectionNotificationPush,
+          collectionNotificationSystem:
+            Auth._account.collectionNotificationSystem,
+          generalNotificationPush: Auth._account.generalNotificationPush,
+          generalNotificationSystem: Auth._account.generalNotificationSystem,
+          accountSuspended: Auth._account.accountSuspended,
+          allowNotification: Auth._account.allowNotification,
+          allowNotificationSound: Auth._account.allowNotificationSound,
+          visibility: Auth._account.visibility,
+          onlineStatus: Auth._account.onlineStatus,
+          allowReadReceipt: Auth._account.allowReadReceipt,
+          allowReceiveMessageFrom: Auth._account.allowReceiveMessageFrom,
+          allowAddToGroupsFrom: Auth._account.allowAddToGroupsFrom,
+          allowGroupsSuggestion: Auth._account.allowGroupsSuggestion,
+          e2ePublicKey: publicKey,
+          e2eEncryptedPrivateKey: encryptedPrivateKey,
+          createdAt: Auth._account.createdAt,
+          updatedAt: Auth._account.updatedAt,
+        })
       })
     } catch (error) {
-      console.log(error)
+      console.error(error)
       throw new Error(
         "Error during setup of the local keys. Check the console to have more information."
       )
     }
   }
 
-  private async _callBackendAuthAfterOAuthRedirect(
-    authInfo: PrivyAuthInfo,
-    authToken: string
+  private static async _callBackendAuthAfterOAuthRedirect(
+    authInfo: PrivyAuthInfo
   ) {
+    if (!!!Auth._config || !!!Auth._instance)
+      throw new Error("Auth has not been configured")
+
+    Auth._authToken = authInfo.authToken
+
     try {
-      const e2ePublicKey = await this._getUserE2EPublicKey(
+      const e2ePublicKey = await Auth._getUserE2EPublicKey(
         authInfo.user.id,
-        this._apiKey!
+        Auth._apiKey
       )
 
-      if (e2ePublicKey === "error")
-        throw new Error("Error retrieven e2e public key.")
-
-      const { response } = await this._fetch<
+      const { response } = await Auth._instance._fetch<
         ApiResponse<{
           user: AccountInitConfig
         }>
-      >(
-        `${this.backendUrl()}/auth`,
-        {
-          method: "POST",
-          body: {
-            ...this._formatAuthParams(authInfo),
-            e2ePublicKey,
-          },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${authToken}`,
-          },
+      >(Auth._instance._backendUrl("/auth"), {
+        method: "POST",
+        body: {
+          ...Auth._formatAuthParams(authInfo),
+          e2ePublicKey,
         },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                return this._callBackendAuthAfterOAuthRedirect(
-                  authInfo,
-                  authToken
-                )
-              },
-              async (error) => {
-                //clear all the internal callbacks connected to the authentication...
-                this._clearEventsCallbacks([
-                  "__onOAuthAuthenticatedDesktop",
-                  "__onLoginError",
-                ])
-                await this.logout()
-                this._emit("onAuthError", error)
-              }
-            )
-          } else {
-            //if we're here, this means the second call encountered again a 401, so we logout the user
-            //clear all the internal callbacks connected to the authentication...
-            this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
-            await this.logout()
-            this._emit("onAuthError", error)
-          }
-        }
-      )
+      })
 
       if (!response || !response.data)
-        return this._emit(
+        return Auth._emit(
           "onAuthError",
           new Error("No response from backend during authentication.")
         )
@@ -357,7 +327,7 @@ export class Auth extends Client implements AuthInternalEvents {
       const { user } = response.data[0]
 
       if (!user)
-        return this._emit("onAuthError", new Error("Access not granted."))
+        return Auth._emit("onAuthError", new Error("Access not granted."))
 
       //let's check if it's the first login of the user.
       //this is needed to understand if the user is doing the login on a different device
@@ -366,122 +336,70 @@ export class Auth extends Client implements AuthInternalEvents {
         //because if i'm using the same device i should have e2ePublicKey already setup.
         //So, if this value is null and it's not the first login of the user, means probably the user is doing the login on a different device.
         //Thus, let's block the possibility to chat since before to do that the user needs to transfer the private keys between the devices.
+
+        // TODO something like Chat.setUserCanChat(true | false)
+
         this._chatRef?.setCanChat(false)
       } else {
         this._chatRef?.setCanChat(true)
       }
 
-      const account = new Account({
+      Auth._isAuthenticated = true
+      // TODO define setter for account to emit auth event on set value
+      Auth._account = new Account({
         ...user,
-        enableDevMode: this._isDevMode,
+        enableDevMode: Auth._config.devMode,
         apiKey: this._apiKey!,
         storage: this._storage!,
-        chatRef: this._chatRef!,
+        chatRef: this._chatRef!, // TODO remove
       })
       //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
       //the user refresh the page
+      // TODO will probably be static
       account.storeLastUserLoggedKey()
 
       //generation of the table and local keys for e2e encryption
-      await this._handleDexie(account)
-
-      this._isAuthenticated = true
-      this._setAllAuthToken(authToken)
-      this._setAllCurrentAccount(account)
+      await Auth._handleDexie()
 
       //clear all the internal callbacks connected to the authentication...
-      this._clearEventsCallbacks([
+      Auth._clearEventsCallbacks([
         "__onOAuthAuthenticatedDesktop",
         "__onLoginError",
       ])
-
-      //reset auth attempts in case this function is called because a 401 error
-      this.resetRequestNewAuthToken()
     } catch (error) {
       //clear all the internal callbacks connected to the authentication...
       this._clearEventsCallbacks([
         "__onOAuthAuthenticatedDesktop",
         "__onLoginError",
       ])
-      await this.logout()
-      this._emit("onAuthError", error)
+      await Auth._instance.logout()
+      Auth._emit("onAuthError", error)
     }
   }
 
-  private async _callBackendAuth(
-    resolve: (
-      value:
-        | { auth: AuthInfo; account: Account }
-        | PromiseLike<{ auth: AuthInfo; account: Account }>
-    ) => void,
-    reject: (reason?: any) => void,
-    authInfo: PrivyAuthInfo,
-    authToken: string
-  ) {
+  private static async _callBackendAuth(authInfo: PrivyAuthInfo) {
+    if (!!!Auth._config || !!!Auth._instance)
+      throw new Error("Auth has not been configured")
+
+    Auth._authToken = authInfo.authToken
+
     try {
-      const e2ePublicKey = await this._getUserE2EPublicKey(
+      const e2ePublicKey = await Auth._getUserE2EPublicKey(
         authInfo.user.id,
-        this._apiKey!
+        Auth._apiKey
       )
 
-      if (e2ePublicKey === "error")
-        throw new Error("Error during retrieving e2e public key.")
-
-      const { response } = await this._fetch<
+      const { response } = await Auth._instance._fetch<
         ApiResponse<{
           user: AccountInitConfig
         }>
-      >(
-        `${this.backendUrl()}/auth`,
-        {
-          method: "POST",
-          body: {
-            ...this._formatAuthParams(authInfo),
-            e2ePublicKey,
-          },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${authToken}`,
-          },
+      >(Auth._instance._backendUrl("/auth"), {
+        method: "POST",
+        body: {
+          ...Auth._formatAuthParams(authInfo),
+          e2ePublicKey,
         },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                return this._callBackendAuth(
-                  resolve,
-                  reject,
-                  authInfo,
-                  authToken
-                )
-              },
-              async (error) => {
-                //clear all the internal callbacks connected to the authentication...
-                this._clearEventsCallbacks([
-                  "__onLoginComplete",
-                  "__onLoginError",
-                ])
-                await this.logout()
-                this._emit("onAuthError", error)
-
-                reject(error)
-              }
-            )
-          } else {
-            //if we're here, this means the second call encountered again a 401, so we logout the user
-            //clear all the internal callbacks connected to the authentication...
-            this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
-            await this.logout()
-            this._emit("onAuthError", error)
-
-            reject(error)
-          }
-        }
-      )
+      })
 
       if (!response || !response.data) throw new Error("Invalid response.")
 
@@ -496,134 +414,77 @@ export class Auth extends Client implements AuthInternalEvents {
         //because if i'm using the same device i should have e2ePublicKey already setup.
         //So, if this value is null and it's not the first login of the user, means probably the user is doing the login on a different device.
         //Thus, let's block the possibility to chat since before to do that the user needs to transfer the private keys between the devices.
+        // TODO same as before
         this._chatRef?.setCanChat(false)
       } else {
         this._chatRef?.setCanChat(true)
       }
 
-      const account = new Account({
+      Auth._isAuthenticated = true
+      Auth._authInfo = {
+        isConnected: true,
+        ...authInfo,
+      }
+      Auth._account = new Account({
         ...user,
-        enableDevMode: this._isDevMode,
-        apiKey: this._apiKey!,
-        storage: this._storage!,
-        chatRef: this._chatRef!,
+        enableDevMode: Auth._config.devMode,
+        apiKey: Auth._apiKey,
+        storage: Auth._storage,
+        chatRef: this._chatRef!, // TODO remove
       })
+
       //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
       //the user refresh the page
+      // TODO same as before
       account.storeLastUserLoggedKey()
 
       //generation of the table and local keys for e2e encryption
-      await this._handleDexie(account)
-
-      this._isAuthenticated = true
-      this._setAllAuthToken(authToken)
-      this._setAllCurrentAccount(account)
+      await Auth._handleDexie()
 
       //clear all the internal callbacks connected to the authentication...
-      this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
+      Auth._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
 
-      //reset auth attempts in case this function is called because a 401 error
-      this.resetRequestNewAuthToken()
-
-      const auth = {
-        isConnected: true,
-        ...authInfo,
-        authToken,
+      return {
+        auth: Auth._authInfo,
+        account: Auth._account,
       }
-
-      this.setAuthInfo(auth)
-
-      resolve({
-        auth,
-        account,
-      })
     } catch (error) {
-      console.log(error)
-      //clear all the internal callbacks connected to the authentication...
-      this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
-      await this.logout()
-      this._emit("onAuthError", error)
+      console.error(error)
 
-      reject(error)
+      //clear all the internal callbacks connected to the authentication...
+      Auth._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
+      await Auth._instance.logout()
+      Auth._emit("onAuthError", error)
+
+      throw error
     }
   }
 
-  private async _callBackendLinkAfterOAuthRedirect(
-    authInfo: PrivyAuthInfo,
-    authToken: string
+  private static async _callBackendLinkAfterOAuthRedirect(
+    authInfo: PrivyAuthInfo
   ) {
+    if (!!!Auth._config || !!!Auth._instance)
+      throw new Error("Auth has not been configured")
+
+    Auth._authToken = authInfo.authToken
+
     try {
-      const { response } = await this._fetch<
+      const { response } = await Auth._instance._fetch<
         ApiResponse<{
           link: {
             status: boolean
           }
         }>
-      >(
-        `${this.backendUrl()}/user/link/account`,
-        {
-          method: "POST",
-          body: {
-            ...this._formatAuthParams(authInfo),
-            e2ePublicKey: await this._getUserE2EPublicKey(
-              authInfo.user.id,
-              this._apiKey!
-            ),
-          },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${authToken}`,
-          },
+      >(Auth._instance._backendUrl("/user/link/account"), {
+        method: "POST",
+        body: {
+          ...Auth._formatAuthParams(authInfo),
+          e2ePublicKey: await Auth._getUserE2EPublicKey(
+            authInfo.user.id,
+            Auth._apiKey
+          ),
         },
-        async (error) => {
-          //in case of 401, we ask a new token. If it's valid, we refresh the token internally and we call again the _callBackendLinkAfterOAuthRedirect
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                this._callBackendLinkAfterOAuthRedirect(authInfo, authToken)
-              },
-              async (error) => {
-                console.log(error)
-
-                this._clearEventsCallbacks([
-                  "__onOAuthLinkAuthenticatedDesktop",
-                  "__onLinkAccountError",
-                  "__onLoginComplete",
-                  "__onLoginError",
-                ])
-
-                this._emit("onLinkError", error)
-                await this.logout()
-                this._emit("onAuthError", error)
-              }
-            )
-          } else {
-            //if we're here, this means the second call encountered again a 401, so we logout the user
-            //clear all the internal callbacks connected to the authentication...
-            console.log(error)
-
-            this._clearEventsCallbacks([
-              "__onOAuthLinkAuthenticatedDesktop",
-              "__onLinkAccountError",
-              "__onLoginComplete",
-              "__onLoginError",
-            ])
-
-            this._emit("onLinkError", error)
-            await this.logout()
-            this._emit("onAuthError", error)
-          }
-        }
-      )
+      })
 
       if (!response || !response.data) throw new Error("Invalid response.")
 
@@ -634,112 +495,57 @@ export class Auth extends Client implements AuthInternalEvents {
         throw new Error("An error occured while updating the account.")
 
       //clear all the internal callbacks connected to the authentication...
-      this._clearEventsCallbacks([
+      Auth._clearEventsCallbacks([
         "__onOAuthLinkAuthenticatedDesktop",
         "__onLinkAccountError",
       ])
+      Auth._emit("link", authInfo)
+    } catch (error: any) {
+      console.error(error)
+      if ("statusCode" in error && error.statusCode === 401) {
+        Auth._clearEventsCallbacks([
+          "__onOAuthLinkAuthenticatedDesktop",
+          "__onLinkAccountError",
+          "__onLoginComplete",
+          "__onLoginError",
+        ])
 
-      //reset auth attempts in case this function is called because a 401 error
-      this.resetRequestNewAuthToken()
-
-      this._emit("link", {
-        ...authInfo,
-        authToken,
-      })
-    } catch (error) {
-      this._clearEventsCallbacks([
-        "__onOAuthLinkAuthenticatedDesktop",
-        "__onLinkAccountError",
-      ])
-      this._emit("onLinkError", error)
+        Auth._emit("onLinkError", error)
+        await Auth._instance.logout()
+        Auth._emit("onAuthError", error)
+      } else {
+        Auth._clearEventsCallbacks([
+          "__onOAuthLinkAuthenticatedDesktop",
+          "__onLinkAccountError",
+        ])
+        Auth._emit("onLinkError", error)
+      }
     }
   }
 
-  private async _callBackendLink(
-    resolve: (value: PrivyAuthInfo | PromiseLike<PrivyAuthInfo>) => void,
-    reject: (reason?: any) => void,
-    authInfo: PrivyAuthInfo,
-    authToken: string
-  ) {
+  private static async _callBackendLink(authInfo: PrivyAuthInfo) {
+    if (!!!Auth._config || !!!Auth._instance)
+      throw new Error("Auth has not been configured")
+
+    Auth._authToken = authInfo.authToken
+
     try {
-      const { response } = await this._fetch<
+      const { response } = await Auth._instance._fetch<
         ApiResponse<{
           link: {
             status: boolean
           }
         }>
-      >(
-        `${this.backendUrl()}/user/link/account`,
-        {
-          method: "POST",
-          body: {
-            ...this._formatAuthParams(authInfo),
-            e2ePublicKey: await this._getUserE2EPublicKey(
-              authInfo.user.id,
-              this._apiKey!
-            ),
-          },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${authToken}`,
-          },
+      >(Auth._instance._backendUrl("/user/link/account"), {
+        method: "POST",
+        body: {
+          ...Auth._formatAuthParams(authInfo),
+          e2ePublicKey: await Auth._getUserE2EPublicKey(
+            authInfo.user.id,
+            Auth._apiKey
+          ),
         },
-        async (error) => {
-          //in case of 401, we ask a new token. If it's valid, we refresh the token internally and we call again the _callBackendLink
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return this._callBackendLink(
-                  resolve,
-                  reject,
-                  authInfo,
-                  authToken
-                )
-              },
-              async (error) => {
-                console.log(error)
-
-                this._clearEventsCallbacks([
-                  "__onLinkAccountComplete",
-                  "__onLinkAccountError",
-                  "__onLoginComplete",
-                  "__onLoginError",
-                ])
-
-                await this.logout()
-                this._emit("onAuthError", error)
-
-                reject(error)
-              }
-            )
-          } else {
-            //if we're here, this means the second call encountered again a 401, so we logout the user
-            //clear all the internal callbacks connected to the authentication...
-            console.log(error)
-
-            this._clearEventsCallbacks([
-              "__onOAuthLinkAuthenticatedDesktop",
-              "__onLinkAccountError",
-              "__onLoginComplete",
-              "__onLoginError",
-            ])
-
-            await this.logout()
-            this._emit("onAuthError", error)
-
-            reject(error)
-          }
-        }
-      )
+      })
 
       if (!response || !response.data) throw new Error("Invalid response.")
 
@@ -750,25 +556,35 @@ export class Auth extends Client implements AuthInternalEvents {
         throw new Error("An error occured while updating the account.")
 
       //clear all the internal callbacks connected to the link...
-      this._clearEventsCallbacks([
+      Auth._clearEventsCallbacks([
         "__onLinkAccountComplete",
         "__onLinkAccountError",
       ])
 
-      //reset auth attempts in case this function is called because a 401 error
-      this.resetRequestNewAuthToken()
+      return authInfo
+    } catch (error: any) {
+      if ("statusCode" in error && error.statusCode === 401) {
+        Auth._clearEventsCallbacks([
+          "__onLinkAccountComplete",
+          "__onLinkAccountError",
+          "__onLoginComplete",
+          "__onLoginError",
+        ])
 
-      resolve({ ...authInfo, authToken })
-    } catch (error) {
-      this._clearEventsCallbacks([
-        "__onLinkAccountComplete",
-        "__onLinkAccountError",
-      ])
-      reject(error)
+        await Auth._instance.logout()
+        Auth._emit("onAuthError", error)
+      } else {
+        Auth._clearEventsCallbacks([
+          "__onLinkAccountComplete",
+          "__onLinkAccountError",
+        ])
+      }
+
+      throw error
     }
   }
 
-  private _formatAuthParams(authInfo: PrivyAuthInfo): AuthParams {
+  private static _formatAuthParams(authInfo: PrivyAuthInfo): AuthParams {
     return {
       did: authInfo.user.id,
       walletAddress: authInfo.user.wallet!.address,
@@ -877,269 +693,220 @@ export class Auth extends Client implements AuthInternalEvents {
     }
   }
 
-  private _clearEventsCallbacks(events: Array<AuthEvents>) {
-    events.forEach((event: AuthEvents) => {
-      const index = this._eventsCallbacks.findIndex((item) => {
-        return item.event === event
-      })
+  private static _clearEventsCallbacks(events: Array<AuthEvents>) {
+    for (const event of events) {
+      const index = Auth._eventsCallbacks.findIndex(
+        (item) => item.event === event
+      )
+      if (index < 0) throw new Error(`Invalid event "${event}"`)
 
-      if (index > -1) this._eventsCallbacks[index].callbacks = []
-    })
-  }
-
-  private _handleDesktopAuthentication(
-    resolve: (
-      value:
-        | { auth: AuthInfo; account: Account }
-        | PromiseLike<{ auth: AuthInfo; account: Account }>
-    ) => void,
-    reject: (reason?: any) => void
-  ) {
-    try {
-      this.on("__onLoginComplete", (authInfo: PrivyAuthInfo) => {
-        this._callBackendAuth(resolve, reject, authInfo, authInfo.authToken)
-      })
-
-      this.on("__onLoginError", (error: PrivyErrorCode) => {
-        reject(error)
-      })
-
-      this._emit("__authenticate")
-    } catch (error) {
-      reject(error)
+      Auth._eventsCallbacks[index].callbacks = []
     }
   }
 
-  private _handleDesktopLink(
-    resolve: (value: PrivyAuthInfo | PromiseLike<PrivyAuthInfo>) => void,
-    reject: (reason?: any) => void,
-    method: AuthLinkMethod
-  ) {
-    try {
-      this.on("__onLinkAccountComplete", async (authInfo: PrivyAuthInfo) => {
-        this._callBackendLink(resolve, reject, authInfo, authInfo.authToken)
+  private static async _handleDesktopAuthentication() {
+    return new Promise<{
+      auth: AuthInfo
+      account: Account
+    }>((resolve, reject) => {
+      if (!!!Auth._config || !!!Auth._instance)
+        throw new Error("Auth has not been configured")
+
+      Auth._instance.on("__onLoginComplete", (authInfo: PrivyAuthInfo) => {
+        Auth._callBackendAuth(authInfo).then(resolve).catch(reject)
       })
 
-      this.on("__onLinkAccountError", (error: PrivyErrorCode) => {
-        reject(error)
-      })
+      Auth._instance.on("__onLoginError", reject)
 
-      this._emit("__link", method)
-    } catch (error) {
-      reject(error)
-    }
-  }
-
-  _emit(event: AuthEvents, params?: any) {
-    const index = this._eventsCallbacks.findIndex((item) => {
-      return item.event === event
+      Auth._emit("__authenticate")
     })
-
-    if (index > -1)
-      this._eventsCallbacks[index].callbacks.forEach((callback) => {
-        callback(params)
-      })
   }
 
-  /**
-   * Updates the configuration settings for the authentication client.
-   * @param {AuthClientConfig} config - The configuration object containing the settings to update.
-   * @returns None
-   */
-  config(config: AuthClientConfig) {
-    if (config.storage) this._storage = config.storage
+  private static async _handleDesktopLink(method: AuthLinkMethod) {
+    return new Promise<PrivyAuthInfo>((resolve, reject) => {
+      if (!!!Auth._config || !!!Auth._instance)
+        throw new Error("Auth has not been configured")
+
+      Auth._instance.on(
+        "__onLinkAccountComplete",
+        (authInfo: PrivyAuthInfo) => {
+          Auth._callBackendLink(authInfo).then(resolve).catch(reject)
+        }
+      )
+
+      Auth._instance.on("__onLinkAccountError", reject)
+
+      Auth._emit("__link", method)
+    })
+  }
+
+  // TODO will probably be public
+  private static _emit(event: AuthEvents, params?: any) {
+    const index = Auth._eventsCallbacks.findIndex(
+      (item) => item.event === event
+    )
+    if (index < 0) throw new Error(`Invalid event "${event}"`)
+
+    Auth._eventsCallbacks[index].callbacks.forEach((callback) =>
+      callback(params)
+    )
   }
 
   /**
    * Add a new event and the associated callback.
-   * @param {AuthEvents} event - The event to listen.
-   * @param {Function} callback - The callback related to this event.
-   * @param {boolean} onlyOnce - An optional flag, it allows the adding of only one callback associated to this event.
-   * @returns None
+   * @param event - The event to listen.
+   * @param callback - The callback related to this event.
+   * @param onlyOnce - An optional flag, it allows the adding of only one callback associated to this event.
    */
   on(event: AuthEvents, callback: Function, onlyOnce?: boolean) {
-    const index = this._eventsCallbacks.findIndex((item) => {
-      return item.event === event
-    })
+    const index = Auth._eventsCallbacks.findIndex(
+      (item) => item.event === event
+    )
 
     if (index < 0)
-      this._eventsCallbacks.push({
+      Auth._eventsCallbacks.push({
         event,
         callbacks: [callback],
       })
     else {
+      // this is wrong, if i flag onlyOnce: true i still want my callback to be executed, just once tho
       if (onlyOnce) return
-      this._eventsCallbacks[index].callbacks.push(callback)
+      Auth._eventsCallbacks[index].callbacks.push(callback)
     }
   }
 
   /**
    * Remove an event and the associated callback or all the callbacks associated to that event.
-   * @param {AuthEvents} event - The event to unlisten.
-   * @param {Function} callback - The callback related to this event.
+   * @param event - The event to unlisten.
+   * @param callback - The callback related to this event.
    * @returns None
    */
   off(event: AuthEvents, callback?: Function) {
-    const index = this._eventsCallbacks.findIndex((item) => {
+    const index = Auth._eventsCallbacks.findIndex((item) => {
       return item.event === event
     })
 
     if (index < 0) return
 
-    this._eventsCallbacks[index].callbacks = callback
-      ? this._eventsCallbacks[index].callbacks.filter((cb) => cb !== callback)
+    Auth._eventsCallbacks[index].callbacks = callback
+      ? Auth._eventsCallbacks[index].callbacks.filter((cb) => cb !== callback)
       : []
   }
 
   authenticate(): Promise<{ auth: AuthInfo; account: Account }> {
-    return new Promise((resolve, reject) => {
-      this._handleDesktopAuthentication(resolve, reject)
-    })
+    return Auth._handleDesktopAuthentication()
   }
 
   sendEmailOTPCode(email: string): Promise<{ email: string }> {
     return new Promise((resolve, reject) => {
-      this.on("__onEmailOTPCodeSent", (email: string) => {
-        resolve({ email })
-      })
+      this.on("__onEmailOTPCodeSent", (email: string) => resolve({ email }))
 
-      this.on("__onEmailOTPCodeSentError", (error: string) => {
-        reject(error)
-      })
+      this.on("__onEmailOTPCodeSentError", reject)
 
-      this._emit("__sendEmailOTPCode", email)
+      Auth._emit("__sendEmailOTPCode", email)
     })
   }
 
   sendPhoneOTPCode(phone: string): Promise<{ phone: string }> {
     return new Promise((resolve, reject) => {
-      this.on("__onSMSOTPCodeSent", (phone: string) => {
-        resolve({ phone })
-      })
+      this.on("__onSMSOTPCodeSent", (phone: string) => resolve({ phone }))
 
-      this.on("__onSMSOTPCodeSentError", (error: string) => {
-        reject(error)
-      })
+      this.on("__onSMSOTPCodeSentError", reject)
 
-      this._emit("__sendSMSOTPCode", phone)
+      Auth._emit("__sendSMSOTPCode", phone)
     })
   }
 
   sendEmailOTPCodeAfterAuth(email: string): Promise<{ email: string }> {
     return new Promise((resolve, reject) => {
-      this.on("__onEmailOTPCodeAfterAuthSent", (email: string) => {
+      this.on("__onEmailOTPCodeAfterAuthSent", (email: string) =>
         resolve({ email })
-      })
+      )
 
-      this.on("__onEmailOTPCodeAfterAuthSentError", (error: string) => {
-        reject(error)
-      })
+      this.on("__onEmailOTPCodeAfterAuthSentError", reject)
 
-      this._emit("__sendEmailOTPCodeAfterAuth", email)
+      Auth._emit("__sendEmailOTPCodeAfterAuth", email)
     })
   }
 
   sendPhoneOTPCodeAfterAuth(phone: string): Promise<{ phone: string }> {
     return new Promise((resolve, reject) => {
-      this.on("__onSMSOTPCodeAfterAuthSent", (phone: string) => {
+      this.on("__onSMSOTPCodeAfterAuthSent", (phone: string) =>
         resolve({ phone })
-      })
+      )
 
-      this.on("__onSMSOTPCodeSentAfterAuthError", (error: string) => {
-        reject(error)
-      })
+      this.on("__onSMSOTPCodeSentAfterAuthError", reject)
 
-      this._emit("__sendSMSOTPCodeAfterAuth", phone)
+      Auth._emit("__sendSMSOTPCodeAfterAuth", phone)
     })
   }
 
-  //call this if you want to auth the user automatically without the need of a button to authenticate
-  //e.g. auth.ready(() => { auth.authenticate() })
+  /**
+   * call this if you want to auth the user automatically without the need of a button to authenticate.
+   *
+   * e.g. auth.ready().then(() => auth.authenticate())
+   */
   ready() {
-    return new Promise((resolve, reject) => {
-      try {
-        this.on("__onPrivyReady", () => {
-          resolve(true)
-        })
-      } catch (error) {
-        resolve(false)
-      }
-    })
+    return new Promise((resolve) =>
+      this.on("__onPrivyReady", () => resolve(true))
+    )
   }
 
   logout(): Promise<boolean> {
-    return new Promise((resolve, reject) => {
-      try {
-        this.on("__onLogoutComplete", (status: boolean) => {
-          this._isLoggingOut = false
-          this._clearEventsCallbacks(["__onLogoutComplete"])
-          resolve(status)
-        })
+    return new Promise((resolve) => {
+      this.on("__onLogoutComplete", (status: boolean) => {
+        Auth._isLoggingOut = false
+        Auth._clearEventsCallbacks(["__onLogoutComplete"])
+        resolve(status)
+      })
 
-        this._isLoggingOut = true
-        this._isAuthenticated = false
-        this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
-        this._account?.emptyActiveWallets()
-        this._account?.setAuthToken(null)
-        this.destroyLastUserLoggedKey()
-        this._setAllAuthToken(null)
-        this.resetRequestNewAuthToken()
+      Auth._isLoggingOut = true
+      Auth._isAuthenticated = false
+      Auth._authToken = null
+      // ? should Auth._account = null? auth.on("_logout", () => auth.getCurrentAccount() // exists)
+      Auth._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
 
-        this._emit("__logout")
-      } catch (error) {
-        this._clearEventsCallbacks([
-          "__onLoginComplete",
-          "__onLoginError",
-          "__onLogoutComplete",
-        ])
-        console.warn(error)
-        // TODO either resolve(true) | reject(error) -> "throw false" doesn't inform about the exception
-        reject(false)
-      }
+      // TODO exists?
+      Auth._account?.emptyActiveWallets()
+
+      Auth._emit("__logout")
     })
   }
 
   isLoggingOut() {
-    return this._isLoggingOut === true
+    return Auth._isLoggingOut
   }
 
   isAuthenticated() {
-    return this._isAuthenticated === true
+    return Auth._isAuthenticated
   }
 
-  link(method: AuthLinkMethod): Promise<LinkAccountInfo> {
-    return new Promise((resolve, reject) => {
-      this._handleDesktopLink(resolve, reject, method)
+  async link(method: AuthLinkMethod) {
+    return new Promise<LinkAccountInfo>((resolve, reject) => {
+      Auth._handleDesktopLink(method).then(resolve).catch(reject)
     })
   }
 
-  unlink(method: AuthLinkMethod): Promise<boolean> {
-    return new Promise((resolve, reject) => {
-      try {
-        this.on("__onUnlinkAccountComplete", (status: boolean) => {
-          //aggiungere await per chiamata lato server per aggiornare backend
-          resolve(status)
-        })
+  async unlink(method: AuthLinkMethod) {
+    return new Promise<boolean>((resolve, reject) => {
+      this.on("__onUnlinkAccountComplete", (status: boolean) => {
+        // TODO aggiungere await per chiamata lato server per aggiornare backend
+        resolve(status)
+      })
 
-        this.on(
-          "__onUnlinkAccountError",
-          ({ error }: { error: PrivyErrorCode }) => {
-            reject({ error })
-          }
-        )
+      this.on("__onUnlinkAccountError", reject)
 
-        this._emit("__unlink", method)
-      } catch (error) {
-        console.warn(error)
-        reject(error)
-      }
+      Auth._emit("__unlink", method)
     })
   }
 
-  async recoverAccountFromLocalDB(): Promise<void> {
-    if (!this._storage) return
-    if (this._account) return
+  async recoverAccountFromLocalDB() {
+    if (!!!Auth._config || !!!Auth._instance)
+      throw new Error("Auth has not been configured")
 
+    if (Auth._account) return
+
+    // * Maybe Auth._account.recoverLastUserLoggedKey
     const lastUserLoggedKey = window.localStorage.getItem(
       CLIENT_DB_KEY_LAST_USER_LOGGED
     )
@@ -1148,52 +915,19 @@ export class Auth extends Client implements AuthInternalEvents {
 
     try {
       const { did, organizationId, token } = JSON.parse(lastUserLoggedKey)
-      const user = await this._storage.get("user", "[did+organizationId]", [
+      const user = await Auth._storage.get("user", "[did+organizationId]", [
         did,
         organizationId,
       ])
 
-      const { response } = await this._fetch<
+      const { response } = await Auth._instance._fetch<
         ApiResponse<{
           secrets: {
             e2eSecret: string
             e2eSecretIV: string
           }
         }>
-      >(
-        `${this.backendUrl()}/user/secrets`,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${token}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-                this.recoverAccountFromLocalDB()
-              },
-              async (error) => {
-                console.log(error)
-                await this.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this.logout()
-          }
-        }
-      )
+      >(Auth._instance._backendUrl("/user/secrets"))
 
       if (!response || !response.data) return
 
@@ -1304,12 +1038,11 @@ export class Auth extends Client implements AuthInternalEvents {
       this._isAuthenticated = true
       this._setAllAuthToken(token)
       this._setAllCurrentAccount(account)
-
-      //reset auth attempts in case this function is called because a 401 error
-      this.resetRequestNewAuthToken()
-    } catch (error) {
+    } catch (error: any) {
       console.log("Error during rebuilding phase for account.")
-      console.log(error)
+      console.error(error)
+      if ("statusCode" in error && error.statusCode === 401)
+        await Auth._instance.logout()
     }
   }
 
