@@ -42,6 +42,7 @@ import { Reaction } from "./reaction"
 import { User } from "./user"
 import { Crypto } from "./crypto"
 import { Converter } from "../utilities"
+import { Auth } from "@src/index"
 
 /**
  * Represents a Message object that can be used to interact with messages in a chat application.
@@ -106,7 +107,6 @@ export class Message
    */
   constructor(config: MessageInitConfig & EngineInitConfig) {
     super({
-      apiKey: config.apiKey,
       storage: config.storage,
       devMode: config.devMode,
     })
@@ -769,8 +769,8 @@ export class Message
     this._storage.insertBulkSafe("message", [
       Converter.fromMessageToLocalDBMessage(
         message,
-        this._account!.did,
-        this._account!.organizationId,
+        Auth.account!.did,
+        Auth.account!.organizationId,
         true,
         "USER"
       ),
@@ -883,8 +883,8 @@ export class Message
     this._storage.insertBulkSafe("message", [
       Converter.fromMessageToLocalDBMessage(
         message,
-        this._account!.did,
-        this._account!.organizationId,
+        Auth.account!.did,
+        Auth.account!.organizationId,
         false,
         "USER"
       ),

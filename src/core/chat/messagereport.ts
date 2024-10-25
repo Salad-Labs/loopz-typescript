@@ -40,7 +40,6 @@ export class MessageReport extends Engine implements MessageReportSchema {
    */
   constructor(config: MessageReportInitConfig & EngineInitConfig) {
     super({
-      apiKey: config.apiKey,
       storage: config.storage,
       devMode: config.devMode,
     })

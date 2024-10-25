@@ -5,6 +5,7 @@ import { LoopzAuthContext } from "../context/loopzauthcontext"
 import { useLoopz } from "../hooks"
 import { LoopzAuthContextValue } from "@src/types/react/loopzauthcontextvalue"
 import { LoopzProviderAuthConfig } from "@src/types/react/loopzproviderauthconfig"
+import { Auth } from "@src/index"
 
 export const LoopzAuthProvider: FC<
   LoopzProviderAuthConfig & {
@@ -51,10 +52,10 @@ export const LoopzAuthProvider: FC<
 
       try {
         await Promise.resolve(onSendEmailOTPCode(email))
-        instance.auth._emit("__onEmailOTPCodeSent", email)
+        Auth._emit("__onEmailOTPCodeSent", email)
       } catch (error) {
         console.error(error)
-        instance.auth._emit("__onEmailOTPCodeSentError", error)
+        Auth._emit("__onEmailOTPCodeSentError", error)
       }
     },
     [onSendEmailOTPCode]
@@ -70,10 +71,10 @@ export const LoopzAuthProvider: FC<
 
       try {
         await Promise.resolve(onSendPhoneOTPCode(phone))
-        instance.auth._emit("__onSMSOTPCodeSent", phone)
+        Auth._emit("__onSMSOTPCodeSent", phone)
       } catch (error) {
         console.error(error)
-        instance.auth._emit("__onSMSOTPCodeSentError", error)
+        Auth._emit("__onSMSOTPCodeSentError", error)
       }
     },
     [onSendEmailOTPCode]
@@ -89,10 +90,10 @@ export const LoopzAuthProvider: FC<
 
       try {
         await Promise.resolve(onSendEmailOTPCodeAfterAuth(email))
-        instance.auth._emit("__onEmailOTPCodeAfterAuthSent", email)
+        Auth._emit("__onEmailOTPCodeAfterAuthSent", email)
       } catch (error) {
         console.error(error)
-        instance.auth._emit("__onEmailOTPCodeAfterAuthSentError", error)
+        Auth._emit("__onEmailOTPCodeAfterAuthSentError", error)
       }
     },
     [onSendEmailOTPCodeAfterAuth]
@@ -108,10 +109,10 @@ export const LoopzAuthProvider: FC<
 
       try {
         await Promise.resolve(onSendPhoneOTPCodeAfterAuth(email))
-        instance.auth._emit("__onSMSOTPCodeAfterAuthSent", email)
+        Auth._emit("__onSMSOTPCodeAfterAuthSent", email)
       } catch (error) {
         console.error(error)
-        instance.auth._emit("__onSMSOTPCodeSentAfterAuthError", error)
+        Auth._emit("__onSMSOTPCodeSentAfterAuthError", error)
       }
     },
     [onSendPhoneOTPCodeAfterAuth]

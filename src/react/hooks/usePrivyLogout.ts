@@ -7,7 +7,7 @@ export const usePrivyLogout = (auth: Auth) => {
   const { ready } = usePrivy()
   const { logout } = useLogout({
     onSuccess: () => {
-      auth._emit("__onLogoutComplete", true)
+      Auth._emit("__onLogoutComplete", true)
     },
   })
 

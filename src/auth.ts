@@ -864,6 +864,14 @@ export class Auth extends Client implements AuthInternalEvents {
     return Auth._isAuthenticated
   }
 
+  getAuthInfo() {
+    return Auth._authInfo
+  }
+
+  getCurrentAccount() {
+    return Auth.account
+  }
+
   async link(method: AuthLinkMethod) {
     return new Promise<LinkAccountInfo>((resolve, reject) => {
       Auth._handleDesktopLink(method).then(resolve).catch(reject)

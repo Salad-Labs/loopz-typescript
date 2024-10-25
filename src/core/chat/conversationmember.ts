@@ -54,7 +54,6 @@ export class ConversationMember
    */
   constructor(config: ConversationMemberInitConfig & EngineInitConfig) {
     super({
-      apiKey: config.apiKey,
       storage: config.storage,
       devMode: config.devMode,
     })

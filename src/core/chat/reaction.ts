@@ -26,7 +26,6 @@ export class Reaction extends Engine implements ReactionSchema {
 
   constructor(config: ReactionInitConfig & EngineInitConfig) {
     super({
-      apiKey: config.apiKey,
       storage: config.storage,
       devMode: config.devMode,
     })

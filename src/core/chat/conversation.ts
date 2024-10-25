@@ -145,7 +145,6 @@ export class Conversation
    */
   constructor(config: ConversationInitConfig & EngineInitConfig) {
     super({
-      apiKey: config.apiKey,
       storage: config.storage,
       devMode: config.devMode,
     })
