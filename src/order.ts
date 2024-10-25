@@ -14,11 +14,10 @@ import {
   OrderListResponse,
 } from "./types/order"
 import { ApiResponse } from "./types/base/apiresponse"
-import { Account } from "./core"
 import { ethers } from "ethers"
 import { Web3Provider } from "@ethersproject/providers"
 import { ConnectedWallet } from "@privy-io/react-auth"
-import { IOrder } from "."
+import { Auth, IOrder } from "."
 
 /**
  * Order class that handles interactions with the OpenSea trading platform.
@@ -27,6 +26,9 @@ import { IOrder } from "."
  */
 
 export class Order extends Client {
+  private static _config: Maybe<{ devMode: boolean }>
+  private static _instance: Maybe<Order>
+
   /**
    * @property {Maybe<ethers.providers.Web3Provider | ethers.providers.JsonRpcProvider>} _provider - The provider instance.
    */
@@ -62,17 +64,34 @@ export class Order extends Client {
   private _initialized: boolean = false
 
   /**
+   * Constructs a new instance of Auth with the provided configuration.
+   * @param config - The configuration object for authentication.
+   * @returns The instance
+   */
+  public static config(config: { devMode: boolean }) {
+    if (!!Order._config) throw new Error("Order already configured")
+
+    Order._config = config
+  }
+
+  public static getInstance() {
+    return Order._instance ?? new Order()
+  }
+
+  /**
    * Constructor for a class that requires an API key and optionally a number of blocks for confirmation.
    * @param {object} config - Configuration object containing API key and optional blocks number confirmation.
    * @param {string} config.apiKey - The API key for authorization.
    * @param {number} [config.blocksNumberConfirmationRequired] - The number of blocks required for confirmation.
    * @throws {Error} Throws an error if blocksNumberConfirmationRequired is less than 1 or if apiKey is missing or invalid.
    */
-  constructor(config: ApiKeyAuthorized) {
-    super(config.devMode)
+  private constructor() {
+    if (!!!Order._config)
+      throw new Error("Order must be configured before getting the instance")
+
+    super(Order._config.devMode)
 
     this._blocksNumberConfirmationRequired = this._MIN_BLOCKS_REQUIRED
-    this._apiKey = config.apiKey
   }
 
   /**
@@ -81,45 +100,13 @@ export class Order extends Client {
    * or null if there was an error or no data was returned in the response.
    */
   private async _getGnosis(): Promise<Maybe<MultiSigWallet>> {
-    if (!this._account) return null
+    if (!!!Auth.account) return null
 
     try {
       const { response } = await this._fetch<ApiResponse<MultiSigWallet>>(
-        `${this.backendUrl()}/wallet/multisig/${this._account.getCurrentNetwork(
-          false
-        )}`,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this._getGnosis()
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
-        }
+        this._backendUrl(
+          `/wallet/multisig/${Auth.account.getCurrentNetwork(false)}`
+        )
       )
 
       if (!response) return null
@@ -127,8 +114,12 @@ export class Order extends Client {
       const { data } = response
 
       return data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
+
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
     }
 
     return null
@@ -139,45 +130,13 @@ export class Order extends Client {
    * @returns A Promise that resolves to a Maybe<Fee> object.
    */
   private async _getMasterFee(): Promise<Maybe<Fee>> {
-    if (!this._account) return null
+    if (!Auth.account) return null
 
     try {
       const { response } = await this._fetch<ApiResponse<Fee>>(
-        `${this.backendUrl()}/fee/platform/${this._account.getCurrentNetwork(
-          false
-        )}`,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this._getMasterFee()
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
-        }
+        this._backendUrl(
+          `/fee/platform/${Auth.account.getCurrentNetwork(false)}`
+        )
       )
 
       if (!response) return null
@@ -185,11 +144,15 @@ export class Order extends Client {
       const { data } = response
 
       return data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -362,7 +325,7 @@ export class Order extends Client {
 
   async init(wallet: ConnectedWallet) {
     try {
-      if (!this._account) throw new Error("Account is not initialized.")
+      if (!Auth.account) throw new Error("Account is not initialized.")
 
       this._provider = await wallet.getEthersProvider()
       this._seaport = new Seaport(this._provider, { seaportVersion: "1.5" })
@@ -476,7 +439,7 @@ export class Order extends Client {
     proposalId?: string
   ): Promise<Maybe<OrderCreated>> {
     try {
-      if (!this._account) throw new Error("An account must be initialized.")
+      if (!Auth.account) throw new Error("An account must be initialized.")
       if (!this._provider || !this._seaport)
         throw new Error("init() must be called to initialize the client.")
       if (end < 0) throw new Error("end cannot be lower than zero.")
@@ -560,11 +523,11 @@ export class Order extends Client {
       const orderHash = this._seaport.getOrderHash(order.parameters)
 
       const { response } = await this._fetch<ApiResponse<{ orderId: number }>>(
-        `${this.backendUrl()}/order/create`,
+        this._backendUrl("/order/create"),
         {
           method: "POST",
           body: {
-            network: `${this._account.getCurrentNetwork(false)}`,
+            network: Auth.account.getCurrentNetwork(false),
             orderInit,
             order: {
               orderHash,
@@ -573,41 +536,6 @@ export class Order extends Client {
             },
             proposalId,
           },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.create(
-                  participantOne,
-                  participantTwo,
-                  end,
-                  fees,
-                  proposalId
-                )
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
         }
       )
 
@@ -619,8 +547,13 @@ export class Order extends Client {
       const { orderId } = response.data[0]
 
       return { hash: orderHash, orderId, ...order }
-    } catch (error) {
-      console.log(error)
+    } catch (error: any) {
+      console.warn(error)
+
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
       return null
     }
   }
@@ -632,46 +565,14 @@ export class Order extends Client {
    */
   async finalize(orderId: string) {
     try {
-      if (!this._account) throw new Error("Account must be initialized.")
+      if (!Auth.account) throw new Error("Account must be initialized.")
       if (!this._seaport)
         throw new Error("init() must be called to initialize the client.")
 
       const { response } = await this._fetch<ApiResponse<IOrder>>(
-        `${this.backendUrl()}/order/${this._account.getCurrentNetwork(
-          false
-        )}/${orderId}`,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.finalize(orderId)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
-        }
+        this._backendUrl(
+          `/order/${Auth.account.getCurrentNetwork(false)}/${orderId}`
+        )
       )
 
       if (!response || !response.data) throw new Error("response data is empty")
@@ -731,46 +632,14 @@ export class Order extends Client {
     gasPrice: Maybe<string> = null
   ) {
     try {
-      if (!this._account) throw new Error("network must be defined.")
+      if (!Auth.account) throw new Error("network must be defined.")
       if (!this._seaport)
         throw new Error("init() must be called to initialize the client.")
 
       const { response } = await this._fetch<ApiResponse<IOrder>>(
-        `${this.backendUrl()}/order/${this._account.getCurrentNetwork(
-          false
-        )}/${orderId}`,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.cancel(orderId, gasLimit, gasPrice)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
-        }
+        this._backendUrl(
+          `/order/${Auth.account.getCurrentNetwork(false)}/${orderId}`
+        )
       )
 
       if (!response || !response.data) throw new Error("response data is empty")
@@ -793,10 +662,14 @@ export class Order extends Client {
       )
 
       this._emit("onCancelOrdersMined", { receipt })
-    } catch (error) {
+    } catch (error: any) {
       this._emit("onCancelOrdersError", {
         error,
       })
+
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
     }
   }
 
@@ -809,39 +682,7 @@ export class Order extends Client {
   async get(networkId: string, id: string): Promise<Maybe<IOrder>> {
     try {
       const { response } = await this._fetch<ApiResponse<IOrder>>(
-        `${this.backendUrl()}/order/${networkId}/${id}`,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.get(networkId, id)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
-        }
+        this._backendUrl(`/order/${networkId}/${id}`)
       )
 
       if (!response) return null
@@ -849,11 +690,15 @@ export class Order extends Client {
       const { data } = response
 
       return data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -897,12 +742,10 @@ export class Order extends Client {
   }): Promise<Maybe<OrderListResponse>> {
     try {
       const { response } = await this._fetch<ApiResponse<OrderListResponse>>(
-        `${this.backendUrl()}/order/get/all/${networkId}/${status}/${skip}/${take}`,
+        this._backendUrl(
+          `/order/get/all/${networkId}/${status}/${skip}/${take}`
+        ),
         {
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
           method: "POST",
           body: {
             collections: typeof collections !== "undefined" ? collections : [],
@@ -911,41 +754,6 @@ export class Order extends Client {
             from: typeof from !== "undefined" ? from : null,
             to: typeof to !== "undefined" ? to : null,
           },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.listOrders({
-                  networkId,
-                  status,
-                  skip,
-                  take,
-                  from,
-                  to,
-                  collections,
-                  search,
-                  order,
-                })
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
         }
       )
 
@@ -954,11 +762,15 @@ export class Order extends Client {
       const { data } = response
 
       return data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -1005,16 +817,12 @@ export class Order extends Client {
   }): Promise<Maybe<OrderListResponse>> {
     try {
       const { response } = await this._fetch<ApiResponse<OrderListResponse>>(
-        `${this.backendUrl()}/order/user/all/${networkId}/${did}/${status}/${skip}/${take}${
-          typeof searchAddress !== "undefined" && searchAddress !== null
-            ? `/${searchAddress}`
-            : ""
-        }`,
+        this._backendUrl(
+          `/order/user/all/${networkId}/${did}/${status}/${skip}/${take}${
+            !!searchAddress ? `/${searchAddress}` : ""
+          }`
+        ),
         {
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
           method: "POST",
           body: {
             collections: typeof collections !== "undefined" ? collections : [],
@@ -1022,42 +830,6 @@ export class Order extends Client {
             from: typeof from !== "undefined" ? from : null,
             to: typeof to !== "undefined" ? to : null,
           },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.listUserOrders({
-                  networkId,
-                  did,
-                  status,
-                  skip,
-                  take,
-                  from,
-                  to,
-                  collections,
-                  searchAddress,
-                  order,
-                })
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
         }
       )
 
@@ -1066,11 +838,15 @@ export class Order extends Client {
       const { data } = response
 
       return data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -1081,10 +857,5 @@ export class Order extends Client {
   config(config: OrderConfig) {
     if (config.minBlocksRequired)
       this._MIN_BLOCKS_REQUIRED = config.minBlocksRequired
-  }
-
-  setCurrentAccount(account: Account): void {
-    super.setCurrentAccount(account)
-    this._emit("__onAccountReady", account)
   }
 }

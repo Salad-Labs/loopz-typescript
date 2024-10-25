@@ -345,7 +345,7 @@ export class Chat
     return Chat._instance ?? new Chat()
   }
 
-  constructor() {
+  private constructor() {
     if (!!!Chat._config)
       throw new Error("Chat must be configured before getting the instance")
 
