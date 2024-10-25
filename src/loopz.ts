@@ -19,13 +19,6 @@ export class Loopz {
   private static _instance: Loopz
   private static _randomLsname: string
 
-  private static _auth: Auth
-  private static _chat: Chat
-  private static _oracle: Oracle
-  private static _proposal: Proposal
-  private static _order: Order
-  private static _notification: Notification
-
   private static _apiKey: string
 
   private static _privyAppId: string
@@ -63,54 +56,31 @@ export class Loopz {
     if (typeof devMode !== "undefined" && devMode === true)
       Loopz._devMode = true
 
-    Loopz._oracle = new Oracle({
-      apiKey: config.apiKey,
-      devMode: Loopz._devMode,
-    })
-    Loopz._proposal = new Proposal({
-      apiKey: config.apiKey,
-      devMode: Loopz._devMode,
-    })
-    Loopz._order = new Order({
-      apiKey: config.apiKey,
-      devMode: Loopz._devMode,
-    })
-    Loopz._chat = new Chat({
-      apiKey: Loopz._apiKey,
-      storage: config.storage,
-      devMode: Loopz._devMode,
-    })
-    Loopz._notification = new Notification({
-      apiKey: config.apiKey,
-      devMode: Loopz._devMode,
-    })
-    Loopz._auth = new Auth({
+    Auth.config({
       apiKey: config.apiKey,
       privyAppId: config.privyAppId,
       privyConfig: config.privyClientConfig,
       storage: config.storage,
       devMode: Loopz._devMode,
     })
+    Oracle.config({
+      devMode: Loopz._devMode,
+    })
+    Proposal.config({
+      devMode: Loopz._devMode,
+    })
+    Order.config({
+      devMode: Loopz._devMode,
+    })
+    Chat.config({
+      storage: config.storage,
+      devMode: Loopz._devMode,
+    })
+    Notification.config({
+      devMode: Loopz._devMode,
+    })
 
-    //set the references between the objects, the target is making objects able to know each other
-    const objectsReference = {
-      auth: Loopz._auth,
-      oracle: Loopz._oracle,
-      proposal: Loopz._proposal,
-      order: Loopz._order,
-      chat: Loopz._chat,
-      notification: Loopz._notification,
-    }
-
-    Loopz._auth.setLoopzObjectsReference(objectsReference)
-    Loopz._oracle.setLoopzObjectsReference(objectsReference)
-    Loopz._proposal.setLoopzObjectsReference(objectsReference)
-    Loopz._order.setLoopzObjectsReference(objectsReference)
-    Loopz._notification.setLoopzObjectsReference(objectsReference)
-    Loopz._chat.setLoopzObjectsReference(objectsReference)
-
-    if (Loopz._privyAdapter)
-      Loopz._privyAdapter.render(Loopz._auth, Loopz._order)
+    if (Loopz._privyAdapter) Loopz._privyAdapter.render()
   }
 
   private static async createOrConnectToStorage(): Promise<DexieStorage> {
@@ -156,9 +126,9 @@ export class Loopz {
     }
   ): Promise<Loopz> {
     if (!Loopz._instance) {
-      let runAdapter = undefined
-      let enableStorage = undefined
-      let devMode = undefined
+      let runAdapter: boolean | undefined = undefined
+      let enableStorage: boolean | undefined = undefined
+      let devMode: boolean | undefined = undefined
 
       if (options && "runAdapter" in options) runAdapter = options.runAdapter
       if (options && "enableStorage" in options)
@@ -192,17 +162,25 @@ export class Loopz {
     chat: Chat
     notification: Notification
   } {
-    Loopz._auth.on("__tryRebuildAccountOnRefresh", async () => {
-      await Loopz._auth.recoverAccountFromLocalDB()
-    })
+    const auth = Auth.getInstance()
+    const order = Order.getInstance()
+    const proposal = Proposal.getInstance()
+    const oracle = Oracle.getInstance()
+    const chat = Chat.getInstance()
+    const notification = Notification.getInstance()
+
+    auth.on(
+      "__tryRebuildAccountOnRefresh",
+      Auth.recoverAccountFromLocalDB.bind(Auth)
+    )
 
     return {
-      auth: Loopz._auth,
-      order: Loopz._order,
-      proposal: Loopz._proposal,
-      oracle: Loopz._oracle,
-      chat: Loopz._chat,
-      notification: Loopz._notification,
+      auth,
+      order,
+      proposal,
+      oracle,
+      chat,
+      notification,
     }
   }
 }

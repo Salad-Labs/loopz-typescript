@@ -29,10 +29,13 @@ export class PrivyAdapter {
     this._privyConfig = privyAdapterOptions.options!
   }
 
-  render(auth: Auth, order: Order) {
+  render() {
     if (!this._root) throw new Error("Root object must be initializated.")
     if (!this._privyConfig)
       throw new Error("Privy configuration must be setup.")
+
+    const auth = Auth.getInstance()
+    const order = Order.getInstance()
 
     this._root.render(
       <PrivyContext
