@@ -7,10 +7,10 @@ import { encodeFunctionData } from "viem"
 import { erc1155Abi, erc20Abi, erc721Abi } from "../../constants"
 import { Client } from "../client"
 import { QIError } from ".."
-import { ApiResponse } from "@src/types/base/apiresponse"
+import { ApiResponse } from "../../types/base/apiresponse"
 import { DexieStorage } from "../app"
-import { Chat } from "@src/chat"
 import { AddGroupFrom, ReceiveMessageFrom, UserOnlineStatus } from "@src/enums"
+import { Auth, Chat } from "../../"
 
 export class Account extends Client implements AccountSchema, AccountEngine {
   readonly did: string
@@ -101,30 +101,24 @@ export class Account extends Client implements AccountSchema, AccountEngine {
   readonly allowAddToGroupsFrom: "ONLY_FOLLOWED" | "EVERYONE"
   readonly allowGroupsSuggestion: boolean
 
+  private _storage: DexieStorage
   private _activeWallets: Array<ConnectedWallet> = []
-
   private _embeddedWallet: Maybe<ConnectedWallet> = null
-
   private _eventsCallbacks: Array<{
     eventName: "onFundExit"
     callbacks: Array<Function>
   }> = []
 
-  private _storage: DexieStorage
-
   constructor(
     config: AccountInitConfig & {
       enableDevMode: boolean
-      apiKey: string
       storage: DexieStorage
-      chatRef: Chat
     }
   ) {
     super(config.enableDevMode)
 
-    this._chatRef = config.chatRef
     this._storage = config.storage
-    this._apiKey = config.apiKey
+
     this.did = config.did
     this.organizationId = config.organizationId
     this.token = config.token
@@ -399,7 +393,7 @@ export class Account extends Client implements AccountSchema, AccountEngine {
   }) {
     try {
       const { response } = await this._fetch<ApiResponse<{}>>(
-        `${this.backendUrl()}/user/update`,
+        this._backendUrl("/user/update"),
         {
           method: "POST",
           body: {
@@ -414,40 +408,6 @@ export class Account extends Client implements AccountSchema, AccountEngine {
                 }
               : null,
           },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this.token}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this.setAuthToken(authToken)
-                this.storeLastUserLoggedKey()
-
-                return await this.updateData({
-                  username,
-                  avatarUrl,
-                  bio,
-                  pfp,
-                })
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
         }
       )
 
@@ -477,8 +437,12 @@ export class Account extends Client implements AccountSchema, AccountEngine {
           pfp: pfp ? pfp : undefined,
         })
       })
-    } catch (error) {
-      console.log(error)
+    } catch (error: any) {
+      console.error(error)
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+      throw error
     }
   }
 
@@ -498,42 +462,13 @@ export class Account extends Client implements AccountSchema, AccountEngine {
   ) {
     try {
       const { response } = await this._fetch<ApiResponse<{}>>(
-        `${this.backendUrl()}/user/update/settings`,
+        this._backendUrl("/user/update/settings"),
         {
           method: "POST",
           body: {
             setting,
             enabled,
           },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this.token}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this.setAuthToken(authToken)
-                this.storeLastUserLoggedKey()
-
-                return await this.updateSettings(setting, enabled)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
         }
       )
 
@@ -570,8 +505,11 @@ export class Account extends Client implements AccountSchema, AccountEngine {
             setting === "generalNotificationSystem" ? enabled : undefined,
         })
       })
-    } catch (error) {
-      console.log(error)
+    } catch (error: any) {
+      console.error(error)
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
     }
   }
 
@@ -586,9 +524,10 @@ export class Account extends Client implements AccountSchema, AccountEngine {
     allowGroupsSuggestion: boolean
   }) {
     try {
-      const response = await this._chatRef?.updateUser(settings)
+      // Chat.getInstance().updateUser()
+      const response = await Chat.getInstance().updateUser(settings)
 
-      if (response instanceof QIError) throw new Error(response.toString())
+      if (response instanceof QIError) throw response
 
       await this._storage.transaction("rw", this._storage.user, async () => {
         const user = await this._storage.user
@@ -597,19 +536,16 @@ export class Account extends Client implements AccountSchema, AccountEngine {
           .first()
         if (!user) return
 
-        await this._storage.user.update(user, {
-          ...settings,
-        })
+        await this._storage.user.update(user, settings)
       })
     } catch (error) {
-      console.log(error)
+      console.error(error)
     }
   }
 
-  async exportPersonalKeys(
-    download: boolean = true,
-    callback?: (fileContent: string) => any
-  ) {
+  async exportPersonalKeys(download: true): Promise<undefined>
+  async exportPersonalKeys(download: false): Promise<string>
+  async exportPersonalKeys(download: boolean = true) {
     try {
       const items = await this._storage.get("user", "[did+organizationId]", [
         this.did,
@@ -617,22 +553,20 @@ export class Account extends Client implements AccountSchema, AccountEngine {
       ])
 
       const fileContent = JSON.stringify(items, null, 2)
+      if (!download) return fileContent
 
-      if (download) {
-        const blob = new Blob([fileContent], { type: "application/json" })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = "user.json"
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-      } else {
-        if (callback) callback(fileContent)
-      }
+      const blob = new Blob([fileContent], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "user.json"
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
     } catch (error) {
       console.error(error)
+      throw error
     }
   }
 }

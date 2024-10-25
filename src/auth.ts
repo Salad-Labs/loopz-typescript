@@ -1,6 +1,5 @@
 import { Client } from "./core/client"
 import {
-  AuthClientConfig,
   AuthConfig,
   AuthEvents,
   AuthInfo,
@@ -11,26 +10,25 @@ import { ApiResponse } from "./types/base/apiresponse"
 import { ApiKeyAuthorized, Maybe } from "./types/base"
 import { Crypto } from "./core"
 import { Account, DexieStorage } from "./core/app"
-import { PrivyClientConfig } from "@privy-io/react-auth"
 import { AuthInternalEvents } from "./interfaces/auth/authinternalevents"
 import { PrivyErrorCode } from "@src/enums/adapter/auth/privyerrorcode"
 import { PrivyAuthInfo } from "./types/adapter"
-import forge from "node-forge"
 import { AccountInitConfig } from "./types/auth/account"
 import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "./constants/app"
 import { AuthLinkMethod } from "./types/auth/authlinkmethod"
+import { getAccessToken } from "@privy-io/react-auth"
+import { Chat } from "."
 
 /**
  * Represents an authentication client that interacts with a backend server for user authentication.
- * @class Auth
- * @extends Client
  */
 export class Auth extends Client implements AuthInternalEvents {
   private static _config: Maybe<AuthConfig & ApiKeyAuthorized> = null
   private static _instance: Maybe<Auth> = null
 
-  private static _apiKey: string
+  private static _realtimeAuthorizationToken: Maybe<string> = null
   private static _authToken: Maybe<string> = null
+  private static _apiKey: string
   private static _account: Maybe<Account> = null
   private static _authInfo: Maybe<AuthInfo> = null
 
@@ -42,12 +40,32 @@ export class Auth extends Client implements AuthInternalEvents {
   private static _isLoggingOut = false
   private static _isAuthenticated = false
 
-  public static get authToken() {
-    return Auth._authToken
+  private static set authToken(authToken: Maybe<string>) {
+    Auth._authToken = authToken
+    Auth._realtimeAuthorizationToken = authToken
+      ? `${Auth._apiKey}##${authToken}`
+      : null
+  }
+
+  private static set account(account: Maybe<Account>) {
+    Auth._account = account
+    if (!!account) Auth._emit("__onAccountReady")
+  }
+
+  public static get realtimeAuthorizationToken() {
+    return Auth._realtimeAuthorizationToken
   }
 
   public static get apiKey() {
     return Auth._apiKey
+  }
+
+  public static get authToken() {
+    return Auth._authToken
+  }
+
+  public static get account() {
+    return Auth._account
   }
 
   /**
@@ -62,17 +80,17 @@ export class Auth extends Client implements AuthInternalEvents {
   }
 
   public static getInstance() {
+    return Auth._instance ?? new Auth()
+  }
+
+  private constructor() {
     if (!!!Auth._config)
       throw new Error("Auth must be configured before getting the instance")
 
-    return Auth._instance ?? new Auth(Auth._config)
-  }
+    super(Auth._config.devMode)
 
-  private constructor(config: AuthConfig & ApiKeyAuthorized) {
-    super(config.devMode)
-
-    Auth._storage = config.storage
-    Auth._apiKey = config.apiKey
+    Auth._storage = Auth._config.storage
+    Auth._apiKey = Auth._config.apiKey
 
     //OAuth providers like Google, Instagram etc bring the user from the current web application page to
     //their authentication pages. When the user is redirect from their auth pages to the web application page again
@@ -90,11 +108,11 @@ export class Auth extends Client implements AuthInternalEvents {
 
     //OAuth providers login error handling
     this.on("__onLoginError", (error: PrivyErrorCode) => {
-      this._emit("onAuthError", error)
+      Auth._emit("onAuthError", error)
     })
 
     this.on("__onLinkAccountError", (error: PrivyErrorCode) => {
-      this._emit("onLinkError", error)
+      Auth._emit("onLinkError", error)
     })
 
     Auth._instance = this
@@ -298,7 +316,7 @@ export class Auth extends Client implements AuthInternalEvents {
     if (!!!Auth._config || !!!Auth._instance)
       throw new Error("Auth has not been configured")
 
-    Auth._authToken = authInfo.authToken
+    Auth.authToken = authInfo.authToken
 
     try {
       const e2ePublicKey = await Auth._getUserE2EPublicKey(
@@ -331,32 +349,16 @@ export class Auth extends Client implements AuthInternalEvents {
 
       //let's check if it's the first login of the user.
       //this is needed to understand if the user is doing the login on a different device
-      if (!user.firstLogin && !e2ePublicKey) {
-        //this means i have done the signin already on a different device
-        //because if i'm using the same device i should have e2ePublicKey already setup.
-        //So, if this value is null and it's not the first login of the user, means probably the user is doing the login on a different device.
-        //Thus, let's block the possibility to chat since before to do that the user needs to transfer the private keys between the devices.
-
-        // TODO something like Chat.setUserCanChat(true | false)
-
-        this._chatRef?.setCanChat(false)
-      } else {
-        this._chatRef?.setCanChat(true)
-      }
-
+      Chat.getInstance().setCanChat(user.firstLogin || !!e2ePublicKey)
       Auth._isAuthenticated = true
-      // TODO define setter for account to emit auth event on set value
-      Auth._account = new Account({
-        ...user,
+      Auth.account = new Account({
         enableDevMode: Auth._config.devMode,
-        apiKey: this._apiKey!,
-        storage: this._storage!,
-        chatRef: this._chatRef!, // TODO remove
+        storage: Auth._config.storage,
+        ...user,
       })
       //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
       //the user refresh the page
-      // TODO will probably be static
-      account.storeLastUserLoggedKey()
+      Auth._account!.storeLastUserLoggedKey()
 
       //generation of the table and local keys for e2e encryption
       await Auth._handleDexie()
@@ -381,7 +383,7 @@ export class Auth extends Client implements AuthInternalEvents {
     if (!!!Auth._config || !!!Auth._instance)
       throw new Error("Auth has not been configured")
 
-    Auth._authToken = authInfo.authToken
+    Auth.authToken = authInfo.authToken
 
     try {
       const e2ePublicKey = await Auth._getUserE2EPublicKey(
@@ -409,34 +411,21 @@ export class Auth extends Client implements AuthInternalEvents {
 
       //let's check if it's the first login of the user.
       //this is needed to understand if the user is doing the login on a different device
-      if (!user.firstLogin && !e2ePublicKey) {
-        //this means i have done the signin already on a different device
-        //because if i'm using the same device i should have e2ePublicKey already setup.
-        //So, if this value is null and it's not the first login of the user, means probably the user is doing the login on a different device.
-        //Thus, let's block the possibility to chat since before to do that the user needs to transfer the private keys between the devices.
-        // TODO same as before
-        this._chatRef?.setCanChat(false)
-      } else {
-        this._chatRef?.setCanChat(true)
-      }
-
+      Chat.getInstance().setCanChat(user.firstLogin || !!e2ePublicKey)
       Auth._isAuthenticated = true
       Auth._authInfo = {
         isConnected: true,
         ...authInfo,
       }
-      Auth._account = new Account({
-        ...user,
+      Auth.account = new Account({
         enableDevMode: Auth._config.devMode,
-        apiKey: Auth._apiKey,
-        storage: Auth._storage,
-        chatRef: this._chatRef!, // TODO remove
+        storage: Auth._config.storage,
+        ...user,
       })
 
       //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
       //the user refresh the page
-      // TODO same as before
-      account.storeLastUserLoggedKey()
+      Auth._account!.storeLastUserLoggedKey()
 
       //generation of the table and local keys for e2e encryption
       await Auth._handleDexie()
@@ -446,7 +435,7 @@ export class Auth extends Client implements AuthInternalEvents {
 
       return {
         auth: Auth._authInfo,
-        account: Auth._account,
+        account: Auth._account!,
       }
     } catch (error) {
       console.error(error)
@@ -466,7 +455,7 @@ export class Auth extends Client implements AuthInternalEvents {
     if (!!!Auth._config || !!!Auth._instance)
       throw new Error("Auth has not been configured")
 
-    Auth._authToken = authInfo.authToken
+    Auth.authToken = authInfo.authToken
 
     try {
       const { response } = await Auth._instance._fetch<
@@ -527,7 +516,7 @@ export class Auth extends Client implements AuthInternalEvents {
     if (!!!Auth._config || !!!Auth._instance)
       throw new Error("Auth has not been configured")
 
-    Auth._authToken = authInfo.authToken
+    Auth.authToken = authInfo.authToken
 
     try {
       const { response } = await Auth._instance._fetch<
@@ -740,8 +729,7 @@ export class Auth extends Client implements AuthInternalEvents {
     })
   }
 
-  // TODO will probably be public
-  private static _emit(event: AuthEvents, params?: any) {
+  public static _emit(event: AuthEvents, params?: any) {
     const index = Auth._eventsCallbacks.findIndex(
       (item) => item.event === event
     )
@@ -862,7 +850,7 @@ export class Auth extends Client implements AuthInternalEvents {
 
       Auth._isLoggingOut = true
       Auth._isAuthenticated = false
-      Auth._authToken = null
+      Auth.authToken = null
       // ? should Auth._account = null? auth.on("_logout", () => auth.getCurrentAccount() // exists)
       Auth._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
 
@@ -900,7 +888,7 @@ export class Auth extends Client implements AuthInternalEvents {
     })
   }
 
-  async recoverAccountFromLocalDB() {
+  public static async recoverAccountFromLocalDB() {
     if (!!!Auth._config || !!!Auth._instance)
       throw new Error("Auth has not been configured")
 
@@ -937,11 +925,11 @@ export class Auth extends Client implements AuthInternalEvents {
 
       const { e2eSecret, e2eSecretIV } = secrets
 
-      const account = new Account({
-        enableDevMode: this._isDevMode,
-        apiKey: this._apiKey!,
-        storage: this._storage,
-        chatRef: this._chatRef!,
+      Auth._isAuthenticated = true
+      Auth.authToken = token
+      Auth._account = new Account({
+        enableDevMode: Auth._config.devMode,
+        storage: Auth._config.storage,
         did: user.did,
         organizationId: user.organizationId,
         token: token,
@@ -1034,10 +1022,6 @@ export class Auth extends Client implements AuthInternalEvents {
         allowAddToGroupsFrom: user.allowAddToGroupsFrom,
         allowGroupsSuggestion: user.allowGroupsSuggestion,
       })
-
-      this._isAuthenticated = true
-      this._setAllAuthToken(token)
-      this._setAllCurrentAccount(account)
     } catch (error: any) {
       console.log("Error during rebuilding phase for account.")
       console.error(error)
@@ -1046,8 +1030,10 @@ export class Auth extends Client implements AuthInternalEvents {
     }
   }
 
-  setCurrentAccount(account: Account) {
-    super.setCurrentAccount(account)
-    this._emit("__onAccountReady")
+  public static async fetchAuthToken() {
+    const token = await getAccessToken()
+
+    Auth.authToken = token
+    Auth._account?.storeLastUserLoggedKey()
   }
 }

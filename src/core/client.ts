@@ -117,7 +117,7 @@ export class Client {
       )
         throw e
 
-      // await Auth.fetchAuthToken() -> async fetchAuthToken() { const token = await getAccessToken(); Auth._authToken = token }
+      await Auth.fetchAuthToken()
 
       return this._fetch(url, options).then((res) => {
         this._refreshTokenCallCount = 0

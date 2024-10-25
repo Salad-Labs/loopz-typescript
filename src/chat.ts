@@ -226,13 +226,12 @@ import { Converter, findAddedAndRemovedConversation } from "./core"
 import Dexie, { Table } from "dexie"
 import { Reaction } from "./core/chat/reaction"
 import { v4 as uuidv4 } from "uuid"
-import { DexieStorage } from "./core/app"
 import * as bip39 from "@scure/bip39"
 import { wordlist } from "@scure/bip39/wordlists/english"
 import { ApiResponse } from "./types/base/apiresponse"
 import { md, mgf, pki } from "node-forge"
 import { Order } from "./order"
-import { ChatEvents, EngineInitConfig } from "."
+import { Auth, ChatEvents, EngineInitConfig } from "."
 
 export class Chat
   extends Engine
@@ -250,7 +249,10 @@ export class Chat
     UAMutationEngine,
     UAQueryEngine
 {
-  private _isSyncing: boolean = false
+  private static _config: Maybe<EngineInitConfig> = null
+  private static _instance: Maybe<Chat> = null
+
+  private _isSyncing = false
 
   private _syncingCounter: number = 0
 
@@ -333,8 +335,21 @@ export class Chat
 
   static readonly SYNCING_TIME = 60000
 
-  constructor(config: EngineInitConfig) {
-    super(config)
+  public static config(config: EngineInitConfig) {
+    if (!!Chat._config) throw new Error("Chat already configured")
+
+    Chat._config = config
+  }
+
+  public static getInstance() {
+    return Chat._instance ?? new Chat()
+  }
+
+  constructor() {
+    if (!!!Chat._config)
+      throw new Error("Chat must be configured before getting the instance")
+
+    super(Chat._config)
 
     this._hookMessageCreatingFn = (primaryKey, record) => {
       const _message = {
@@ -587,8 +602,8 @@ export class Chat
 
           return Converter.fromConversationToLocalDBConversation(
             conversation,
-            this._account!.did,
-            this._account!.organizationId,
+            Auth.account!.did,
+            Auth.account!.organizationId,
             isConversationArchived
           )
         })
@@ -630,13 +645,13 @@ export class Chat
       //To do that, let's do a query on the local user table. If the _userKeyPair is already set, we skip this operation.
       if (!this._userKeyPair) {
         let user = (await this._storage.get("user", "[did+organizationId]", [
-          this._account!.did,
-          this._account!.organizationId,
+          Auth.account!.did,
+          Auth.account!.organizationId,
         ])) as LocalDBUser
 
         const { e2eEncryptedPrivateKey, e2ePublicKey: e2ePublicKeyPem } = user!
-        const { e2eSecret } = this._account!
-        const { e2eSecretIV } = this._account!
+        const { e2eSecret } = Auth.account!
+        const { e2eSecretIV } = Auth.account!
 
         const e2ePrivateKeyPem = Crypto.decryptAES_CBC(
           e2eEncryptedPrivateKey,
@@ -753,8 +768,7 @@ export class Chat
           .orderBy("createdAt")
           .filter(
             (element) =>
-              element.origin === "USER" &&
-              element.userDid === this._account!.did
+              element.origin === "USER" && element.userDid === Auth.account!.did
           )
           .reverse()
           .first()
@@ -820,8 +834,8 @@ export class Chat
 
                 return Converter.fromMessageToLocalDBMessage(
                   message,
-                  this._account!.did,
-                  this._account!.organizationId,
+                  Auth.account!.did,
+                  Auth.account!.organizationId,
                   isMessageImportant,
                   "USER"
                 )
@@ -968,7 +982,7 @@ export class Chat
         //we need to update the _keyPairsMap with the new keys of the new conversation
         const { conversationId, items } = response
         const item = items.find(
-          (item) => item.userId === this._account?.dynamoDBUserID
+          (item) => item.userId === Auth.account?.dynamoDBUserID
         )
         const {
           encryptedConversationPrivateKey,
@@ -1058,8 +1072,8 @@ export class Chat
           this._storage.insertBulkSafe<LocalDBConversation>("conversation", [
             Converter.fromConversationToLocalDBConversation(
               conversation,
-              this._account!.did,
-              this._account!.organizationId,
+              Auth.account!.did,
+              Auth.account!.organizationId,
               isConversationArchived
             ),
           ])
@@ -1102,8 +1116,8 @@ export class Chat
         this._storage.insertBulkSafe("message", [
           Converter.fromMessageToLocalDBMessage(
             response,
-            this._account!.did,
-            this._account!.organizationId,
+            Auth.account!.did,
+            Auth.account!.organizationId,
             false,
             "USER"
           ),
@@ -1137,8 +1151,8 @@ export class Chat
         this._storage.insertBulkSafe("message", [
           Converter.fromMessageToLocalDBMessage(
             response,
-            this._account!.did,
-            this._account!.organizationId,
+            Auth.account!.did,
+            Auth.account!.organizationId,
             false,
             "USER"
           ),
@@ -1173,8 +1187,8 @@ export class Chat
         this._storage.insertBulkSafe("message", [
           Converter.fromMessageToLocalDBMessage(
             response,
-            this._account!.did,
-            this._account!.organizationId,
+            Auth.account!.did,
+            Auth.account!.organizationId,
             false,
             "USER"
           ),
@@ -1191,7 +1205,7 @@ export class Chat
             const conversation = await this._storage.get(
               "conversation",
               "[conversationId+userDid]",
-              [response.conversationId, this._account!.did]
+              [response.conversationId, Auth.account!.did]
             )
             table.update(conversation, {
               deletedAt: null,
@@ -1228,8 +1242,8 @@ export class Chat
         this._storage.insertBulkSafe("message", [
           Converter.fromMessageToLocalDBMessage(
             response,
-            this._account!.did,
-            this._account!.organizationId,
+            Auth.account!.did,
+            Auth.account!.organizationId,
             false,
             "USER"
           ),
@@ -1262,7 +1276,7 @@ export class Chat
       if (!(response instanceof QIError)) {
         await this._storage.deleteItem("message", "[id+userDid]", [
           response.id,
-          this._account!.did,
+          Auth.account!.did,
         ])
 
         this._emit("messageDeleted", {
@@ -1298,7 +1312,7 @@ export class Chat
         for (const id of response.messagesIds) {
           await this._storage.deleteItem("message", "[id+userDid]", [
             id,
-            this._account!.did,
+            Auth.account!.did,
           ])
         }
 
@@ -1329,14 +1343,14 @@ export class Chat
         const conversationStored = (await this._storage.get(
           "conversation",
           "[id+userDid]",
-          [(response.id, this._account!.did)]
+          [(response.id, Auth.account!.did)]
         )) as Maybe<LocalDBConversation>
 
         this._storage.insertBulkSafe("conversation", [
           Converter.fromConversationToLocalDBConversation(
             response,
-            this._account!.did,
-            this._account!.organizationId,
+            Auth.account!.did,
+            Auth.account!.organizationId,
             conversationStored ? conversationStored.isArchived : false
           ),
         ])
@@ -1372,8 +1386,8 @@ export class Chat
         const message = {
           id: uuidv4(),
           userId: response.memberOut.id,
-          organizationId: this._account!.organizationId,
-          userDid: this._account!.did,
+          organizationId: Auth.account!.organizationId,
+          userDid: Auth.account!.did,
           conversationId: response.conversationId,
           content: "",
           reactions: [],
@@ -1423,8 +1437,8 @@ export class Chat
         const message = {
           id: uuidv4(),
           userId: response.memberOut.id,
-          organizationId: this._account!.organizationId,
-          userDid: this._account!.did,
+          organizationId: Auth.account!.organizationId,
+          userDid: Auth.account!.did,
           conversationId: response.conversationId,
           content: "",
           reactions: [],
@@ -3770,7 +3784,7 @@ export class Chat
       },
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) throw response
 
     return new User({
       ...this._parentConfig!,
@@ -3917,8 +3931,8 @@ export class Chat
     this._storage.insertBulkSafe("message", [
       Converter.fromMessageToLocalDBMessage(
         message,
-        this._account!.did,
-        this._account!.organizationId,
+        Auth.account!.did,
+        Auth.account!.organizationId,
         true,
         "USER"
       ),
@@ -4027,8 +4041,8 @@ export class Chat
     this._storage.insertBulkSafe("message", [
       Converter.fromMessageToLocalDBMessage(
         message,
-        this._account!.did,
-        this._account!.organizationId,
+        Auth.account!.did,
+        Auth.account!.organizationId,
         false,
         "USER"
       ),
@@ -6661,7 +6675,7 @@ export class Chat
    * @returns {Promise<void>}
    */
   async sync(): Promise<void> {
-    if (!this._account)
+    if (!Auth.account)
       throw new Error("You must be authenticated before to sync.")
     if (!this._storage.isStorageEnabled())
       throw new Error("sync() is available only if you enable the storage.")
@@ -6761,7 +6775,7 @@ export class Chat
     page: number,
     numberElements: number
   ): Promise<LocalDBMessage[]> {
-    if (!this._account) throw new Error("Account must be initialized.")
+    if (!Auth.account) throw new Error("Account must be initialized.")
 
     return new Promise((resolve, reject) => {
       try {
@@ -6782,7 +6796,7 @@ export class Chat
               .filter(
                 (element) =>
                   element.conversationId === conversationId &&
-                  element.userDid === this._account!.did &&
+                  element.userDid === Auth.account!.did &&
                   typeof element.deletedAt !== "undefined" &&
                   !!element.deletedAt
               )
@@ -6849,7 +6863,7 @@ export class Chat
     page: number,
     numberElements: number
   ): Promise<LocalDBConversation[]> {
-    if (!this._account) throw new Error("Account must be initialized.")
+    if (!Auth.account) throw new Error("Account must be initialized.")
 
     return new Promise((resolve, reject) => {
       try {
@@ -6873,7 +6887,7 @@ export class Chat
               .limit(numberElements)
               .filter(
                 (element) =>
-                  element.userDid === this._account!.did &&
+                  element.userDid === Auth.account!.did &&
                   typeof element.deletedAt !== "undefined" &&
                   !!element.deletedAt
               )
@@ -6917,7 +6931,7 @@ export class Chat
   async searchTermsOnLocalDB(
     terms: Array<string>
   ): Promise<Array<{ conversationId: string; messageId: string }>> {
-    if (!this._account) throw new Error("Account must be initialized.")
+    if (!Auth.account) throw new Error("Account must be initialized.")
     return new Promise((resolve, reject) => {
       try {
         this._storage.query(
@@ -6931,7 +6945,7 @@ export class Chat
                   .where("content")
                   .startsWith(prefix)
                   .and((m) => {
-                    return m.userDid === this._account!.did
+                    return m.userDid === Auth.account!.did
                   })
                   .primaryKeys()
               )
@@ -6965,7 +6979,7 @@ export class Chat
   /** delete operations local database */
 
   softDeleteConversationOnLocalDB(conversationId: string): Promise<void> {
-    if (!this._account) throw new Error("Account must be initialized.")
+    if (!Auth.account) throw new Error("Account must be initialized.")
     return new Promise((resolve, reject) => {
       try {
         this._storage.query(
@@ -6975,7 +6989,7 @@ export class Chat
           ) => {
             await table
               .where("[id+userDid]")
-              .equals([conversationId, this._account!.did])
+              .equals([conversationId, Auth.account!.did])
               .modify((conversation: LocalDBConversation) => {
                 conversation.deletedAt = new Date()
               })
@@ -6991,7 +7005,7 @@ export class Chat
   }
 
   async truncateTableOnLocalDB(tableName: "message" | "user" | "conversation") {
-    if (!this._account) throw new Error("Account must be initialized.")
+    if (!Auth.account) throw new Error("Account must be initialized.")
 
     await this._storage.truncate(tableName)
   }
@@ -6999,7 +7013,7 @@ export class Chat
   /** update operations local database */
 
   readMessage(conversationId: string): Promise<void> {
-    if (!this._account) throw new Error("Account must be initialized.")
+    if (!Auth.account) throw new Error("Account must be initialized.")
 
     return new Promise((resolve, reject) => {
       try {
@@ -7010,7 +7024,7 @@ export class Chat
           ) => {
             await table
               .where("[id+userDid]")
-              .equals([conversationId, this._account!.did])
+              .equals([conversationId, Auth.account!.did])
               .modify((conversation: LocalDBConversation) => {
                 conversation.lastMessageRead = new Date()
               })
@@ -7033,8 +7047,6 @@ export class Chat
       throw new Error(
         "Pairing is possible only if the user has generated a personal keys pair."
       )
-    if (!this._authToken) throw new Error("JWT is not setup correctly.")
-    if (!this._apiKey) throw new Error("API key is not setup correctly.")
 
     //WARNING!
     //old code was the following:
@@ -7057,58 +7069,30 @@ export class Chat
 
     try {
       const { response } = await this._fetch<ApiResponse<{ status: number }>>(
-        `${this.backendUrl()}/pair/device/init`,
+        this._backendUrl("/pair/device/init"),
         {
           method: "POST",
           body: {
             pairingIdentity: hex,
           },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.pair()
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
         }
       )
-
       if (!response || !response.data) throw new Error("Response is invalid.")
-    } catch (error) {
-      console.log(error)
+
+      return mnemonic
+    } catch (error: any) {
+      console.error(error)
+
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
       return null
     }
-
-    return mnemonic
   }
 
   //this action is performed by device B
   async startPairing(mnemonic: string): Promise<Maybe<{ status: number }>> {
-    if (!this._authToken) throw new Error("JWT is not setup correctly.")
-    if (!this._apiKey) throw new Error("API key is not setup correctly.")
-
     try {
       const keyPair = await Crypto.generateKeys("STANDARD")
 
@@ -7144,7 +7128,7 @@ export class Chat
       }
 
       const { response } = await this._fetch<ApiResponse<{ status: number }>>(
-        `${this.backendUrl()}/pair/device/knowledge`,
+        this._backendUrl("/pair/device/knowledge"),
         {
           method: "POST",
           body: {
@@ -7153,375 +7137,242 @@ export class Chat
               this._keyPairingObject.publicKey!
             ),
           },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.startPairing(mnemonic)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
         }
       )
 
       if (!response || !response.data) throw new Error("Response is invalid.")
 
       return response.data[0]
-    } catch (error) {
-      console.log(error)
+    } catch (error: any) {
+      console.error(error)
+
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
       return null
     }
   }
 
   //this is called by device A
-  async transferKeysWhenReady(mnemonic: string): Promise<{ status: number }> {
+  async transferKeysWhenReady(mnemonic: string) {
     if (!this._userKeyPair)
       throw new Error(
         "Pairing is possible only if the user has generated a personal keys pair."
       )
-    if (!this._authToken) throw new Error("JWT is not setup correctly.")
-    if (!this._apiKey) throw new Error("API key is not setup correctly.")
 
-    return new Promise(async (resolve, reject) => {
-      try {
-        console.log("trying to transfer keys...")
+    try {
+      console.log("trying to transfer keys...")
 
-        //WARNING!
-        //old code was the following:
-        /**
-         *
-         * const seed = bip39.mnemonicToSeedSync(mnemonic)
-         * const hex = seed.toString("hex")
-         *
-         * bip39 was imported with another npm package and not @scure/bip39
-         * so, the convertion in hex is not supported directly because seed now is an UInt8Array instead to be a Buffer
-         * we need to verify if adding the buffer convertion has the same effect.
-         *
-         */
+      //WARNING!
+      //old code was the following:
+      /**
+       *
+       * const seed = bip39.mnemonicToSeedSync(mnemonic)
+       * const hex = seed.toString("hex")
+       *
+       * bip39 was imported with another npm package and not @scure/bip39
+       * so, the convertion in hex is not supported directly because seed now is an UInt8Array instead to be a Buffer
+       * we need to verify if adding the buffer convertion has the same effect.
+       *
+       */
 
-        const seed = bip39.mnemonicToSeedSync(mnemonic)
-        const buffer = Buffer.from(seed)
-        const hex = buffer.toString("hex")
+      const seed = bip39.mnemonicToSeedSync(mnemonic)
+      const buffer = Buffer.from(seed)
+      const hex = buffer.toString("hex")
 
-        const { response } = await this._fetch<
-          ApiResponse<{ status: number; publicKey: string }>
-        >(
-          `${this.backendUrl()}/pair/device/check`,
+      const { response } = await this._fetch<
+        ApiResponse<{ status: number; publicKey: string }>
+      >(this._backendUrl("/pair/device/check"), {
+        method: "POST",
+        body: {
+          pairingIdentity: hex,
+        },
+      })
+
+      if (!response || !response.data) throw new Error("Response is invalid.")
+
+      const status = response.data[0].status
+      const publicKeyPem = response.data[0].publicKey
+
+      if (status === 1) setTimeout(this.transferKeysWhenReady.bind(this), 2000)
+      else {
+        //let's encrypt the personal key pair of the current user
+        const personalPublicKey = this._userKeyPair!.publicKey
+        const personalPrivateKey = this._userKeyPair!.privateKey
+        const publicKey = pki.publicKeyFromPem(publicKeyPem)
+        const personalPublicKeyPem =
+          Crypto.convertRSAPublicKeyToPem(personalPublicKey)
+        const personalPrivateKeyPem =
+          Crypto.convertRSAPrivateKeyToPem(personalPrivateKey)
+        const _md = md.sha256.create()
+        _md.update(hex)
+        const mgf1 = mgf.mgf1.create(_md)
+
+        const encryptedPublicKey = publicKey.encrypt(
+          personalPublicKeyPem,
+          "RSA-OAEP",
+          {
+            md: _md,
+            mgf1,
+          }
+        )
+        const encryptedPrivateKey = publicKey.encrypt(
+          personalPrivateKeyPem,
+          "RSA-OAEP",
+          {
+            md: _md,
+            mgf1,
+          }
+        )
+
+        const encryptedPublicKeyBase64 = Crypto.toBase64(encryptedPublicKey)
+        const encryptedPrivateKeyBase64 = Crypto.toBase64(encryptedPrivateKey)
+
+        const { response } = await this._fetch<ApiResponse<{ status: number }>>(
+          this._backendUrl("/pair/device/transfer/keys"),
           {
             method: "POST",
             body: {
               pairingIdentity: hex,
+              encryptedPublicKey: encryptedPublicKeyBase64,
+              encryptedPrivateKey: encryptedPrivateKeyBase64,
             },
-            headers: {
-              "x-api-key": `${this._apiKey}`,
-              Authorization: `Bearer ${this._authToken}`,
-            },
-          },
-          async (error) => {
-            //safety check, _account could be null and this method destroy the local storage values stored
-            this.destroyLastUserLoggedKey()
-
-            if (this.countRequestNewAuthToken() === 0) {
-              await this.obtainNewAuthToken(
-                async (authToken: string) => {
-                  this.incrementRequestNewAuthToken()
-                  this._setAllAuthToken(authToken)
-                  this._account?.setAuthToken(authToken)
-                  this._account?.storeLastUserLoggedKey()
-
-                  return await this.transferKeysWhenReady(mnemonic)
-                },
-                async (error) => {
-                  console.log(error)
-                  await this._authRef?.logout()
-                }
-              )
-            } else {
-              //if we're here this means the second call encountered again a 401 error, so we logout the user
-              console.log(error)
-              await this._authRef?.logout()
-            }
           }
         )
 
-        if (!response || !response.data) {
-          reject("Response is invalid.")
-          return
-        }
+        if (!response || !response.data) throw new Error("Response is invalid.")
 
-        const status = response.data[0].status
-        const publicKeyPem = response.data[0].publicKey
-
-        if (status === 1) setTimeout(this.transferKeysWhenReady, 2000)
-        else {
-          //let's encrypt the personal key pair of the current user
-          const personalPublicKey = this._userKeyPair!.publicKey
-          const personalPrivateKey = this._userKeyPair!.privateKey
-          const publicKey = pki.publicKeyFromPem(publicKeyPem)
-          const personalPublicKeyPem =
-            Crypto.convertRSAPublicKeyToPem(personalPublicKey)
-          const personalPrivateKeyPem =
-            Crypto.convertRSAPrivateKeyToPem(personalPrivateKey)
-          const _md = md.sha256.create()
-          _md.update(hex)
-          const mgf1 = mgf.mgf1.create(_md)
-
-          const encryptedPublicKey = publicKey.encrypt(
-            personalPublicKeyPem,
-            "RSA-OAEP",
-            {
-              md: _md,
-              mgf1,
-            }
-          )
-          const encryptedPrivateKey = publicKey.encrypt(
-            personalPrivateKeyPem,
-            "RSA-OAEP",
-            {
-              md: _md,
-              mgf1,
-            }
-          )
-
-          const encryptedPublicKeyBase64 = Crypto.toBase64(encryptedPublicKey)
-          const encryptedPrivateKeyBase64 = Crypto.toBase64(encryptedPrivateKey)
-
-          const { response } = await this._fetch<
-            ApiResponse<{ status: number }>
-          >(
-            `${this.backendUrl()}/pair/device/transfer/keys`,
-            {
-              method: "POST",
-              body: {
-                pairingIdentity: hex,
-                encryptedPublicKey: encryptedPublicKeyBase64,
-                encryptedPrivateKey: encryptedPrivateKeyBase64,
-              },
-              headers: {
-                "x-api-key": `${this._apiKey}`,
-                Authorization: `Bearer ${this._authToken}`,
-              },
-            },
-            async (error) => {
-              //safety check, _account could be null and this method destroy the local storage values stored
-              this.destroyLastUserLoggedKey()
-
-              if (this.countRequestNewAuthToken() === 0) {
-                await this.obtainNewAuthToken(
-                  async (authToken: string) => {
-                    this.incrementRequestNewAuthToken()
-                    this._setAllAuthToken(authToken)
-                    this._account?.setAuthToken(authToken)
-                    this._account?.storeLastUserLoggedKey()
-
-                    return await this.transferKeysWhenReady(mnemonic)
-                  },
-                  async (error) => {
-                    console.log(error)
-                    await this._authRef?.logout()
-                  }
-                )
-              } else {
-                //if we're here this means the second call encountered again a 401 error, so we logout the user
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            }
-          )
-
-          if (!response || !response.data) {
-            reject("Response is invalid.")
-            return
-          }
-
-          resolve(response.data[0])
-        }
-      } catch (error) {
-        console.log(error)
-        reject(error)
+        return response.data[0]
       }
-    })
+    } catch (error: any) {
+      console.error(error)
+
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      throw error
+    }
   }
 
   //called by device B
-  async downloadKeysWhenReady(mnemonic: string): Promise<pki.rsa.KeyPair> {
-    if (!this._account)
+  async downloadKeysWhenReady(mnemonic: string) {
+    if (!Auth.account)
       throw new Error(
         "Account is not setup correctly. Authenticate to the platform first."
       )
-    if (!this._authToken) throw new Error("JWT is not setup correctly.")
-    if (!this._apiKey) throw new Error("API key is not setup correctly.")
 
-    return new Promise(async (resolve, reject) => {
-      try {
-        console.log("trying to download keys...")
+    try {
+      console.log("trying to download keys...")
 
-        //WARNING!
-        //old code was the following:
-        /**
-         *
-         * const seed = bip39.mnemonicToSeedSync(mnemonic)
-         * const hex = seed.toString("hex")
-         *
-         * bip39 was imported with another npm package and not @scure/bip39
-         * so, the convertion in hex is not supported directly because seed now is an UInt8Array instead to be a Buffer
-         * we need to verify if adding the buffer convertion has the same effect.
-         *
-         */
+      //WARNING!
+      //old code was the following:
+      /**
+       *
+       * const seed = bip39.mnemonicToSeedSync(mnemonic)
+       * const hex = seed.toString("hex")
+       *
+       * bip39 was imported with another npm package and not @scure/bip39
+       * so, the convertion in hex is not supported directly because seed now is an UInt8Array instead to be a Buffer
+       * we need to verify if adding the buffer convertion has the same effect.
+       *
+       */
 
-        const seed = bip39.mnemonicToSeedSync(mnemonic)
-        const buffer = Buffer.from(seed)
-        const hex = buffer.toString("hex")
+      const seed = bip39.mnemonicToSeedSync(mnemonic)
+      const buffer = Buffer.from(seed)
+      const hex = buffer.toString("hex")
 
-        const { response } = await this._fetch<
-          ApiResponse<{
-            status: number
-            encryptedPrivateKey?: string
-            encryptedPublicKey?: string
-          }>
-        >(
-          `${this.backendUrl()}/pair/device/download/keys`,
-          {
-            method: "POST",
-            body: {
-              pairingIdentity: hex,
-            },
-            headers: {
-              "x-api-key": `${this._apiKey}`,
-              Authorization: `Bearer ${this._authToken}`,
-            },
-          },
-          async (error) => {
-            //safety check, _account could be null and this method destroy the local storage values stored
-            this.destroyLastUserLoggedKey()
+      const { response } = await this._fetch<
+        ApiResponse<{
+          status: number
+          encryptedPrivateKey?: string
+          encryptedPublicKey?: string
+        }>
+      >(this._backendUrl("/pair/device/download/keys"), {
+        method: "POST",
+        body: {
+          pairingIdentity: hex,
+        },
+      })
 
-            if (this.countRequestNewAuthToken() === 0) {
-              await this.obtainNewAuthToken(
-                async (authToken: string) => {
-                  this.incrementRequestNewAuthToken()
-                  this._setAllAuthToken(authToken)
-                  this._account?.setAuthToken(authToken)
-                  this._account?.storeLastUserLoggedKey()
+      if (!response || !response.data) throw new Error("Response is invalid.")
 
-                  return await this.downloadKeysWhenReady(mnemonic)
-                },
-                async (error) => {
-                  console.log(error)
-                  await this._authRef?.logout()
-                }
-              )
-            } else {
-              //if we're here this means the second call encountered again a 401 error, so we logout the user
-              console.log(error)
-              await this._authRef?.logout()
+      const status = response.data[0].status
+      const encryptedPrivateKey = response.data[0].encryptedPrivateKey
+      const encryptedPublicKey = response.data[0].encryptedPublicKey
+
+      if (status === 3) setTimeout(this.downloadKeysWhenReady.bind(this), 2000)
+      else {
+        //let's decrypt the personal key pair for the current user
+        const personalEncryptedPublicKeyBase64 = encryptedPublicKey!
+        const personalEncryptedPrivateKeyBase64 = encryptedPrivateKey!
+        const personalEncryptedPublicKey = Crypto.fromBase64(
+          personalEncryptedPublicKeyBase64
+        )
+        const personalEncryptedPrivateKey = Crypto.fromBase64(
+          personalEncryptedPrivateKeyBase64
+        )
+        const personalPublicKeyPem =
+          this._keyPairingObject!.privateKey!.decrypt(
+            personalEncryptedPublicKey,
+            "RSA-OAEP",
+            {
+              md: this._keyPairingObject!.md,
+              mgf1: this._keyPairingObject!.mgf1,
             }
-          }
+          )
+        const personalPrivateKeyPem =
+          this._keyPairingObject!.privateKey!.decrypt(
+            personalEncryptedPrivateKey,
+            "RSA-OAEP",
+            {
+              md: this._keyPairingObject!.md,
+              mgf1: this._keyPairingObject!.mgf1,
+            }
+          )
+
+        this._userKeyPair = await Crypto.generateKeyPairFromPem(
+          personalPublicKeyPem,
+          personalPrivateKeyPem
         )
 
-        if (!response || !response.data) {
-          reject("Response is invalid.")
-          return
-        }
+        if (!this._userKeyPair)
+          throw new Error("Key pair generated is not valid.")
 
-        const status = response.data[0].status
-        const encryptedPrivateKey = response.data[0].encryptedPrivateKey
-        const encryptedPublicKey = response.data[0].encryptedPublicKey
+        //let's update the current user on our local database
+        const privateKeyForLocalDB = Crypto.encryptAES_CBC(
+          personalPrivateKeyPem,
+          Buffer.from(Auth.account!.e2eSecret, "hex").toString("base64"),
+          Buffer.from(Auth.account!.e2eSecretIV, "hex").toString("base64")
+        )
 
-        if (status === 3) setTimeout(this.downloadKeysWhenReady, 2000)
-        else {
-          //let's decrypt the personal key pair for the current user
-          const personalEncryptedPublicKeyBase64 = encryptedPublicKey!
-          const personalEncryptedPrivateKeyBase64 = encryptedPrivateKey!
-          const personalEncryptedPublicKey = Crypto.fromBase64(
-            personalEncryptedPublicKeyBase64
-          )
-          const personalEncryptedPrivateKey = Crypto.fromBase64(
-            personalEncryptedPrivateKeyBase64
-          )
-          const personalPublicKeyPem =
-            this._keyPairingObject!.privateKey!.decrypt(
-              personalEncryptedPublicKey,
-              "RSA-OAEP",
-              {
-                md: this._keyPairingObject!.md,
-                mgf1: this._keyPairingObject!.mgf1,
-              }
-            )
-          const personalPrivateKeyPem =
-            this._keyPairingObject!.privateKey!.decrypt(
-              personalEncryptedPrivateKey,
-              "RSA-OAEP",
-              {
-                md: this._keyPairingObject!.md,
-                mgf1: this._keyPairingObject!.mgf1,
-              }
-            )
+        await this._storage.transaction("rw", this._storage.user, async () => {
+          let user = await this._storage.get("user", "[did+organizationId]", [
+            Auth.account!.did,
+            Auth.account!.organizationId,
+          ])
 
-          this._userKeyPair = await Crypto.generateKeyPairFromPem(
-            personalPublicKeyPem,
-            personalPrivateKeyPem
-          )
+          await this._storage.user.update(user, {
+            e2eEncryptedPrivateKey: privateKeyForLocalDB,
+            e2ePublicKey: personalPublicKeyPem,
+          })
 
-          if (!this._userKeyPair) {
-            reject("Key pair generated is not valid.")
-            return
-          }
+          return true
+        })
 
-          //let's update the current user on our local database
-          const privateKeyForLocalDB = Crypto.encryptAES_CBC(
-            personalPrivateKeyPem,
-            Buffer.from(this._account!.e2eSecret, "hex").toString("base64"),
-            Buffer.from(this._account!.e2eSecretIV, "hex").toString("base64")
-          )
-
-          await this._storage.transaction(
-            "rw",
-            this._storage.user,
-            async () => {
-              let user = await this._storage.get(
-                "user",
-                "[did+organizationId]",
-                [this._account!.did, this._account!.organizationId]
-              )
-
-              await this._storage.user.update(user, {
-                e2eEncryptedPrivateKey: privateKeyForLocalDB,
-                e2ePublicKey: personalPublicKeyPem,
-              })
-
-              return true
-            }
-          )
-
-          this._canChat = true
-          resolve(this._userKeyPair)
-        }
-      } catch (error) {
-        console.log(error)
-        reject(error)
+        this._canChat = true
+        return this._userKeyPair
       }
-    })
+    } catch (error: any) {
+      console.error(error)
+
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      throw error
+    }
   }
 
   /** handling of "ability to chat" based on _canChat, a property that becomes false if the system notices the current user has done another signin in another device */
@@ -7552,7 +7403,7 @@ export class Chat
       throw new Error(
         "This client chat cannot combine messages. Are you missing to pairing the keys?"
       )
-    if (!this._account) throw new Error("Account is not setup correctly.")
+    if (!Auth.account) throw new Error("Account is not setup correctly.")
     if (messageInitializator.type !== "TRADE_PROPOSAL")
       throw new Error("messageInitializator is not of type `TRADE_PROPOSAL`.")
     if (messageCounterparty.type !== "TRADE_PROPOSAL")
@@ -7563,7 +7414,7 @@ export class Chat
       throw new Error("Messages must be of the same conversation.")
     if (
       [messageCounterparty.userId, messageInitializator.userId].indexOf(
-        this._account.dynamoDBUserID
+        Auth.account.dynamoDBUserID
       ) === -1
     )
       throw new Error(
@@ -7627,8 +7478,8 @@ export class Chat
         counterpartyDid: "",
         creatorAddress: "",
         counterpartyAddress: "",
-        organizationId: this._account.organizationId,
-        networkId: this._account.getCurrentNetwork(false),
+        organizationId: Auth.account.organizationId,
+        networkId: Auth.account.getCurrentNetwork(false),
         participantOneId: initializator.id,
         participantTwoId: counterparty.id,
         participantOneAddress: initializator.address,
@@ -7667,7 +7518,7 @@ export class Chat
       throw new Error(
         "This client chat cannot perform order. Are you missing to pairing the keys?"
       )
-    if (!this._account) throw new Error("Account is not setup correctly.")
+    if (!Auth.account) throw new Error("Account is not setup correctly.")
     if (!orderRef.isInitialized())
       throw new Error(
         "Order referece must be initialized in order to use this method."
@@ -7707,7 +7558,7 @@ export class Chat
         let counterpartyDid
 
         //in this way we understand who is the creator and who is the counterparty
-        if (this._account.dynamoDBUserID === operation.participantOneId) {
+        if (Auth.account.dynamoDBUserID === operation.participantOneId) {
           participantOne = {
             assets: assetsParticipantOne,
             address: operation.participantOneAddress,
@@ -7768,10 +7619,5 @@ export class Chat
     } catch (error) {
       console.log(error)
     }
-  }
-
-  setAuthToken(authToken: Maybe<string>): void {
-    this._authToken = authToken
-    this._realtimeAuthorizationToken = `${this._apiKey}##${authToken}`
   }
 }
