@@ -3,7 +3,7 @@ import { ItemType } from "@opensea/seaport-js/lib/constants"
 import { CreateOrderInput } from "@opensea/seaport-js/lib/types"
 import { TOKEN_CONSTANTS } from "./constants/base/tokenconstants"
 import { Client } from "./core/client"
-import { ApiKeyAuthorized, Asset, Maybe, Network } from "./types/base"
+import { Asset, Maybe, Network } from "./types/base"
 import {
   SeaportFee,
   MultiSigWallet,
@@ -63,11 +63,6 @@ export class Order extends Client {
 
   private _initialized: boolean = false
 
-  /**
-   * Constructs a new instance of Auth with the provided configuration.
-   * @param config - The configuration object for authentication.
-   * @returns The instance
-   */
   public static config(config: { devMode: boolean }) {
     if (!!Order._config) throw new Error("Order already configured")
 
@@ -78,13 +73,6 @@ export class Order extends Client {
     return Order._instance ?? new Order()
   }
 
-  /**
-   * Constructor for a class that requires an API key and optionally a number of blocks for confirmation.
-   * @param {object} config - Configuration object containing API key and optional blocks number confirmation.
-   * @param {string} config.apiKey - The API key for authorization.
-   * @param {number} [config.blocksNumberConfirmationRequired] - The number of blocks required for confirmation.
-   * @throws {Error} Throws an error if blocksNumberConfirmationRequired is less than 1 or if apiKey is missing or invalid.
-   */
   private constructor() {
     if (!!!Order._config)
       throw new Error("Order must be configured before getting the instance")

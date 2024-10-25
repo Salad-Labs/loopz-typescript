@@ -68,11 +68,6 @@ export class Auth extends Client implements AuthInternalEvents {
     return Auth._account
   }
 
-  /**
-   * Constructs a new instance of Auth with the provided configuration.
-   * @param config - The configuration object for authentication.
-   * @returns The instance
-   */
   public static config(config: AuthConfig & ApiKeyAuthorized) {
     if (!!Auth._config) throw new Error("Auth already configured")
 

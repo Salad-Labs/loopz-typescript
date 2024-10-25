@@ -1,4 +1,4 @@
-import { ApiKeyAuthorized, Maybe } from "./types/base"
+import { Maybe } from "./types/base"
 import {
   IProposal,
   ListProposalsFilters,
@@ -11,6 +11,7 @@ import { PROPOSAL_STATUS } from "./constants/proposal/proposalstatus"
 import { PROPOSAL_TYPE } from "./constants/proposal/proposaltype"
 import { Client } from "./core/client"
 import { ApiResponse } from "./types/base/apiresponse"
+import { Auth } from "."
 
 /**
  * Represents a class for interacting with proposals through HTTP requests.
@@ -18,6 +19,9 @@ import { ApiResponse } from "./types/base/apiresponse"
  * @extends Client
  */
 export class Proposal extends Client {
+  private static _config: Maybe<{ devMode: boolean }> = null
+  private static _instance: Maybe<Proposal> = null
+
   /**
    * Get the PROPOSAL_STATUS constant object.
    * @returns {ProposalStatus} The constant object PROPOSAL_STATUS.
@@ -34,14 +38,21 @@ export class Proposal extends Client {
     return { ...PROPOSAL_TYPE }
   }
 
-  /**
-   * Constructor for creating an instance of a class that requires an API key for authorization.
-   * @param {ApiKeyAuthorized} config - The configuration object containing the API key.
-   * @returns None
-   */
-  constructor(config: ApiKeyAuthorized) {
-    super(config.devMode)
-    this._apiKey = config.apiKey
+  public static config(config: { devMode: boolean }) {
+    if (!!Proposal._config) throw new Error("Proposal already configured")
+
+    Proposal._config = config
+  }
+
+  public static getInstance() {
+    return Proposal._instance ?? new Proposal()
+  }
+
+  private constructor() {
+    if (!!!Proposal._config)
+      throw new Error("Proposal must be configured before getting the instance")
+
+    super(Proposal._config.devMode)
   }
 
   /**
@@ -53,50 +64,25 @@ export class Proposal extends Client {
   private async _createProposal(proposal: CreateProposal): Promise<boolean> {
     try {
       const { response, statusCode } = await this._fetch<ApiResponse<boolean>>(
-        `${this.backendUrl()}/proposal/insert`,
+        this._backendUrl("/proposal/insert"),
         {
           method: "POST",
           body: proposal,
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this._createProposal(proposal)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
         }
       )
 
       if (statusCode !== 200 || !response || !response.data) return false
 
       return true
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return false
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return false
+    }
   }
 
   /**
@@ -111,38 +97,7 @@ export class Proposal extends Client {
 
     try {
       const { response } = await this._fetch<ApiResponse<IProposal>>(
-        `${this.backendUrl()}/proposal/${id}` + `${did ? `/${did}` : ``}`,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.get(id, did)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
-        }
+        this._backendUrl(`/proposal/${id}${did ? `/${did}` : ``}`)
       )
 
       if (!response || !response.data) return null
@@ -150,11 +105,15 @@ export class Proposal extends Client {
       const { data } = response
 
       return data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -175,7 +134,7 @@ export class Proposal extends Client {
   ): Promise<Maybe<ListProposalsResponse>> {
     const filtersInput = filtersOptions ? { ...filtersOptions } : null
 
-    let filters = null
+    let filters: any = null
     if (filtersInput) {
       try {
         validateListProposalsFilters(filtersInput)
@@ -227,46 +186,12 @@ export class Proposal extends Client {
       const { response } = await this._fetch<
         ApiResponse<ListProposalsResponse>
       >(
-        `${this.backendUrl()}/proposals/${skipUrl}/${takeUrl}${
-          did ? `/${did}` : ``
-        }`,
+        this._backendUrl(
+          `/proposals/${skipUrl}/${takeUrl}${did ? `/${did}` : ``}`
+        ),
         {
           method: "POST",
           body,
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.list(
-                  filtersOptions,
-                  orderOptions,
-                  skip,
-                  take,
-                  did
-                )
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
         }
       )
 
@@ -275,11 +200,15 @@ export class Proposal extends Client {
       const { data } = response
 
       return data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -300,46 +229,18 @@ export class Proposal extends Client {
    */
   async delete(id: string, creatorAddress: string): Promise<void> {
     try {
-      await this._fetch(
-        `${this.backendUrl()}/proposal/${id}/delete`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${this._authToken}`,
-            "x-api-key": `${this._apiKey}`,
-          },
-          body: {
-            creatorAddress,
-          },
+      await this._fetch(this._backendUrl(`/proposal/${id}/delete`), {
+        method: "DELETE",
+        body: {
+          creatorAddress,
         },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.delete(id, creatorAddress)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
-        }
-      )
-    } catch (error) {
+      })
+    } catch (error: any) {
       console.warn(error)
+
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
     }
   }
 }
