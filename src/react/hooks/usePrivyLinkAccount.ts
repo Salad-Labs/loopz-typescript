@@ -2,7 +2,8 @@ import { Auth } from "@src/auth"
 import { useEffect, useRef } from "react"
 import { useLinkAccount, usePrivy } from "@privy-io/react-auth"
 
-export const usePrivyLinkAccount = (auth: Auth) => {
+export const usePrivyLinkAccount = () => {
+  const auth = Auth.getInstance()
   const initialized = useRef<boolean>(false)
   const { ready, authenticated, user } = usePrivy()
 

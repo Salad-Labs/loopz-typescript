@@ -4,7 +4,8 @@ import { useEffect, useRef } from "react"
 import { useFundWallet } from "@privy-io/react-auth"
 import { Chain } from "viem"
 
-export const usePrivyLogin = (auth: Auth) => {
+export const usePrivyLogin = () => {
+  const auth = Auth.getInstance()
   const initialized = useRef<boolean>(false)
   const { ready, authenticated, getAccessToken } = usePrivy()
   const disableLogin = !ready || (ready && authenticated)

@@ -2,7 +2,9 @@ import { usePrivy } from "@privy-io/react-auth"
 import { Auth } from "@src/auth"
 import { useEffect, useRef } from "react"
 
-export const usePrivyUnlinkAccount = (auth: Auth) => {
+export const usePrivyUnlinkAccount = () => {
+  const auth = Auth.getInstance()
+
   const initialized = useRef<boolean>(false)
   const {
     user,

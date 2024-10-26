@@ -61,7 +61,7 @@ export const LoopzProvider: FC<LoopzProviderProps> = ({
   return (
     <LoopzContext.Provider value={loopz}>
       <PrivyProvider appId={config.privyAppId} config={privyConfig}>
-        <PrivyWrapper auth={loopz.instance.auth} order={loopz.instance.order}>
+        <PrivyWrapper>
           <LoopzAuthProvider {...authConfig}>
             <LoopzChatProvider {...chatConfig}>{children}</LoopzChatProvider>
           </LoopzAuthProvider>

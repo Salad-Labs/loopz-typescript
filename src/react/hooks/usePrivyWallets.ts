@@ -1,9 +1,10 @@
 import { useWallets, getEmbeddedConnectedWallet } from "@privy-io/react-auth"
 import { Auth } from "@src/index"
-import { Order } from "@src/order"
+import { Order } from "@src/index"
 import { useEffect } from "react"
 
-export const usePrivyWallets = (order: Order) => {
+export const usePrivyWallets = () => {
+  const order = Order.getInstance()
   const { ready, wallets } = useWallets()
 
   useEffect(() => {
