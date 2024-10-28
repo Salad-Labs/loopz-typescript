@@ -88,6 +88,10 @@ export class Message
    */
   readonly type: Maybe<"TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT">
   /**
+   * @property {Maybe<number>} order - The order of the message.
+   */
+  readonly order: number
+  /**
    * @property {Date} createdAt - The creation date
    */
   readonly createdAt: Date
@@ -119,6 +123,7 @@ export class Message
     this.messageRoot = config.messageRoot
     this.messageRootId = config.messageRootId
     this.type = config.type
+    this.order = config.order
     this.createdAt = config.createdAt
     this.updatedAt = config.updatedAt
     this.deletedAt = config.deletedAt
@@ -196,6 +201,7 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -215,6 +221,7 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
@@ -299,6 +306,7 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -318,6 +326,7 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
@@ -435,6 +444,7 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -454,6 +464,7 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
@@ -536,6 +547,7 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -555,6 +567,7 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
@@ -639,6 +652,7 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -658,6 +672,7 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
@@ -740,6 +755,7 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -759,6 +775,7 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
@@ -854,6 +871,7 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -873,6 +891,7 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,

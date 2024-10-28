@@ -2036,6 +2036,7 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -2055,6 +2056,7 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
@@ -2134,6 +2136,7 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -2153,6 +2156,7 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
@@ -2589,6 +2593,7 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -2608,6 +2613,7 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
@@ -2715,6 +2721,7 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -2734,6 +2741,7 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
@@ -3230,6 +3238,7 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -3249,6 +3258,7 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
@@ -3328,6 +3338,7 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -3347,6 +3358,7 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
@@ -3498,6 +3510,7 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -3517,6 +3530,7 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
@@ -3901,6 +3915,7 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -3920,6 +3935,7 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
@@ -4011,6 +4027,7 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -4030,6 +4047,7 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
@@ -4410,6 +4428,7 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                order: item.messageRoot.order,
                 createdAt: item.messageRoot.createdAt,
                 updatedAt: item.messageRoot.updatedAt
                   ? item.messageRoot.updatedAt
@@ -4429,6 +4448,7 @@ export class Chat
                 | "TRADE_PROPOSAL"
                 | "RENT")
             : null,
+          order: item.order,
           createdAt: item.createdAt,
           updatedAt: item.updatedAt ? item.updatedAt : null,
           deletedAt: item.deletedAt ? item.deletedAt : null,
@@ -4527,6 +4547,7 @@ export class Chat
                         | "TRADE_PROPOSAL"
                         | "RENT")
                     : null,
+                  order: item.message!.messageRoot.order,
                   createdAt: item.message!.messageRoot.createdAt,
                   updatedAt: item.message!.messageRoot.updatedAt
                     ? item.message!.messageRoot.updatedAt
@@ -4548,6 +4569,7 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            order: item.message!.order,
             createdAt: item.message!.createdAt,
             updatedAt: item.message!.updatedAt ? item.message!.updatedAt : null,
             deletedAt: item.message!.deletedAt ? item.message!.deletedAt : null,
@@ -5005,6 +5027,7 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
                   ? r.messageRoot.updatedAt
@@ -5020,6 +5043,7 @@ export class Chat
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
@@ -5113,6 +5137,7 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
                   ? r.messageRoot.updatedAt
@@ -5128,6 +5153,7 @@ export class Chat
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
@@ -5267,6 +5293,7 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
                   ? r.messageRoot.updatedAt
@@ -5281,6 +5308,7 @@ export class Chat
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
@@ -5375,6 +5403,7 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
                   ? r.messageRoot.updatedAt
@@ -5389,6 +5418,7 @@ export class Chat
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
@@ -5483,6 +5513,7 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
                   ? r.messageRoot.updatedAt
@@ -5497,6 +5528,7 @@ export class Chat
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
@@ -5591,6 +5623,7 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
                   ? r.messageRoot.updatedAt
@@ -5605,6 +5638,7 @@ export class Chat
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
@@ -5698,6 +5732,7 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
                   ? r.messageRoot.updatedAt
@@ -5713,6 +5748,7 @@ export class Chat
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
