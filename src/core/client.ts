@@ -99,7 +99,7 @@ export class Client {
     options.headers = {
       ...options.headers,
       "Content-Type": "application/json",
-      mode: "loopz", // TODO maybe "test"?
+      mode: "loopz",
     }
 
     if (!!Auth.apiKey)
