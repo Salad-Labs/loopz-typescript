@@ -40,6 +40,10 @@ export interface MessageSchema {
    */
   type: Maybe<"TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT">
   /**
+   * @property {number} order - The order of the message.
+   */
+  order: number
+  /**
    * @property {Date} createdAt - Represents a timestamp for when an entity was created.
    */
   createdAt: Date
