@@ -42,6 +42,10 @@ export type MessageInitConfig = {
    */
   type: Maybe<"TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT">
   /**
+   * @property {number} order - The order of the message.
+   */
+  order: number
+  /**
    * @property {Date} createdAt - the creation date of the message.
    */
   createdAt: Date
