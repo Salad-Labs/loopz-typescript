@@ -1,3 +1,5 @@
-export interface MessageDetectiveCollector {
+export interface LocalDBMessageDetectiveCollector {
   conversationId: string
+  messageId: string
+  order: number
 }

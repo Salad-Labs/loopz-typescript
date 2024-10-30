@@ -1,5 +1,6 @@
 import { Maybe } from "../../types"
 import { DexieStorage } from "../app"
+import { LocalDBMessage } from "../app/database"
 
 export class DetectiveMessage {
   private _storage: DexieStorage
@@ -19,6 +20,14 @@ export class DetectiveMessage {
     if (!this._detectiveMessageCanRun) {
       console.log("[detective message]: I am disabled :(")
     }
+  }
+
+  async addMessage(message: LocalDBMessage) {
+    if (!this._detectiveMessageCanRun) {
+      return
+    }
+
+    this._storage.insertBulkSafe()
   }
 
   observe(conversationId: string, userId: string) {}

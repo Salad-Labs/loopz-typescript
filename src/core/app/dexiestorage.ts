@@ -1,6 +1,8 @@
 import {
   LocalDBConversation,
   LocalDBMessage,
+  LocalDBMessageDetectiveCollector,
+  LocalDBMessageDetectiveQueue,
   LocalDBUser,
 } from "@src/core/app/database"
 import { BaseStorage } from "./basestorage"
@@ -18,6 +20,8 @@ export class DexieStorage extends Dexie implements BaseStorage {
   user!: Dexie.Table<LocalDBUser, string>
   message!: Dexie.Table<LocalDBMessage, string>
   conversation!: Dexie.Table<LocalDBConversation, string>
+  detectivemessagecollector!: Dexie.Table<LocalDBMessageDetectiveCollector>
+  detectivemessagequeue!: Dexie.Table<LocalDBMessageDetectiveQueue>
 
   private constructor(dbName: string, dbVersion: number) {
     super(dbName)
@@ -31,6 +35,9 @@ export class DexieStorage extends Dexie implements BaseStorage {
       user: "[did+organizationId]",
       conversation: "[id+userDid], name, description, createdAt",
       message: "[id+userDid], content, origin, userDid, type, createdAt",
+      messagedetectivecollector:
+        "[id+userDid], conversationId, messageId, order",
+      messagedetectivequeue: "[]",
       migration: "key",
     })
 
