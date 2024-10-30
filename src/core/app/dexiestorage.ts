@@ -1,8 +1,8 @@
 import {
   LocalDBConversation,
   LocalDBMessage,
-  LocalDBMessageDetectiveCollector,
-  LocalDBMessageDetectiveQueue,
+  LocalDBDetectiveMessageCollector,
+  LocalDBDetectiveMessageQueue,
   LocalDBUser,
 } from "@src/core/app/database"
 import { BaseStorage } from "./basestorage"
@@ -20,8 +20,8 @@ export class DexieStorage extends Dexie implements BaseStorage {
   user!: Dexie.Table<LocalDBUser, string>
   message!: Dexie.Table<LocalDBMessage, string>
   conversation!: Dexie.Table<LocalDBConversation, string>
-  detectivemessagecollector!: Dexie.Table<LocalDBMessageDetectiveCollector>
-  detectivemessagequeue!: Dexie.Table<LocalDBMessageDetectiveQueue>
+  detectivemessagecollector!: Dexie.Table<LocalDBDetectiveMessageCollector>
+  detectivemessagequeue!: Dexie.Table<LocalDBDetectiveMessageQueue>
 
   private constructor(dbName: string, dbVersion: number) {
     super(dbName)
@@ -35,9 +35,10 @@ export class DexieStorage extends Dexie implements BaseStorage {
       user: "[did+organizationId]",
       conversation: "[id+userDid], name, description, createdAt",
       message: "[id+userDid], content, origin, userDid, type, createdAt",
-      messagedetectivecollector:
-        "[id+userDid], conversationId, messageId, order",
-      messagedetectivequeue: "[]",
+      detectivemessagecollector:
+        "++id, did, organizationId, conversationId, messageId, order, createdAt",
+      detectivemessagequeue:
+        "++id, did, organizationId, conversationId, queue, createdAt",
       migration: "key",
     })
 
@@ -58,7 +59,12 @@ export class DexieStorage extends Dexie implements BaseStorage {
   }
 
   async get(
-    tableName: "user" | "conversation" | "message",
+    tableName:
+      | "user"
+      | "conversation"
+      | "message"
+      | "detectivemessagecollector"
+      | "detectivemessagequeue",
     key: string,
     value: string | string[]
   ): Promise<any> {
@@ -73,6 +79,17 @@ export class DexieStorage extends Dexie implements BaseStorage {
             resolve(await this.conversation.where(key).equals(value).first())
           } else if (tableName === "message") {
             resolve(await this.message.where(key).equals(value).first())
+          } else if (tableName === "detectivemessagecollector") {
+            resolve(
+              await this.detectivemessagecollector
+                .where(key)
+                .equals(value)
+                .first()
+            )
+          } else if (tableName === "detectivemessagequeue") {
+            resolve(
+              await this.detectivemessagequeue.where(key).equals(value).first()
+            )
           } else {
             reject(
               `${tableName} argument given is wrong. No table exists with that name.`
@@ -86,7 +103,12 @@ export class DexieStorage extends Dexie implements BaseStorage {
   }
 
   async deleteItem(
-    tableName: "user" | "conversation" | "message",
+    tableName:
+      | "user"
+      | "conversation"
+      | "message"
+      | "detectivemessagecollector"
+      | "detectivemessagequeue",
     key: string,
     value: string | string[]
   ): Promise<void> {
@@ -99,6 +121,10 @@ export class DexieStorage extends Dexie implements BaseStorage {
           await this.user.where(key).equals(value).delete()
         else if (tableName === "message")
           await this.message.where(key).equals(value).delete()
+        else if (tableName === "detectivemessagecollector")
+          await this.detectivemessagecollector.where(key).equals(value).delete()
+        else if (tableName === "detectivemessagequeue")
+          await this.detectivemessagequeue.where(key).equals(value).delete()
         resolve()
       }).catch((error) => {
         reject(error)
@@ -107,7 +133,12 @@ export class DexieStorage extends Dexie implements BaseStorage {
   }
 
   async deleteBulk(
-    tableName: "user" | "conversation" | "message",
+    tableName:
+      | "user"
+      | "conversation"
+      | "message"
+      | "detectivemessagecollector"
+      | "detectivemessagequeue",
     ids: string[]
   ): Promise<void> {
     if (!this._enableStorage) return
@@ -116,6 +147,10 @@ export class DexieStorage extends Dexie implements BaseStorage {
         if (tableName === "conversation") this.conversation.bulkDelete(ids)
         else if (tableName === "user") this.user.bulkDelete(ids)
         else if (tableName === "message") this.message.bulkDelete(ids)
+        else if (tableName === "detectivemessagecollector")
+          this.detectivemessagecollector.bulkDelete(ids)
+        else if (tableName === "detectivemessagequeue")
+          this.detectivemessagequeue.bulkDelete(ids)
         resolve()
       }).catch((error) => {
         reject(error)
@@ -125,7 +160,12 @@ export class DexieStorage extends Dexie implements BaseStorage {
 
   async query<T>(
     callback: (db: Dexie, table: Table<T, string, T>) => void,
-    tableName: "user" | "conversation" | "message"
+    tableName:
+      | "user"
+      | "conversation"
+      | "message"
+      | "detectivemessagecollector"
+      | "detectivemessagequeue"
   ): Promise<void> {
     if (!this._enableStorage) return
     if (tableName === "user") callback(this, this.user as Table<T, string, T>)
@@ -133,10 +173,19 @@ export class DexieStorage extends Dexie implements BaseStorage {
       callback(this, this.conversation as Table<T, string, T>)
     else if (tableName === "message")
       callback(this, this.message as Table<T, string, T>)
+    else if (tableName === "detectivemessagecollector")
+      callback(this, this.detectivemessagecollector as Table<T, string, T>)
+    else if (tableName === "detectivemessagequeue")
+      callback(this, this.detectivemessagequeue as Table<T, string, T>)
   }
 
   async insertBulkSafe<T>(
-    tableName: "user" | "conversation" | "message",
+    tableName:
+      | "user"
+      | "conversation"
+      | "message"
+      | "detectivemessagecollector"
+      | "detectivemessagequeue",
     items: T[]
   ): Promise<void> {
     return new Promise(async (resolve, reject) => {
@@ -147,6 +196,14 @@ export class DexieStorage extends Dexie implements BaseStorage {
           await this.user.bulkPut(items as LocalDBUser[])
         else if (tableName === "message")
           await this.message.bulkPut(items as LocalDBMessage[])
+        else if (tableName === "detectivemessagecollector")
+          await this.detectivemessagecollector.bulkPut(
+            items as LocalDBDetectiveMessageCollector[]
+          )
+        else if (tableName === "detectivemessagequeue")
+          await this.detectivemessagequeue.bulkPut(
+            items as LocalDBDetectiveMessageQueue[]
+          )
 
         resolve()
       }).catch((error) => {
@@ -179,10 +236,21 @@ export class DexieStorage extends Dexie implements BaseStorage {
     return this._enableStorage === true
   }
 
-  getTable<T>(tableName: "user" | "conversation" | "message") {
+  getTable<T>(
+    tableName:
+      | "user"
+      | "conversation"
+      | "message"
+      | "detectivemessagecollector"
+      | "detectivemessagequeue"
+  ) {
     if (tableName === "user") return this.user as T
     else if (tableName === "conversation") return this.conversation as T
     else if (tableName === "message") return this.message as T
+    else if (tableName === "detectivemessagecollector")
+      return this.detectivemessagecollector as T
+    else if (tableName === "detectivemessagequeue")
+      return this.detectivemessagequeue as T
 
     throw new Error(`Table ${tableName} not found`)
   }
@@ -198,6 +266,10 @@ export class DexieStorage extends Dexie implements BaseStorage {
       await this.conversation.clear()
     } else if (tableName === "message") {
       await this.message.clear()
+    } else if (tableName === "detectivemessagecollector") {
+      await this.detectivemessagecollector.clear()
+    } else if (tableName === "detectivemessagequeue") {
+      await this.detectivemessagequeue.clear()
     }
 
     throw new Error(`Table ${tableName} not found`)

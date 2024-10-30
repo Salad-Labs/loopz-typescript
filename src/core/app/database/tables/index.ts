@@ -1,5 +1,5 @@
 export * from "./user"
 export * from "./conversation"
 export * from "./message"
-export * from "./messagedetectivecollector"
-export * from "./messagedetectivequeue"
+export * from "./detectivemessagecollector"
+export * from "./detectivemessagequeue"
