@@ -1,8 +1,11 @@
 import { Auth } from "@src/index"
-import { Account, Message } from ".."
+import { Account, Conversation, Message } from ".."
 import { Maybe } from "../../types"
 import { DexieStorage } from "../app"
-import { LocalDBDetectiveMessageCollector } from "../app/database"
+import {
+  LocalDBDetectiveMessageCollector,
+  LocalDBDetectiveMessageQueue,
+} from "../app/database"
 import { v4 as uuid } from "uuid"
 
 export class DetectiveMessage {
@@ -10,11 +13,15 @@ export class DetectiveMessage {
 
   private _detectiveMessageTimeout: Maybe<NodeJS.Timeout> = null
 
+  private _detectiveMessageObserveTimeout: Maybe<NodeJS.Timeout> = null
+
   private _currentConversationId: Maybe<string> = null
 
   private _detectiveMessageCanRun: boolean = true
 
-  static readonly DETECTIVE_MESSAGE_TIME = 60000
+  static readonly DETECTIVE_MESSAGE_TIME: number = 60000
+
+  static readonly DETECTIVE_MESSAGE_OBSERVE_TIME: number = 60000
 
   constructor(storage: DexieStorage) {
     this._storage = storage
@@ -30,6 +37,7 @@ export class DetectiveMessage {
     try {
       await this._storage.insertBulkSafe("detectivemessagecollector", [
         {
+          id: uuid(),
           did,
           organizationId,
           conversationId: message.conversationId,
@@ -43,12 +51,53 @@ export class DetectiveMessage {
     }
   }
 
-  observe(conversationId: string, userId: string) {}
+  async observe(conversation: Conversation) {
+    if (!this._detectiveMessageCanRun) return
+    if (
+      this._currentConversationId !== conversation.id &&
+      this._detectiveMessageObserveTimeout
+    )
+      clearTimeout(this._detectiveMessageObserveTimeout)
+
+    //we assign the current conversation id
+    this._currentConversationId = conversation.id
+
+    //we get the messages from the queue. If we have some results, we filter for the conversation id
+    const queues = await this._storage.transaction(
+      "r",
+      "detectivemessagequeue",
+      async (tx) => {
+        return (await this._storage.detectivemessagequeue.toArray()).filter(
+          (element) => element.conversationId === this._currentConversationId
+        )
+      }
+    )
+
+    //if we have some elements in the queues, we can start to ask the server to request the missing messages
+    //we don't check this part with an if (queues.length > 0) since the for..loop already checks that.
+    for (let i = 0; i < queues.length; i++) {
+      let queueItem = queues[i]
+
+      //for a queue processed, we delete the item from the database
+      if (queueItem.processed) {
+      } else {
+        //for a queue not processed, we ask for the server the missing messages, and them we marked as processed, in this way in the next iteration
+        //these quese will be removed from the database
+      }
+    }
+
+    //after everything is completed, we call again the function recursively
+    this._detectiveMessageObserveTimeout = setTimeout(() => {
+      this.observe(conversation)
+    }, DetectiveMessage.DETECTIVE_MESSAGE_OBSERVE_TIME)
+  }
 
   async scan() {
+    if (!this._detectiveMessageCanRun) return
+
     //we get the messages stored of the current user
     const clues = await this._storage.transaction(
-      "rw",
+      "r",
       "detectivemessagecollector",
       async (tx) => {
         return (await this._storage.detectivemessagecollector.toArray()).sort(
@@ -102,14 +151,7 @@ export class DetectiveMessage {
 
         //once we have the sequences of missing messages, we populate the table "detectivemessagequeue"
         for (let j = 0; j < sequences.length; j++) {
-          let itemsForQueue: Array<{
-            id: string
-            did: string
-            organizationId: string
-            conversationId: string
-            queue: Array<number>
-            createdAt: Date
-          }> = []
+          let itemsForQueue: Array<LocalDBDetectiveMessageQueue> = []
           let queue: Array<number> = []
 
           for (let k = 0; k < sequences[j].length; k++)
@@ -123,6 +165,7 @@ export class DetectiveMessage {
               organizationId: Auth.account!.organizationId,
               conversationId: conversationMessages[i].conversationId,
               queue,
+              processed: false,
               createdAt: new Date(),
             })
 
@@ -131,8 +174,28 @@ export class DetectiveMessage {
               itemsForQueue
             )
           }
+        }
 
-          //now that we have inserted the elements (or not), we can delete the clues from the detectivemessagecollector table, except for the last
+        //now that we have inserted the elements (or not), we can delete the clues from the detectivemessagecollector table,
+        //except for the last (the element with the order value higher).
+        //since conversationMessages has an "elements" property that contains all the clues sorted by "order" from the lowest to the highest,
+        //this means the element to keep is the last, and the elements to remove are the remainings (except when there is only one clue in the array)
+
+        const elementsToRemove: Array<LocalDBDetectiveMessageCollector> = []
+
+        if (conversationMessages[i].elements.length > 1) {
+          for (let j = 0; j < conversationMessages[i].elements.length; j++) {
+            let element = conversationMessages[i].elements[j]
+
+            if (j < conversationMessages[i].elements.length - 1)
+              elementsToRemove.push(element.clue)
+          }
+
+          //now that we have the elements to remove, we remove them from the table
+          await this._storage.deleteBulk(
+            "detectivemessagecollector",
+            elementsToRemove.map((element) => element.id)
+          )
         }
       }
     }

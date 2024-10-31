@@ -1,4 +1,5 @@
 export interface LocalDBDetectiveMessageCollector {
+  id: string
   did: string
   organizationId: string
   conversationId: string
