@@ -31,7 +31,7 @@ export class DetectiveMessage {
       console.log("[detective message]: I am disabled :(")
   }
 
-  async collect(message: Message, did: string, organizationId: string) {
+  async collectClue(message: Message, did: string, organizationId: string) {
     if (!this._detectiveMessageCanRun) return
 
     try {
@@ -147,7 +147,10 @@ export class DetectiveMessage {
       }
     }
 
-    //after everything is completed, we call again the function recursively
+    //we call observe() recursively
+    if (this._detectiveMessageObserveTimeout)
+      clearTimeout(this._detectiveMessageObserveTimeout)
+
     this._detectiveMessageObserveTimeout = setTimeout(() => {
       this.observe(conversationId, chat)
     }, DetectiveMessage.DETECTIVE_MESSAGE_OBSERVE_TIME)
@@ -166,7 +169,7 @@ export class DetectiveMessage {
     const clues = await this._storage.transaction(
       "r",
       "detectivemessagecollector",
-      async (tx) => {
+      async () => {
         return (await this._storage.detectivemessagecollector.toArray()).sort(
           (a, b) => a.order - b.order
         )
@@ -263,6 +266,10 @@ export class DetectiveMessage {
         }
       }
     }
+
+    //we call scan() recursively
+    if (this._detectiveMessageTimeout)
+      clearTimeout(this._detectiveMessageTimeout)
 
     this._detectiveMessageTimeout = setTimeout(
       this.scan,
