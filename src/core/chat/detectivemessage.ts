@@ -1,5 +1,5 @@
 import { Auth, Chat } from "../.."
-import { Account, Conversation, Message } from ".."
+import { Converter, Message, QIError } from ".."
 import { Maybe } from "../../types"
 import { DexieStorage } from "../app"
 import {
@@ -80,9 +80,70 @@ export class DetectiveMessage {
 
       //for a queue processed, we delete the item from the database
       if (queueItem.processed) {
+        //now that we have the elements to remove, we remove them from the table
+        await this._storage.deleteBulk("detectivemessagequeue", [queueItem.id])
       } else {
-        //for a queue not processed, we ask for the server the missing messages, and them we marked as processed, in this way in the next iteration
-        //these quese will be removed from the database
+        //for a queue not processed, we ask for the server the missing messages, and after we marked them as processed, in this way in the next iteration
+        //these queues will be removed from the database
+        try {
+          const listMessagesFirsSet = await chat.listMessagesByRangeOrder({
+            id: conversationId,
+            minOrder: queueItem.queue[0], //this element contains the min order value
+            maxOrder: queueItem.queue[queueItem.queue.length - 1], //this element contains the max order value
+          })
+
+          if (listMessagesFirsSet instanceof QIError)
+            throw new Error(JSON.stringify(listMessagesFirsSet))
+
+          let { nextToken, items } = listMessagesFirsSet
+          let messages = [...items]
+          let isError = false
+
+          while (nextToken) {
+            const set = await chat.listMessagesByRangeOrder({
+              id: conversationId,
+              minOrder: queueItem.queue[0], //this element contains the min order value
+              maxOrder: queueItem.queue[queueItem.queue.length - 1], //this element contains the max order value
+              nextToken,
+            })
+
+            if (set instanceof QIError) {
+              isError = true
+              break
+            }
+
+            const { nextToken: token, items } = set
+
+            messages = [...messages, ...items]
+
+            if (token) nextToken = token
+            else break
+          }
+
+          if (isError) continue
+
+          //if no error occured, then we store the messages in the local messages table
+          await this._storage.insertBulkSafe(
+            "message",
+            messages.map((message) =>
+              Converter.fromMessageToLocalDBMessage(
+                message,
+                Auth.account!.did,
+                Auth.account!.organizationId,
+                false,
+                "USER"
+              )
+            )
+          )
+
+          //finally we mark the queue item as processed
+          await this._storage.detectivemessagequeue.update(queueItem, {
+            processed: true,
+          })
+        } catch (error) {
+          console.log(error)
+          continue
+        }
       }
     }
 
