@@ -674,7 +674,7 @@ export class Auth implements AuthInternalEvents {
       const index = Auth._eventsCallbacks.findIndex(
         (item) => item.event === event
       )
-      if (index < 0) throw new Error(`Invalid event "${event}"`)
+      if (index < 0) return
 
       Auth._eventsCallbacks[index].callbacks = []
     }
