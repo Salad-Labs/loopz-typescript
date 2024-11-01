@@ -25,9 +25,10 @@ import { Auth, IOrder } from "."
  * @extends Client
  */
 
-export class Order extends Client {
+export class Order {
   private static _config: Maybe<{ devMode: boolean }>
   private static _instance: Maybe<Order>
+  private static _client: Maybe<Client>
 
   /**
    * @property {Maybe<ethers.providers.Web3Provider | ethers.providers.JsonRpcProvider>} _provider - The provider instance.
@@ -67,7 +68,7 @@ export class Order extends Client {
     if (!!!Order._config)
       throw new Error("Order must be configured before getting the instance")
 
-    super(Order._config.devMode)
+    Order._client = new Client(Order._config.devMode)
 
     this._blocksNumberConfirmationRequired = this._MIN_BLOCKS_REQUIRED
   }
@@ -92,11 +93,15 @@ export class Order extends Client {
    * or null if there was an error or no data was returned in the response.
    */
   private async _getGnosis(): Promise<Maybe<MultiSigWallet>> {
+    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+      throw new Error("Order has not been configured")
     if (!!!Auth.account) return null
 
     try {
-      const { response } = await this._fetch<ApiResponse<MultiSigWallet>>(
-        this._backendUrl(
+      const { response } = await Order._client.fetch<
+        ApiResponse<MultiSigWallet>
+      >(
+        Order._client.backendUrl(
           `/wallet/multisig/${Auth.account.getCurrentNetwork(false)}`
         )
       )
@@ -122,11 +127,13 @@ export class Order extends Client {
    * @returns A Promise that resolves to a Maybe<Fee> object.
    */
   private async _getMasterFee(): Promise<Maybe<Fee>> {
+    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+      throw new Error("Order has not been configured")
     if (!Auth.account) return null
 
     try {
-      const { response } = await this._fetch<ApiResponse<Fee>>(
-        this._backendUrl(
+      const { response } = await Order._client.fetch<ApiResponse<Fee>>(
+        Order._client.backendUrl(
           `/fee/platform/${Auth.account.getCurrentNetwork(false)}`
         )
       )
@@ -432,6 +439,9 @@ export class Order extends Client {
     fees: Array<SeaportFee> = [],
     proposalId?: string
   ): Promise<Maybe<OrderCreated>> {
+    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+      throw new Error("Order has not been configured")
+
     try {
       if (!Auth.account) throw new Error("An account must be initialized.")
       if (!this._provider || !this._seaport)
@@ -516,22 +526,21 @@ export class Order extends Client {
       const order = await executeAllActions()
       const orderHash = this._seaport.getOrderHash(order.parameters)
 
-      const { response } = await this._fetch<ApiResponse<{ orderId: number }>>(
-        this._backendUrl("/order/create"),
-        {
-          method: "POST",
-          body: {
-            network: Auth.account.getCurrentNetwork(false),
-            orderInit,
-            order: {
-              orderHash,
-              orderType: order.parameters.orderType,
-              ...order,
-            },
-            proposalId,
+      const { response } = await Order._client.fetch<
+        ApiResponse<{ orderId: number }>
+      >(Order._client.backendUrl("/order/create"), {
+        method: "POST",
+        body: {
+          network: Auth.account.getCurrentNetwork(false),
+          orderInit,
+          order: {
+            orderHash,
+            orderType: order.parameters.orderType,
+            ...order,
           },
-        }
-      )
+          proposalId,
+        },
+      })
 
       if (!response || !response.data)
         throw new Error(
@@ -558,13 +567,16 @@ export class Order extends Client {
    * @returns None
    */
   async finalize(orderId: string) {
+    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+      throw new Error("Order has not been configured")
+
     try {
       if (!Auth.account) throw new Error("Account must be initialized.")
       if (!this._seaport)
         throw new Error("init() must be called to initialize the client.")
 
-      const { response } = await this._fetch<ApiResponse<IOrder>>(
-        this._backendUrl(
+      const { response } = await Order._client.fetch<ApiResponse<IOrder>>(
+        Order._client.backendUrl(
           `/order/${Auth.account.getCurrentNetwork(false)}/${orderId}`
         )
       )
@@ -625,13 +637,16 @@ export class Order extends Client {
     gasLimit: number = 2000000,
     gasPrice: Maybe<string> = null
   ) {
+    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+      throw new Error("Order has not been configured")
+
     try {
       if (!Auth.account) throw new Error("network must be defined.")
       if (!this._seaport)
         throw new Error("init() must be called to initialize the client.")
 
-      const { response } = await this._fetch<ApiResponse<IOrder>>(
-        this._backendUrl(
+      const { response } = await Order._client.fetch<ApiResponse<IOrder>>(
+        Order._client.backendUrl(
           `/order/${Auth.account.getCurrentNetwork(false)}/${orderId}`
         )
       )
@@ -674,9 +689,12 @@ export class Order extends Client {
    * @returns {Promise<Maybe<OrderDetail>>} A Promise that resolves to the order detail information, or null if an error occurs.
    */
   async get(networkId: string, id: string): Promise<Maybe<IOrder>> {
+    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+      throw new Error("Order has not been configured")
+
     try {
-      const { response } = await this._fetch<ApiResponse<IOrder>>(
-        this._backendUrl(`/order/${networkId}/${id}`)
+      const { response } = await Order._client.fetch<ApiResponse<IOrder>>(
+        Order._client.backendUrl(`/order/${networkId}/${id}`)
       )
 
       if (!response) return null
@@ -734,9 +752,14 @@ export class Order extends Client {
       field: string
     }
   }): Promise<Maybe<OrderListResponse>> {
+    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+      throw new Error("Order has not been configured")
+
     try {
-      const { response } = await this._fetch<ApiResponse<OrderListResponse>>(
-        this._backendUrl(
+      const { response } = await Order._client.fetch<
+        ApiResponse<OrderListResponse>
+      >(
+        Order._client.backendUrl(
           `/order/get/all/${networkId}/${status}/${skip}/${take}`
         ),
         {
@@ -809,9 +832,14 @@ export class Order extends Client {
       field: string
     }
   }): Promise<Maybe<OrderListResponse>> {
+    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+      throw new Error("Order has not been configured")
+
     try {
-      const { response } = await this._fetch<ApiResponse<OrderListResponse>>(
-        this._backendUrl(
+      const { response } = await Order._client.fetch<
+        ApiResponse<OrderListResponse>
+      >(
+        Order._client.backendUrl(
           `/order/user/all/${networkId}/${did}/${status}/${skip}/${take}${
             !!searchAddress ? `/${searchAddress}` : ""
           }`
