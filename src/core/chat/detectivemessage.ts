@@ -153,6 +153,12 @@ export class DetectiveMessage {
     }, DetectiveMessage.DETECTIVE_MESSAGE_OBSERVE_TIME)
   }
 
+  unobserve() {
+    if (!this._detectiveMessageCanRun) return
+    if (this._detectiveMessageObserveTimeout)
+      clearTimeout(this._detectiveMessageObserveTimeout)
+  }
+
   async scan() {
     if (!this._detectiveMessageCanRun) return
 
@@ -265,6 +271,12 @@ export class DetectiveMessage {
       this.scan,
       DetectiveMessage.DETECTIVE_MESSAGE_TIME
     )
+  }
+
+  stopScan() {
+    if (!this._detectiveMessageCanRun) return
+    if (this._detectiveMessageTimeout)
+      clearTimeout(this._detectiveMessageTimeout)
   }
 
   private _findMissingOrderSequences(
