@@ -256,7 +256,12 @@ export class DexieStorage extends Dexie implements BaseStorage {
   }
 
   async truncate(
-    tableName: "user" | "conversation" | "message"
+    tableName:
+      | "user"
+      | "conversation"
+      | "message"
+      | "detectivemessagecollector"
+      | "detectivemessagequeue"
   ): Promise<void> {
     if (!this._enableStorage) return
 

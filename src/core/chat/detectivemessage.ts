@@ -30,7 +30,7 @@ export class DetectiveMessage {
   private constructor() {
     if (!!!DetectiveMessage._config)
       throw new Error(
-        "DetectiveMessage must be configured before getting the instance"
+        "DetectiveMessage must be configured before getting the instance."
       )
   }
 
@@ -40,7 +40,7 @@ export class DetectiveMessage {
 
   public static config(config: { storage: DexieStorage }) {
     if (!!DetectiveMessage._config)
-      throw new Error("DetectiveMessage already configured")
+      throw new Error("DetectiveMessage already configured.")
 
     DetectiveMessage._config = config
     DetectiveMessage._detectiveMessageCanRun =
@@ -311,6 +311,13 @@ export class DetectiveMessage {
     if (!DetectiveMessage._detectiveMessageCanRun) return
     if (this._detectiveMessageTimeout)
       clearTimeout(this._detectiveMessageTimeout)
+  }
+
+  clear() {
+    this.unobserve()
+    this.stopScan()
+    DetectiveMessage._storage.truncate("detectivemessagecollector")
+    DetectiveMessage._storage.truncate("detectivemessagequeue")
   }
 
   private _findMissingOrderSequences(
