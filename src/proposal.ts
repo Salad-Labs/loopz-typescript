@@ -20,6 +20,7 @@ import { Auth } from "."
  */
 export class Proposal extends Client {
   private static _config: Maybe<{ devMode: boolean }> = null
+
   private static _instance: Maybe<Proposal> = null
 
   /**
@@ -38,22 +39,26 @@ export class Proposal extends Client {
     return { ...PROPOSAL_TYPE }
   }
 
-  public static config(config: { devMode: boolean }) {
-    if (!!Proposal._config) throw new Error("Proposal already configured")
-
-    Proposal._config = config
-  }
-
-  public static getInstance() {
-    return Proposal._instance ?? new Proposal()
-  }
-
   private constructor() {
     if (!!!Proposal._config)
       throw new Error("Proposal must be configured before getting the instance")
 
     super(Proposal._config.devMode)
   }
+
+  /** static methods */
+
+  static config(config: { devMode: boolean }) {
+    if (!!Proposal._config) throw new Error("Proposal already configured")
+
+    Proposal._config = config
+  }
+
+  static getInstance() {
+    return Proposal._instance ?? new Proposal()
+  }
+
+  /** private instance methods */
 
   /**
    * Creates a new proposal object and inserts it into the backend.
@@ -84,6 +89,8 @@ export class Proposal extends Client {
       return false
     }
   }
+
+  /** public instance methods */
 
   /**
    * Retrieves a proposal instance with the given ID and optional creator address.

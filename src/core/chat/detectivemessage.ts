@@ -9,13 +9,17 @@ import {
 import { v4 as uuid } from "uuid"
 
 export class DetectiveMessage {
-  private static _storage: DexieStorage
+  private _isScanRunning: boolean = false
+
+  private _isObserveRunning: boolean = false
 
   private _detectiveMessageTimeout: Maybe<NodeJS.Timeout> = null
 
   private _detectiveMessageObserveTimeout: Maybe<NodeJS.Timeout> = null
 
   private _currentConversationId: Maybe<string> = null
+
+  private static _storage: DexieStorage
 
   private static _detectiveMessageCanRun: boolean = true
 
@@ -84,6 +88,7 @@ export class DetectiveMessage {
 
     //we assign the current conversation id
     this._currentConversationId = conversationId
+    this._isObserveRunning = true
 
     //we get the messages from the queue. If we have some results, we filter for the conversation id
     const queues = await DetectiveMessage._storage.transaction(
@@ -190,10 +195,15 @@ export class DetectiveMessage {
     if (!DetectiveMessage._detectiveMessageCanRun) return
     if (this._detectiveMessageObserveTimeout)
       clearTimeout(this._detectiveMessageObserveTimeout)
+
+    this._isObserveRunning = false
+    this._currentConversationId = null
   }
 
   async scan() {
     if (!DetectiveMessage._detectiveMessageCanRun) return
+
+    this._isScanRunning = true
 
     //we get the messages stored of the current user
     const clues = await DetectiveMessage._storage.transaction(
@@ -312,6 +322,8 @@ export class DetectiveMessage {
     if (this._detectiveMessageTimeout)
       clearTimeout(this._detectiveMessageTimeout)
 
+    this._isScanRunning = false
+
     console.warn(
       "Detective message, scan is disabled. If you wanna use it and this action was unintentional, this is a reminder to call again the scan() method in order to restore it."
     )
@@ -321,6 +333,14 @@ export class DetectiveMessage {
     this.unobserve()
     DetectiveMessage._storage.truncate("detectivemessagecollector")
     DetectiveMessage._storage.truncate("detectivemessagequeue")
+  }
+
+  isScanning(): boolean {
+    return this._isScanRunning
+  }
+
+  isObserving(): boolean {
+    return this._isObserveRunning
   }
 
   private _findMissingOrderSequences(

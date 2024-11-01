@@ -24,17 +24,8 @@ import { Auth } from "."
  */
 export class Oracle extends Client {
   private static _config: Maybe<{ devMode: boolean }> = null
+
   private static _instance: Maybe<Oracle> = null
-
-  public static config(config: { devMode: boolean }) {
-    if (!!Oracle._config) throw new Error("Oracle already configured")
-
-    Oracle._config = config
-  }
-
-  public static getInstance() {
-    return Oracle._instance ?? new Oracle()
-  }
 
   private constructor() {
     if (!!!Oracle._config)
@@ -42,6 +33,20 @@ export class Oracle extends Client {
 
     super(Oracle._config.devMode)
   }
+
+  /** static methods */
+
+  static config(config: { devMode: boolean }) {
+    if (!!Oracle._config) throw new Error("Oracle already configured")
+
+    Oracle._config = config
+  }
+
+  static getInstance() {
+    return Oracle._instance ?? new Oracle()
+  }
+
+  /** private instance methods */
 
   /**
    * Validates each address in the given array of collections to ensure they are in the correct format.
@@ -63,6 +68,8 @@ export class Oracle extends Client {
         "An address of the set you provided is not in the right format. Please provide a valid Ethereum address."
       )
   }
+
+  /** public instance methods */
 
   /**
    * Retrieves collections based on the provided search parameters.

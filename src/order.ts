@@ -63,16 +63,6 @@ export class Order extends Client {
 
   private _initialized: boolean = false
 
-  public static config(config: { devMode: boolean }) {
-    if (!!Order._config) throw new Error("Order already configured")
-
-    Order._config = config
-  }
-
-  public static getInstance() {
-    return Order._instance ?? new Order()
-  }
-
   private constructor() {
     if (!!!Order._config)
       throw new Error("Order must be configured before getting the instance")
@@ -81,6 +71,20 @@ export class Order extends Client {
 
     this._blocksNumberConfirmationRequired = this._MIN_BLOCKS_REQUIRED
   }
+
+  /** static methods */
+
+  static config(config: { devMode: boolean }) {
+    if (!!Order._config) throw new Error("Order already configured")
+
+    Order._config = config
+  }
+
+  static getInstance() {
+    return Order._instance ?? new Order()
+  }
+
+  /** private instance methods */
 
   /**
    * Asynchronously fetches the platform Gnosis multisig wallet from the backend API.
@@ -306,6 +310,8 @@ export class Order extends Client {
     }
     return orderInit
   }
+
+  /** public instance methods */
 
   isInitialized(): boolean {
     return this._initialized === true
