@@ -4,12 +4,7 @@ import { PrivyAdapterOptions } from "../types/adapter"
 import { createRoot, Root } from "react-dom/client"
 import { v4 as uuid } from "uuid"
 import { PrivyClientConfig } from "@privy-io/react-auth"
-<<<<<<< HEAD
 import { Auth, Order } from ".."
-=======
-import { Auth } from "../auth"
-import { Order } from "../order"
->>>>>>> c101384 (fix: removed ts path aliases to prevent type errors)
 import { PrivyContext } from "../react/components/privycontext"
 
 export class PrivyAdapter {
