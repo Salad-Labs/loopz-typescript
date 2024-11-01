@@ -9,13 +9,17 @@ import {
 import { v4 as uuid } from "uuid"
 
 export class DetectiveMessage {
-  private static _storage: DexieStorage
+  private _isScanRunning: boolean = false
+
+  private _isObserveRunning: boolean = false
 
   private _detectiveMessageTimeout: Maybe<NodeJS.Timeout> = null
 
   private _detectiveMessageObserveTimeout: Maybe<NodeJS.Timeout> = null
 
   private _currentConversationId: Maybe<string> = null
+
+  private static _storage: DexieStorage
 
   private static _detectiveMessageCanRun: boolean = true
 
@@ -84,6 +88,7 @@ export class DetectiveMessage {
 
     //we assign the current conversation id
     this._currentConversationId = conversationId
+    this._isObserveRunning = true
 
     //we get the messages from the queue. If we have some results, we filter for the conversation id
     const queues = await DetectiveMessage._storage.transaction(
@@ -190,10 +195,15 @@ export class DetectiveMessage {
     if (!DetectiveMessage._detectiveMessageCanRun) return
     if (this._detectiveMessageObserveTimeout)
       clearTimeout(this._detectiveMessageObserveTimeout)
+
+    this._isObserveRunning = false
+    this._currentConversationId = null
   }
 
   async scan() {
     if (!DetectiveMessage._detectiveMessageCanRun) return
+
+    this._isScanRunning = true
 
     //we get the messages stored of the current user
     const clues = await DetectiveMessage._storage.transaction(
@@ -311,13 +321,26 @@ export class DetectiveMessage {
     if (!DetectiveMessage._detectiveMessageCanRun) return
     if (this._detectiveMessageTimeout)
       clearTimeout(this._detectiveMessageTimeout)
+
+    this._isScanRunning = false
+
+    console.warn(
+      "Detective message, scan is disabled. If you wanna use it and this action was unintentional, this is a reminder to call again the scan() method in order to restore it."
+    )
   }
 
   clear() {
     this.unobserve()
-    this.stopScan()
     DetectiveMessage._storage.truncate("detectivemessagecollector")
     DetectiveMessage._storage.truncate("detectivemessagequeue")
+  }
+
+  isScanning(): boolean {
+    return this._isScanRunning
+  }
+
+  isObserving(): boolean {
+    return this._isObserveRunning
   }
 
   private _findMissingOrderSequences(
@@ -397,21 +420,4 @@ export class DetectiveMessage {
       current.order > highest.order ? current : highest
     )
   }
-
-  /**
-   * RULES detective message
-   */
-
-  //table on IndexedDB should contain a primary key made by the conversationId, userId, messageId, version
-  //structure of the table should be conversationId, userId, messageId, version, createdAt
-
-  //every time a message comes, insert a data with the version and the id of the message inside the db or local storage for each conversation
-  //it takes into consideration the last message validated, in order to check with the server the messages with a version number greater than the version registered
-  //it saves the messages under a form of a list of version number
-  //[9] - [10] - [13] - [14] - [15] | {8} <- this is the last message validated ?? maybe this part is useless because we store simply the list of the messages
-  //[11] and [12] are missing. Ok, let's check if the server has these messages
-  //it starts to communicate with the server only if the client explicitly is on the conversation
-  //if it has some results already in the queue list, it sends them on the server once the client starts to observe a conversation
-  //it activates a timeout and cyclely communicate with the server only if the client is explicitly on the conversation
-  //once it gets the desired messages from the server, it store them on the local db
 }

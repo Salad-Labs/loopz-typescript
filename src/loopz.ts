@@ -84,6 +84,8 @@ export class Loopz {
     if (Loopz._privyAdapter) Loopz._privyAdapter.render()
   }
 
+  /** static methods */
+
   private static async createOrConnectToStorage(): Promise<DexieStorage> {
     if (!window.localStorage)
       throw new Error(
@@ -154,6 +156,8 @@ export class Loopz {
 
     return Loopz._instance
   }
+
+  /** public instance methods */
 
   init(): {
     auth: Auth

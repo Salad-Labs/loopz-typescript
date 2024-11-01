@@ -6,32 +6,27 @@ import { v4 as uuid } from "uuid"
 
 export class Notification extends Client {
   private static _config: Maybe<{ devMode: boolean }> = null
+
   private static _instance: Maybe<Notification> = null
 
   private _socket: Maybe<WebSocket> = null
+
   private _socketInitialized: boolean = false
+
   private _onOpenConnectionFunctions: Array<{
     key: string
     fn: (this: WebSocket, ev: Event) => any
   }> = []
+
   private _onCloseConnectionFunctions: Array<{
     key: string
     fn: (this: WebSocket, ev: CloseEvent) => any
   }> = []
+
   private _onMessageFunctions: Array<{
     key: string
     fn: (message: NotificationMessage) => any
   }> = []
-  public static config(config: { devMode: boolean }) {
-    if (!!Notification._config)
-      throw new Error("Notification already configured")
-
-    Notification._config = config
-  }
-
-  public static getInstance() {
-    return Notification._instance ?? new Notification()
-  }
 
   private constructor() {
     if (!!!Notification._config)
@@ -41,6 +36,21 @@ export class Notification extends Client {
 
     super(Notification._config.devMode)
   }
+
+  /** static methods */
+
+  static config(config: { devMode: boolean }) {
+    if (!!Notification._config)
+      throw new Error("Notification already configured")
+
+    Notification._config = config
+  }
+
+  static getInstance() {
+    return Notification._instance ?? new Notification()
+  }
+
+  /** public instance methods */
 
   init() {
     if (!Auth.authToken) return

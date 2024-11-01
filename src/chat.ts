@@ -315,8 +315,6 @@ export class Chat
 
   private _syncRunning: boolean = false
 
-  private _detectiveMessage: DetectiveMessage
-
   private _hookMessageCreatingFn: Maybe<
     (primaryKey: string, record: LocalDBMessage) => void
   > = null
@@ -339,17 +337,9 @@ export class Chat
 
   private _syncTimeout: Maybe<NodeJS.Timeout> = null
 
+  private static _detectiveMessage: DetectiveMessage
+
   static readonly SYNCING_TIME = 60000
-
-  public static config(config: EngineInitConfig) {
-    if (!!Chat._config) throw new Error("Chat already configured")
-
-    Chat._config = config
-  }
-
-  public static getInstance() {
-    return Chat._instance ?? new Chat()
-  }
 
   private constructor() {
     if (!!!Chat._config)
@@ -359,11 +349,29 @@ export class Chat
 
     //let's build the instance of DetectiveMessage, starting the scan immediately
     DetectiveMessage.config({ storage: Chat._config.storage })
-    this._detectiveMessage = DetectiveMessage.getInstance()
-    this._detectiveMessage.scan()
+    Chat._detectiveMessage = DetectiveMessage.getInstance()
+    Chat._detectiveMessage.scan()
 
     this._defineHookFnLocalDB()
   }
+
+  /** static methods */
+
+  static config(config: EngineInitConfig) {
+    if (!!Chat._config) throw new Error("Chat already configured")
+
+    Chat._config = config
+  }
+
+  static getInstance() {
+    return Chat._instance ?? new Chat()
+  }
+
+  static getDetectiveMessageInstance() {
+    return Chat._detectiveMessage
+  }
+
+  /** private instance methods */
 
   private _defineHookFnLocalDB() {
     this._hookMessageCreatingFn = (primaryKey, record) => {
@@ -860,7 +868,7 @@ export class Chat
             //let's collect these messages for our detective message instance (only if this sync is not the first)
             if (this._syncingCounter > 0)
               messages.forEach((message) => {
-                this._detectiveMessage.collectClue(
+                Chat._detectiveMessage.collectClue(
                   message,
                   Auth.account!.did,
                   Auth.account!.organizationId
@@ -1220,7 +1228,7 @@ export class Chat
           ),
         ])
 
-        this._detectiveMessage.collectClue(
+        Chat._detectiveMessage.collectClue(
           response,
           Auth.account!.did,
           Auth.account!.organizationId
@@ -1882,6 +1890,8 @@ export class Chat
       this._emit("conversationUpdatedLDBError", error)
     }
   }
+
+  /** public instance methods */
 
   /** Mutations */
 
@@ -6937,14 +6947,14 @@ export class Chat
     this._keyPairsMap = []
     this._userKeyPair = null
     this._syncRunning = false
-    this._detectiveMessage.clear()
+    Chat._detectiveMessage.clear()
   }
 
   /**
    * Check if the current Chat object is currently syncing with the backend.
    * @returns {boolean} isSyncing
    */
-  isSyncing() {
+  isSyncing(): boolean {
     return this._isSyncing
   }
 
