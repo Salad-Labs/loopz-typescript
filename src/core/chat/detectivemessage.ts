@@ -1,5 +1,5 @@
 import { Auth, Chat } from "../.."
-import { Converter, Message, QIError } from ".."
+import { Converter, getUniquePropertyValues, Message, QIError } from ".."
 import { Maybe } from "../../types"
 import { DexieStorage } from "../app"
 import {
@@ -176,10 +176,7 @@ export class DetectiveMessage {
     //if we have at least one record, we start to evaluate the elements
     if (clues.length > 0) {
       //we obtain the conversation ids, in this way we can grouping the messages by their conversation id
-      const conversationIds = this._getUniquePropertyValues(
-        clues,
-        "conversationId"
-      )
+      const conversationIds = getUniquePropertyValues(clues, "conversationId")
       const conversationMessages: Array<{
         conversationId: string
         elements: Array<{
@@ -335,19 +332,6 @@ export class DetectiveMessage {
       console.log(error)
       return null
     }
-  }
-
-  private _getUniquePropertyValues<T>(array: T[], property: keyof T): string[] {
-    const uniqueValues = new Set<string>()
-
-    array.forEach((item) => {
-      const value = item[property]
-      if (typeof value === "string") {
-        uniqueValues.add(value)
-      }
-    })
-
-    return Array.from(uniqueValues)
   }
 
   private _findLowestOrder<T extends { order: number }>(
