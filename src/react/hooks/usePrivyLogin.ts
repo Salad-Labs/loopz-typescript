@@ -1,5 +1,5 @@
 import { useLogin, usePrivy } from "@privy-io/react-auth"
-import { Auth } from "@src/auth"
+import { Auth } from "../.."
 import { useEffect, useRef } from "react"
 import { useFundWallet } from "@privy-io/react-auth"
 import { Chain } from "viem"

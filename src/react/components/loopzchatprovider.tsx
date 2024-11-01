@@ -10,7 +10,7 @@ import React, {
 } from "react"
 import { useLoopz, useLoopzAuth } from "../hooks"
 import { LoopzChatContext } from "../context/loopzchatcontext"
-import { LoopzProviderChatConfig } from "@src/types/react/loopzproviderchatconfig"
+import { LoopzProviderChatConfig } from "../../types/react/loopzproviderchatconfig"
 
 export const LoopzChatProvider: FC<
   LoopzProviderChatConfig & { children?: ReactNode }

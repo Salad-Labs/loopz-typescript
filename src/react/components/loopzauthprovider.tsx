@@ -5,7 +5,7 @@ import { LoopzAuthContext } from "../context/loopzauthcontext"
 import { useLoopz } from "../hooks"
 import { LoopzAuthContextValue } from "@src/types/react/loopzauthcontextvalue"
 import { LoopzProviderAuthConfig } from "@src/types/react/loopzproviderauthconfig"
-import { Auth } from "@src/index"
+import { Auth } from "../.."
 
 export const LoopzAuthProvider: FC<
   LoopzProviderAuthConfig & {

@@ -42,7 +42,7 @@ import { Reaction } from "./reaction"
 import { User } from "./user"
 import { Crypto } from "./crypto"
 import { Converter } from "../utilities"
-import { Auth } from "@src/index"
+import { Auth } from "../.."
 
 /**
  * Represents a Message object that can be used to interact with messages in a chat application.

@@ -21,7 +21,7 @@ import forge from "node-forge"
 import { KeyPairItem } from "../../types/chat/keypairitem"
 import { EngineInitConfig } from "../../types"
 import { DexieStorage } from "../app"
-import { Auth } from "@src/index"
+import { Auth } from "../.."
 
 /**
  * Represents an Engine class that extends Client and implements IEngine interface.
