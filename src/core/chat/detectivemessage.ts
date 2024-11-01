@@ -27,7 +27,7 @@ export class DetectiveMessage {
 
   private static _instance: Maybe<DetectiveMessage> = null
 
-  static readonly DETECTIVE_MESSAGE_TIME: number = 60000
+  static readonly DETECTIVE_MESSAGE_SCAN_TIME: number = 60000
 
   static readonly DETECTIVE_MESSAGE_OBSERVE_TIME: number = 10000
 
@@ -313,7 +313,7 @@ export class DetectiveMessage {
 
     this._detectiveMessageTimeout = setTimeout(
       this.scan,
-      DetectiveMessage.DETECTIVE_MESSAGE_TIME
+      DetectiveMessage.DETECTIVE_MESSAGE_SCAN_TIME
     )
   }
 
