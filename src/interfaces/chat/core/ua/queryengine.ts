@@ -12,6 +12,7 @@ import {
   ListAllActiveUserConversationIdsArgs,
   ListMessagesByConversationIdArgs,
   ListMessagesImportantByUserConversationIdArgs,
+  ListMessagesByRangeOrderArgs,
 } from "@src/types"
 
 /**
@@ -41,6 +42,9 @@ export interface UAQueryEngine {
   ): Promise<
     { items: Array<MessageImportant>; nextToken?: Maybe<string> } | QIError
   >
+  listMessagesByRangeOrder(
+    args: ListMessagesByRangeOrderArgs
+  ): Promise<{ items: Array<Message>; nextToken?: Maybe<string> } | QIError>
   listConversationsPinnedByCurrentUser(
     nextToken?: string
   ): Promise<

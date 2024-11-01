@@ -11,10 +11,11 @@ import {
   CollectibleBalance,
   CollectibleMetadata,
 } from "./interfaces/oracle"
-import { ApiKeyAuthorized, Maybe } from "./types/base"
+import { Maybe } from "./types/base"
 import { ApiResponse } from "./types/base/apiresponse"
 import { Collection } from "./interfaces"
 import { GetCollectibleBalanceArgs } from "./types/oracle/args/getcollectiblebalance"
+import { Auth } from "."
 
 /**
  * Represents an Oracle class that extends Client and provides methods to interact with an Oracle API.
@@ -22,14 +23,24 @@ import { GetCollectibleBalanceArgs } from "./types/oracle/args/getcollectiblebal
  * @extends Client
  */
 export class Oracle extends Client {
-  /**
-   * Constructor for creating an instance of a class that requires an API key for authorization.
-   * @param {ApiKeyAuthorized} config - The configuration object containing the API key.
-   * @returns None
-   */
-  constructor(config: ApiKeyAuthorized) {
-    super(config.devMode)
-    this._apiKey = config.apiKey
+  private static _config: Maybe<{ devMode: boolean }> = null
+  private static _instance: Maybe<Oracle> = null
+
+  public static config(config: { devMode: boolean }) {
+    if (!!Oracle._config) throw new Error("Oracle already configured")
+
+    Oracle._config = config
+  }
+
+  public static getInstance() {
+    return Oracle._instance ?? new Oracle()
+  }
+
+  private constructor() {
+    if (!!!Oracle._config)
+      throw new Error("Oracle must be configured before getting the instance")
+
+    super(Oracle._config.devMode)
   }
 
   /**
@@ -62,59 +73,31 @@ export class Oracle extends Client {
   async listCollections(
     args: ListCollectionsArgs
   ): Promise<Maybe<{ total: number; collections: Array<Collection> }>> {
-    const url: string = `${this.backendUrl()}/collection/get/all/${
-      args.networkId ? args.networkId : `*`
-    }/${args.searchType}/${args.skip}/${args.take}${
-      args.queryString ? `/${args.queryString}` : ``
-    }`
+    const url = this._backendUrl(
+      `/collection/get/all/${args.networkId ? args.networkId : `*`}/${
+        args.searchType
+      }/${args.skip}/${args.take}${
+        args.queryString ? `/${args.queryString}` : ``
+      }`
+    )
 
     try {
       const { response } = await this._fetch<
         ApiResponse<{ total: number; collections: Array<Collection> }>
-      >(
-        url,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.listCollections(args)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
-        }
-      )
+      >(url)
 
       if (!response || !response.data) return null
 
       return response.data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -126,57 +109,29 @@ export class Oracle extends Client {
   async listBookmarkedCollections(
     args: ListBookmarkedCollectionsArgs
   ): Promise<Maybe<{ total: number; collections: Array<Collection> }>> {
-    const url: string = `${this.backendUrl()}/collection/get/all/bookmark/${
-      args.networkId ? args.networkId : `*`
-    }/${args.skip}/${args.take}`
+    const url = this._backendUrl(
+      `/collection/get/all/bookmark/${args.networkId ? args.networkId : `*`}/${
+        args.skip
+      }/${args.take}`
+    )
 
     try {
       const { response } = await this._fetch<
         ApiResponse<{ total: number; collections: Array<Collection> }>
-      >(
-        url,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.listBookmarkedCollections(args)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
-        }
-      )
+      >(url)
 
       if (!response || !response.data) return null
 
       return response.data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -196,11 +151,11 @@ export class Oracle extends Client {
       total: number
     }>
   > {
-    const url: string = `${this.backendUrl()}/nft/get/all/owner/${
-      args.networkId
-    }/${args.collectionAddress}/${args.take}${
-      args.continuation ? `/${args.continuation}` : ``
-    }`
+    const url = this._backendUrl(
+      `/nft/get/all/owner/${args.networkId}/${args.collectionAddress}/${
+        args.take
+      }${args.continuation ? `/${args.continuation}` : ``}`
+    )
 
     try {
       const { response } = await this._fetch<
@@ -209,53 +164,25 @@ export class Oracle extends Client {
           continuation: Maybe<string> | undefined
           total: number
         }>
-      >(
-        url,
-        {
-          method: "POST",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-          body: {
-            collections: args.collections ? args.collections : null,
-          },
+      >(url, {
+        method: "POST",
+        body: {
+          collections: args.collections ? args.collections : null,
         },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.listCollectibles(args)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
-        }
-      )
+      })
 
       if (!response || !response.data) return null
 
       return response.data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -273,11 +200,13 @@ export class Oracle extends Client {
       total: number
     }>
   > {
-    const url: string = `${this.backendUrl()}/nft/get/metadata/owner/${
-      args.networkId ? args.networkId : `*`
-    }/${args.collectionAddress}/${args.address}/${args.take}${
-      args.continuation ? `/${args.continuation}` : ``
-    }`
+    const url = this._backendUrl(
+      `/nft/get/metadata/owner/${args.networkId ? args.networkId : `*`}/${
+        args.collectionAddress
+      }/${args.address}/${args.take}${
+        args.continuation ? `/${args.continuation}` : ``
+      }`
+    )
 
     try {
       const { response } = await this._fetch<
@@ -286,50 +215,20 @@ export class Oracle extends Client {
           continuation: Maybe<string> | undefined
           total: number
         }>
-      >(
-        url,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.listCollectiblesByCollection(args)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
-        }
-      )
+      >(url)
 
       if (!response || !response.data) return null
 
       return response.data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -341,55 +240,29 @@ export class Oracle extends Client {
   async getCollectibleMetadata(
     args: GetCollectibleMetadataArgs
   ): Promise<Maybe<CollectibleMetadata>> {
-    const url: string = `${this.backendUrl()}/nft/metadata/${args.networkId}/${
-      args.collectionAddress
-    }/${args.tokenId}${args.address ? `/${args.address}` : ``}`
+    const url = this._backendUrl(
+      `/nft/metadata/${args.networkId}/${args.collectionAddress}/${
+        args.tokenId
+      }${args.address ? `/${args.address}` : ``}`
+    )
 
     try {
       const { response } = await this._fetch<ApiResponse<CollectibleMetadata>>(
-        url,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.getCollectibleMetadata(args)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
-        }
+        url
       )
 
       if (!response || !response.data) return null
 
       return response.data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -401,55 +274,28 @@ export class Oracle extends Client {
   async getCollectibleBalance(
     args: GetCollectibleBalanceArgs
   ): Promise<Maybe<CollectibleBalance>> {
-    const url: string = `${this.backendUrl()}/nft/balance`
+    const url = this._backendUrl("/nft/balance")
     try {
       const { response } = await this._fetch<ApiResponse<CollectibleBalance>>(
         url,
         {
           method: "PUT",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-          body: {
-            ...args,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.getCollectibleBalance(args)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
+          body: args,
         }
       )
 
       if (!response || !response.data) return null
 
       return response.data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -469,52 +315,27 @@ export class Oracle extends Client {
 
     try {
       const { response } = await this._fetch<ApiResponse<any>>(
-        `${this.backendUrl()}/collection/add`,
+        this._backendUrl("/collection/add"),
         {
           method: "POST",
           body: {
             collections,
           },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.addCollection(collections)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
         }
       )
 
       if (!response || !response.data) return null
 
       return response.data
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -534,52 +355,27 @@ export class Oracle extends Client {
 
     try {
       const { response } = await this._fetch<ApiResponse<any>>(
-        `${this.backendUrl()}/collection/add/bulk`,
+        this._backendUrl("/collection/add/bulk"),
         {
           method: "POST",
           body: {
             collections,
           },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.addCollections(collections)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
         }
       )
 
       if (!response || !response.data) return null
 
       return response.data
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -602,50 +398,20 @@ export class Oracle extends Client {
     try {
       const { response } = await this._fetch<
         ApiResponse<{ address: string; networkId: string; supported: boolean }>
-      >(
-        `${this.backendUrl()}/collection/is/supported/${address}/${networkId}`,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.isCollectionSupported(address, networkId)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
-        }
-      )
+      >(this._backendUrl(`/collection/is/supported/${address}/${networkId}`))
 
       if (!response || !response.data) return null
 
       return response.data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -668,53 +434,25 @@ export class Oracle extends Client {
     try {
       const { response } = await this._fetch<
         ApiResponse<{ address: string; networkId: string; supported: boolean }>
-      >(
-        `${this.backendUrl()}/collection/is/supported/bulk`,
-        {
-          method: "POST",
-          body: {
-            collections,
-          },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
+      >(this._backendUrl("/collection/is/supported/bulk"), {
+        method: "POST",
+        body: {
+          collections,
         },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.collectionsSupported(collections)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
-        }
-      )
+      })
 
       if (!response || !response.data) return null
 
       return response.data
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -732,49 +470,21 @@ export class Oracle extends Client {
 
     try {
       const { response } = await this._fetch<ApiResponse<Collection>>(
-        `${this.backendUrl()}/collection/find/${collectionAddress}/${networkId}`,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.findCollection(collectionAddress, networkId)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
-        }
+        this._backendUrl(`/collection/find/${collectionAddress}/${networkId}`)
       )
 
       if (!response || !response.data) return null
 
       return response.data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -789,50 +499,20 @@ export class Oracle extends Client {
     try {
       const { response } = await this._fetch<
         ApiResponse<{ amount: string; base: string; currency: string }>
-      >(
-        `${this.backendUrl()}/coinbase/get/pair/value/${pair}`,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.getCoinsPairRate(pair)
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
-        }
-      )
+      >(this._backendUrl(`/coinbase/get/pair/value/${pair}`))
 
       if (!response || !response.data) return null
 
       return response.data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -858,49 +538,19 @@ export class Oracle extends Client {
             evmLogo: string
           }>
         >
-      >(
-        `${this.backendUrl()}/networks/get/all`,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        },
-        async (error) => {
-          //safety check, _account could be null and this method destroy the local storage values stored
-          this.destroyLastUserLoggedKey()
-
-          if (this.countRequestNewAuthToken() === 0) {
-            await this.obtainNewAuthToken(
-              async (authToken: string) => {
-                this.incrementRequestNewAuthToken()
-                this._setAllAuthToken(authToken)
-                this._account?.setAuthToken(authToken)
-                this._account?.storeLastUserLoggedKey()
-
-                return await this.listNetworks()
-              },
-              async (error) => {
-                console.log(error)
-                await this._authRef?.logout()
-              }
-            )
-          } else {
-            //if we're here this means the second call encountered again a 401 error, so we logout the user
-            console.log(error)
-            await this._authRef?.logout()
-          }
-        }
-      )
+      >(this._backendUrl("/networks/get/all"))
 
       if (!response || !response.data) return null
 
       return response.data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 }

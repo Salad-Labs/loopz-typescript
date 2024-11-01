@@ -43,7 +43,6 @@ export class ConversationReport
    */
   constructor(config: ConversationReportInitConfig & EngineInitConfig) {
     super({
-      apiKey: config.apiKey,
       storage: config.storage,
       devMode: config.devMode,
     })

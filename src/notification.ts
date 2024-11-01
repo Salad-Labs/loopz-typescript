@@ -1,9 +1,13 @@
+import { Auth } from "."
 import { Client } from "./core/client"
-import { ApiKeyAuthorized, Maybe } from "./types"
+import { Maybe } from "./types"
 import { NotificationMessage } from "./types/notification"
 import { v4 as uuid } from "uuid"
 
 export class Notification extends Client {
+  private static _config: Maybe<{ devMode: boolean }> = null
+  private static _instance: Maybe<Notification> = null
+
   private _socket: Maybe<WebSocket> = null
   private _socketInitialized: boolean = false
   private _onOpenConnectionFunctions: Array<{
@@ -18,18 +22,33 @@ export class Notification extends Client {
     key: string
     fn: (message: NotificationMessage) => any
   }> = []
+  public static config(config: { devMode: boolean }) {
+    if (!!Notification._config)
+      throw new Error("Notification already configured")
 
-  constructor(config: ApiKeyAuthorized) {
-    super(config.devMode)
+    Notification._config = config
+  }
+
+  public static getInstance() {
+    return Notification._instance ?? new Notification()
+  }
+
+  private constructor() {
+    if (!!!Notification._config)
+      throw new Error(
+        "Notification must be configured before getting the instance"
+      )
+
+    super(Notification._config.devMode)
   }
 
   init() {
-    if (!this._authToken) return
+    if (!Auth.authToken) return
     try {
       this._socket = new WebSocket(
-        `${this.backendNotificationUrl()}?jwt=${
-          this._authToken
-        }&organizationId=${this._apiKey}`
+        this._backendNotificationUrl(
+          `?jwt=${Auth.authToken}&organizationId=${Auth.apiKey}`
+        )
       )
       this._socketInitialized = true
     } catch (error) {

@@ -137,7 +137,6 @@ export class User
    */
   constructor(config: UserInitConfig & EngineInitConfig) {
     super({
-      apiKey: config.apiKey,
       storage: config.storage,
       devMode: config.devMode,
     })

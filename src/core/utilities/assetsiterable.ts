@@ -170,7 +170,7 @@ export class AssetsIterable {
    * Returns a string representation of the assets stored in this object.
    * @returns {string} A string representation of the assets.
    */
-  toString() {
+  toString(): string {
     return this.__assets.toString()
   }
 

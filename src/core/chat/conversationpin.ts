@@ -44,7 +44,6 @@ export class ConversationPin extends Engine implements ConversationPinSchema {
    */
   constructor(config: ConversationPinInitConfig & EngineInitConfig) {
     super({
-      apiKey: config.apiKey,
       storage: config.storage,
       devMode: config.devMode,
     })

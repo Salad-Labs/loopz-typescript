@@ -67,7 +67,6 @@ export class ConversationTradingPool
    */
   constructor(config: ConversationTradingPoolInitConfig & EngineInitConfig) {
     super({
-      apiKey: config.apiKey,
       storage: config.storage,
       devMode: config.devMode,
     })

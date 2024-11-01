@@ -21,6 +21,7 @@ import forge from "node-forge"
 import { KeyPairItem } from "../../types/chat/keypairitem"
 import { EngineInitConfig } from "../../types"
 import { Account, DexieStorage } from "../app"
+import { Auth } from "@src/index"
 
 /**
  * Represents an Engine class that extends Client and implements IEngine interface.
@@ -31,14 +32,6 @@ import { Account, DexieStorage } from "../app"
 
 export class Engine extends ClientEngine implements IEngine {
   /**
-   * @property {Maybe<string>} _apiKey - The API key for authentication.
-   */
-  protected _apiKey: Maybe<string> = null
-  /**
-   * @property {Maybe<string>} _realtimeAuthorizationToken - The authorization token for real-time API.
-   */
-  protected _realtimeAuthorizationToken: Maybe<string> = null
-  /**
    * @property {Maybe<EngineInitConfig>} _parentConfig - The parent configuration for the engine.
    */
   protected _parentConfig: Maybe<EngineInitConfig> = null
@@ -46,6 +39,7 @@ export class Engine extends ClientEngine implements IEngine {
    * @property {Maybe<Client>} _client - The client for API connections.
    */
   protected _client: Maybe<Client> = null
+
   /**
    * @property {Maybe<UUIDSubscriptionClient>} _realtimeClient - The UUID subscription client for real-time communication.
    */
@@ -62,10 +56,6 @@ export class Engine extends ClientEngine implements IEngine {
    * @property {DexieStorage} _storage - The storage of the application.
    */
   protected _storage: DexieStorage
-  /**
-   * @property {Maybe<Account>} _account - The account connected to the application.
-   */
-  protected _account: Maybe<Account> = null
   /**
    * @property {boolean} _isConnected - Wheather the client has connected to the server
    */
@@ -103,9 +93,7 @@ export class Engine extends ClientEngine implements IEngine {
   constructor(config: EngineInitConfig) {
     super(config.devMode)
 
-    this._apiKey = config.apiKey
     this._storage = config.storage
-    this._realtimeAuthorizationToken = `${this._apiKey}##${this._authToken}`
     this._parentConfig = config
     this._connectionParams = {
       Authorization: null,
@@ -228,13 +216,13 @@ export class Engine extends ClientEngine implements IEngine {
    */
   private _makeWSClient(callback: Function): void {
     try {
-      this._connectionParams!.Authorization = this._realtimeAuthorizationToken
-      this._connectionParams!.host = this.backendChatUrl()
+      this._connectionParams!.Authorization = Auth.realtimeAuthorizationToken
+      this._connectionParams!.host = this._backendChatUrl()
         .replace("https://", "")
         .replace("/graphql", "")
 
       this._realtimeClient = new UUIDSubscriptionClient(
-        this.backendChatRealtimeUrl(),
+        this._backendChatRealtimeUrl(),
         {
           reconnect: true,
           timeout: Engine.WS_TIMEOUT,
@@ -284,13 +272,11 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns {Maybe<Client>} A client object for making API requests or null if any required parameter is missing.
    */
   private _makeClient(): Maybe<Client> {
-    if (!this._authToken) return null
-    if (!this._apiKey) return null
     if (!this._realtimeClient) return null
     if (!this._client) {
       try {
         this._client = createClient({
-          url: this.backendChatUrl(),
+          url: this._backendChatUrl(),
           exchanges: [
             fetchExchange,
             subscriptionExchange({
@@ -302,7 +288,7 @@ export class Engine extends ClientEngine implements IEngine {
           fetchOptions: () => {
             return {
               headers: {
-                Authorization: `${this._apiKey}`,
+                Authorization: Auth.apiKey,
               },
             }
           },
@@ -431,13 +417,13 @@ export class Engine extends ClientEngine implements IEngine {
     | QIError {
     try {
       const client = this._makeClient()
-
       if (!client) return this._returnQIErrorInternalClientNotDefined()
+      if (!Auth.authToken) throw new Error("authToken is not set")
 
       const subscription = client.subscription<
         TSubscriptionResult,
         TArgs & { jwt: string }
-      >(node, { ...args, jwt: `${this._authToken}` })
+      >(node, { ...args, jwt: Auth.authToken })
 
       return {
         subscribe: subscription.subscribe,
@@ -473,13 +459,13 @@ export class Engine extends ClientEngine implements IEngine {
   ): Promise<TResult | QIError> {
     try {
       const client = this._makeClient()
-
       if (!client) return this._returnQIErrorInternalClientNotDefined()
+      if (!Auth.authToken) throw new Error("authToken is not set")
 
       const response = await client
         .mutation<TMutationResult, TArgs & { jwt: string }>(node, {
           ...args,
-          jwt: `${this._authToken}`,
+          jwt: Auth.authToken,
         })
         .toPromise()
 
@@ -516,13 +502,13 @@ export class Engine extends ClientEngine implements IEngine {
   ): Promise<TResult | QIError> {
     try {
       const client = this._makeClient()
-
       if (!client) return this._returnQIErrorInternalClientNotDefined()
+      if (!Auth.authToken) throw new Error("authToken is not set")
 
       const response = await client
         .query<TQueryResult, TArgs & { jwt: string }>(node, {
           ...args,
-          jwt: `${this._authToken}`,
+          jwt: Auth.authToken,
         })
         .toPromise()
 
@@ -539,24 +525,23 @@ export class Engine extends ClientEngine implements IEngine {
     }
   }
 
+  // TODO why the need of this function?
   /**
    * Refreshes the JWT token with the provided token and updates the realtime authorization token.
-   * @param {string} jwt - The new JWT token to be set.
+   * @param jwt - The new JWT token to be set.
    * @returns void
    */
-  refreshJWTToken(jwt: string): void {
-    this._authToken = jwt
-    this._realtimeAuthorizationToken = `${this._apiKey}##${this._authToken}`
-  }
+  // refreshJWTToken(jwt: string) {
+  //   this._authToken = jwt
+  //   this._realtimeAuthorizationToken = `${this._apiKey}##${this._authToken}`
+  // }
 
   /**
    * Reconnects to a service by resetting and then connecting again.
    */
-  reconnect(): Promise<void> {
-    return new Promise((res) => {
-      this._reset()
-      this.connect(true).then(res)
-    })
+  reconnect() {
+    this._reset()
+    return this.connect(true)
   }
 
   /**
@@ -584,16 +569,16 @@ export class Engine extends ClientEngine implements IEngine {
     })
   }
 
-  disconnect(): void {
+  disconnect() {
     return this._reset()
   }
 
   /**
    * Collects subscription garbage to be unsubscribed later.
-   * @param {SubscriptionGarbage | SubscriptionGarbage[]} garbage - The subscription garbage or array of garbage to collect.
+   * @param garbage - The subscription garbage or array of garbage to collect.
    * @returns None
    */
-  collect(garbage: SubscriptionGarbage | SubscriptionGarbage[]): void {
+  collect(garbage: SubscriptionGarbage | SubscriptionGarbage[]) {
     if (!this._unsubscribeGarbageCollector) {
       if (garbage instanceof Array) this._unsubscribeGarbageCollector = garbage
       else this._unsubscribeGarbageCollector = [garbage]
@@ -626,28 +611,30 @@ export class Engine extends ClientEngine implements IEngine {
     )
   }
 
+  // TODO why the need of this function?
   /**
    * Get the JWT token stored in the class instance.
    * @returns The JWT token as a string, or null if it is not set.
    */
-  getJWTToken(): Maybe<string> {
-    return this._authToken
-  }
+  // getJWTToken(): Maybe<string> {
+  //   return this._authToken
+  // }
 
+  // TODO why the need of this function?
   /**
    * Get the API key.
    * @returns {Maybe<string>} The API key, or null if it is not set.
    */
-  getApiKey(): Maybe<string> {
-    return this._apiKey
-  }
+  // getApiKey(): Maybe<string> {
+  //   return this._apiKey
+  // }
 
   /**
    * Returns the API URL as a string or null if it is not set.
-   * @returns {string} The API URL as a string or null if not set.
+   * @returns The API URL as a string or null if not set.
    */
-  getApiURL(): string {
-    return this.backendChatUrl()
+  getApiURL() {
+    return this._backendChatUrl()
   }
 
   /**
@@ -655,7 +642,7 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns {string} The Realtime API URL as a string or null.
    */
   getRealtimeApiURL(): string {
-    return this.backendChatRealtimeUrl()
+    return this._backendChatRealtimeUrl()
   }
 
   /**

@@ -46,7 +46,6 @@ export class BlacklistUserEntry
    */
   constructor(config: BlacklistUserEntryInitConfig & EngineInitConfig) {
     super({
-      apiKey: config.apiKey,
       storage: config.storage,
       devMode: config.devMode,
     })

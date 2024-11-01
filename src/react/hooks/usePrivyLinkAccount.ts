@@ -2,7 +2,8 @@ import { Auth } from "@src/auth"
 import { useEffect, useRef } from "react"
 import { useLinkAccount, usePrivy } from "@privy-io/react-auth"
 
-export const usePrivyLinkAccount = (auth: Auth) => {
+export const usePrivyLinkAccount = () => {
+  const auth = Auth.getInstance()
   const initialized = useRef<boolean>(false)
   const { ready, authenticated, user } = usePrivy()
 
@@ -23,14 +24,14 @@ export const usePrivyLinkAccount = (auth: Auth) => {
     linkTelegram,
   } = useLinkAccount({
     onSuccess: (user, linkMethod, linkedAccount) => {
-      auth._emit("__onLinkAccountComplete", {
+      Auth._emit("__onLinkAccountComplete", {
         user,
         linkMethod,
         linkedAccount,
       })
     },
     onError: (error, details) => {
-      auth._emit("__onLinkAccountError", { error, details })
+      Auth._emit("__onLinkAccountError", { error, details })
     },
   })
 

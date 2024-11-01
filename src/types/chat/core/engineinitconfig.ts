@@ -6,10 +6,6 @@ import { DexieStorage } from "@src/core/app"
  */
 export type EngineInitConfig = {
   /**
-   * @property {string} apiKey - The API key for accessing services.
-   */
-  apiKey: string
-  /**
    * @property {DexieStorage} storage - The internal storage of the application.
    */
   storage: DexieStorage
