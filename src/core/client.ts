@@ -25,7 +25,7 @@ export class Client {
     return this._devMode === "development"
   }
 
-  protected constructor(enableDevMode?: boolean) {
+  constructor(enableDevMode?: boolean) {
     if (enableDevMode) this._devMode = "development"
   }
 
@@ -88,7 +88,7 @@ export class Client {
    * @param options - The options for the HTTP request such as method, headers, and body.
    * @returns A promise that resolves to the HTTP response.
    */
-  protected async _fetch<ReturnType = any>(
+  public async fetch<ReturnType = any>(
     url: string | URL,
     options: HTTPRequestInit = {
       method: "GET",
@@ -124,26 +124,26 @@ export class Client {
 
       await Auth.fetchAuthToken()
 
-      return this._fetch(url, options).then((res) => {
+      return this.fetch(url, options).then((res) => {
         this._refreshTokenCallCount = 0
         return res
       })
     })
   }
 
-  protected _backendUrl(path?: string) {
+  public backendUrl(path?: string) {
     return `https://${
       this._isDevelopment ? `develop.api.` : `api.`
     }loopz.xyz/v1${path ?? ""}`
   }
 
-  protected _backendChatUrl() {
+  public backendChatUrl() {
     return this._isDevelopment
       ? "https://develop.api.loopz.xyz/graphql"
       : "https://api.loopz.xyz/graphql"
   }
 
-  protected _backendNotificationUrl(path?: string) {
+  public backendNotificationUrl(path?: string) {
     return `wss://${this._isDevelopment ? `develop.wss.` : `wss.`}loopz.xyz${
       path ?? ""
     }`
