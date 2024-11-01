@@ -28,13 +28,6 @@ export class Oracle {
   private static _instance: Maybe<Oracle> = null
   private static _client: Maybe<Client> = null
 
-  private constructor() {
-    if (!!!Oracle._config)
-      throw new Error("Oracle must be configured before getting the instance")
-
-    super(Oracle._config.devMode)
-  }
-
   /** static methods */
 
   static config(config: { devMode: boolean }) {
