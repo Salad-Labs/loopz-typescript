@@ -12,7 +12,7 @@ import { DexieStorage } from "../app"
 import { AddGroupFrom, ReceiveMessageFrom, UserOnlineStatus } from "@src/enums"
 import { Auth, Chat } from "../../"
 
-export class Account extends Client implements AccountSchema, AccountEngine {
+export class Account implements AccountSchema, AccountEngine {
   readonly did: string
   readonly organizationId: string
   readonly walletAddress: string
@@ -101,6 +101,7 @@ export class Account extends Client implements AccountSchema, AccountEngine {
   readonly allowAddToGroupsFrom: "ONLY_FOLLOWED" | "EVERYONE"
   readonly allowGroupsSuggestion: boolean
 
+  private _client: Client
   private _storage: DexieStorage
   private _activeWallets: Array<ConnectedWallet> = []
   private _embeddedWallet: Maybe<ConnectedWallet> = null
@@ -115,7 +116,7 @@ export class Account extends Client implements AccountSchema, AccountEngine {
       storage: DexieStorage
     }
   ) {
-    super(config.enableDevMode)
+    this._client = new Client(config.enableDevMode)
 
     this._storage = config.storage
 
@@ -392,8 +393,8 @@ export class Account extends Client implements AccountSchema, AccountEngine {
     }>
   }) {
     try {
-      const { response } = await this._fetch<ApiResponse<{}>>(
-        this._backendUrl("/user/update"),
+      const { response } = await this._client.fetch<ApiResponse<{}>>(
+        this._client.backendUrl("/user/update"),
         {
           method: "POST",
           body: {
@@ -461,8 +462,8 @@ export class Account extends Client implements AccountSchema, AccountEngine {
     enabled: boolean
   ) {
     try {
-      const { response } = await this._fetch<ApiResponse<{}>>(
-        this._backendUrl("/user/update/settings"),
+      const { response } = await this._client.fetch<ApiResponse<{}>>(
+        this._client.backendUrl("/user/update/settings"),
         {
           method: "POST",
           body: {
