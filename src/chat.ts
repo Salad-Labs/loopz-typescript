@@ -112,6 +112,8 @@ import {
   QueryListTradesByConversationIdArgs,
   ListTradesByConversationIdResult as ListTradesByConversationIdResultGraphQL,
   QueryGetConversationTradingPoolByIdArgs,
+  QueryListMessagesByRangeOrderArgs,
+  ListMessagesByRangeOrderResult as ListMessagesByRangeOrderGraphQL,
 } from "./graphql/generated/graphql"
 import {
   addBlockedUser,
@@ -161,6 +163,7 @@ import {
   listUsersByIds,
   listTradesByConversationId,
   getConversationTradingPoolById,
+  listMessagesByRangeOrder,
 } from "./constants/chat/queries"
 import { ConversationMember } from "./core/chat/conversationmember"
 import {
@@ -185,6 +188,7 @@ import {
   EjectMemberArgs,
   UpdateRequestTradeArgs,
   ListTradesByConversationIdArgs,
+  ListMessagesByRangeOrderArgs,
 } from "./types/chat/schema/args"
 import { UAMutationEngine, UAQueryEngine } from "./interfaces/chat/core/ua"
 import { Asset, Maybe } from "./types/base"
@@ -4360,7 +4364,9 @@ export class Chat
   > {
     const response = await this._query<
       QueryListMessagesByConversationIdArgs,
-      { listConversationsByIds: ListMessagesByConversationIdResultGraphQL },
+      {
+        listMessagesByConversationId: ListMessagesByConversationIdResultGraphQL
+      },
       ListMessagesByConversationIdResultGraphQL
     >(
       "listMessagesByConversationId",
@@ -4369,6 +4375,116 @@ export class Chat
       {
         input: {
           conversationId: args.id,
+          nextToken: args.nextToken,
+        },
+      }
+    )
+
+    if (response instanceof QIError) return response
+
+    const listMessages: {
+      nextToken?: string
+      items: Array<Message>
+    } = {
+      nextToken: response.nextToken ? response.nextToken : undefined,
+      items: response.items.map((item) => {
+        return new Message({
+          ...this._parentConfig!,
+          id: item.id,
+          content: item.content,
+          conversationId: item.conversationId,
+          reactions: item.reactions
+            ? item.reactions.map((reaction) => {
+                return new Reaction({
+                  ...this._parentConfig!,
+                  userId: reaction.userId,
+                  content: reaction.content,
+                  createdAt: reaction.createdAt,
+                  client: this._client!,
+                  realtimeClient: this._realtimeClient!,
+                })
+              })
+            : null,
+          userId: item.userId,
+          messageRoot: item.messageRoot
+            ? new Message({
+                ...this._parentConfig!,
+                id: item.messageRoot.id,
+                content: item.messageRoot.content,
+                conversationId: item.messageRoot.conversationId,
+                reactions: item.messageRoot.reactions
+                  ? item.messageRoot.reactions.map((reaction) => {
+                      return new Reaction({
+                        ...this._parentConfig!,
+                        userId: reaction.userId,
+                        content: reaction.content,
+                        createdAt: reaction.createdAt,
+                        client: this._client!,
+                        realtimeClient: this._realtimeClient!,
+                      })
+                    })
+                  : null,
+                userId: item.messageRoot.userId,
+                messageRoot: null,
+                messageRootId: null,
+                type: item.messageRoot.type
+                  ? (item.messageRoot.type as
+                      | "TEXTUAL"
+                      | "ATTACHMENT"
+                      | "TRADE_PROPOSAL"
+                      | "RENT")
+                  : null,
+                order: item.messageRoot.order,
+                createdAt: item.messageRoot.createdAt,
+                updatedAt: item.messageRoot.updatedAt
+                  ? item.messageRoot.updatedAt
+                  : null,
+                deletedAt: item.messageRoot.deletedAt
+                  ? item.messageRoot.deletedAt
+                  : null,
+                client: this._client!,
+                realtimeClient: this._realtimeClient!,
+              })
+            : null,
+          messageRootId: item.messageRootId ? item.messageRootId : null,
+          type: item.type
+            ? (item.type as
+                | "TEXTUAL"
+                | "ATTACHMENT"
+                | "TRADE_PROPOSAL"
+                | "RENT")
+            : null,
+          order: item.order,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt ? item.updatedAt : null,
+          deletedAt: item.deletedAt ? item.deletedAt : null,
+          client: this._client!,
+          realtimeClient: this._realtimeClient!,
+        })
+      }),
+    }
+
+    return listMessages
+  }
+
+  async listMessagesByRangeOrder(
+    args: ListMessagesByRangeOrderArgs
+  ): Promise<
+    QIError | { items: Message[]; nextToken?: Maybe<string> | undefined }
+  > {
+    const response = await this._query<
+      QueryListMessagesByRangeOrderArgs,
+      { listMessagesByRangeOrder: ListMessagesByRangeOrderGraphQL },
+      ListMessagesByRangeOrderGraphQL
+    >(
+      "listMessagesByRangeOrder",
+      listMessagesByRangeOrder,
+      "_query() -> listMessagesByRangeOrder()",
+      {
+        input: {
+          conversationId: args.id,
+          minOrder: args.minOrder,
+          maxOrder: args.maxOrder,
           nextToken: args.nextToken,
         },
       }
