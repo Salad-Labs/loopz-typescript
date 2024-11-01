@@ -7258,15 +7258,14 @@ export class Chat
     const hex = buffer.toString("hex")
 
     try {
-      const { response } = await this._fetch<ApiResponse<{ status: number }>>(
-        this._backendUrl("/pair/device/init"),
-        {
-          method: "POST",
-          body: {
-            pairingIdentity: hex,
-          },
-        }
-      )
+      const { response } = await this._clientEngine.fetch<
+        ApiResponse<{ status: number }>
+      >(this._clientEngine.backendUrl("/pair/device/init"), {
+        method: "POST",
+        body: {
+          pairingIdentity: hex,
+        },
+      })
       if (!response || !response.data) throw new Error("Response is invalid.")
 
       return mnemonic
@@ -7317,18 +7316,17 @@ export class Chat
         mgf1: mgf.mgf1.create(_md),
       }
 
-      const { response } = await this._fetch<ApiResponse<{ status: number }>>(
-        this._backendUrl("/pair/device/knowledge"),
-        {
-          method: "POST",
-          body: {
-            pairingIdentity: hex,
-            publicKey: Crypto.convertRSAPublicKeyToPem(
-              this._keyPairingObject.publicKey!
-            ),
-          },
-        }
-      )
+      const { response } = await this._clientEngine.fetch<
+        ApiResponse<{ status: number }>
+      >(this._clientEngine.backendUrl("/pair/device/knowledge"), {
+        method: "POST",
+        body: {
+          pairingIdentity: hex,
+          publicKey: Crypto.convertRSAPublicKeyToPem(
+            this._keyPairingObject.publicKey!
+          ),
+        },
+      })
 
       if (!response || !response.data) throw new Error("Response is invalid.")
 
@@ -7371,9 +7369,9 @@ export class Chat
       const buffer = Buffer.from(seed)
       const hex = buffer.toString("hex")
 
-      const { response } = await this._fetch<
+      const { response } = await this._clientEngine.fetch<
         ApiResponse<{ status: number; publicKey: string }>
-      >(this._backendUrl("/pair/device/check"), {
+      >(this._clientEngine.backendUrl("/pair/device/check"), {
         method: "POST",
         body: {
           pairingIdentity: hex,
@@ -7419,17 +7417,16 @@ export class Chat
         const encryptedPublicKeyBase64 = Crypto.toBase64(encryptedPublicKey)
         const encryptedPrivateKeyBase64 = Crypto.toBase64(encryptedPrivateKey)
 
-        const { response } = await this._fetch<ApiResponse<{ status: number }>>(
-          this._backendUrl("/pair/device/transfer/keys"),
-          {
-            method: "POST",
-            body: {
-              pairingIdentity: hex,
-              encryptedPublicKey: encryptedPublicKeyBase64,
-              encryptedPrivateKey: encryptedPrivateKeyBase64,
-            },
-          }
-        )
+        const { response } = await this._clientEngine.fetch<
+          ApiResponse<{ status: number }>
+        >(this._clientEngine.backendUrl("/pair/device/transfer/keys"), {
+          method: "POST",
+          body: {
+            pairingIdentity: hex,
+            encryptedPublicKey: encryptedPublicKeyBase64,
+            encryptedPrivateKey: encryptedPrivateKeyBase64,
+          },
+        })
 
         if (!response || !response.data) throw new Error("Response is invalid.")
 
@@ -7473,13 +7470,13 @@ export class Chat
       const buffer = Buffer.from(seed)
       const hex = buffer.toString("hex")
 
-      const { response } = await this._fetch<
+      const { response } = await this._clientEngine.fetch<
         ApiResponse<{
           status: number
           encryptedPrivateKey?: string
           encryptedPublicKey?: string
         }>
-      >(this._backendUrl("/pair/device/download/keys"), {
+      >(this._clientEngine.backendUrl("/pair/device/download/keys"), {
         method: "POST",
         body: {
           pairingIdentity: hex,

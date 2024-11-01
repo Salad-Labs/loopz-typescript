@@ -149,7 +149,7 @@ export class Client {
     }`
   }
 
-  protected _backendChatRealtimeUrl() {
+  public backendChatRealtimeUrl() {
     return this._isDevelopment
       ? "wss://develop.api.graphql.loopz.xyz/graphql/realtime" //url server chat graphql development
       : "wss://api.graphql.loopz.xyz/graphql/realtime" //url server chat graphql production

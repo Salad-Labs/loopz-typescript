@@ -20,7 +20,7 @@ import { SubscriptionGarbage } from "../../types/chat/subscriptiongarbage"
 import forge from "node-forge"
 import { KeyPairItem } from "../../types/chat/keypairitem"
 import { EngineInitConfig } from "../../types"
-import { Account, DexieStorage } from "../app"
+import { DexieStorage } from "../app"
 import { Auth } from "@src/index"
 
 /**
@@ -30,7 +30,8 @@ import { Auth } from "@src/index"
  * @implements IEngine
  */
 
-export class Engine extends ClientEngine implements IEngine {
+export class Engine implements IEngine {
+  protected _clientEngine: ClientEngine
   /**
    * @property {Maybe<EngineInitConfig>} _parentConfig - The parent configuration for the engine.
    */
@@ -91,7 +92,7 @@ export class Engine extends ClientEngine implements IEngine {
    * @constructor
    */
   constructor(config: EngineInitConfig) {
-    super(config.devMode)
+    this._clientEngine = new ClientEngine(config.devMode)
 
     this._storage = config.storage
     this._parentConfig = config
@@ -217,12 +218,13 @@ export class Engine extends ClientEngine implements IEngine {
   private _makeWSClient(callback: Function): void {
     try {
       this._connectionParams!.Authorization = Auth.realtimeAuthorizationToken
-      this._connectionParams!.host = this._backendChatUrl()
+      this._connectionParams!.host = this._clientEngine
+        .backendChatUrl()
         .replace("https://", "")
         .replace("/graphql", "")
 
       this._realtimeClient = new UUIDSubscriptionClient(
-        this._backendChatRealtimeUrl(),
+        this._clientEngine.backendChatRealtimeUrl(),
         {
           reconnect: true,
           timeout: Engine.WS_TIMEOUT,
@@ -276,7 +278,7 @@ export class Engine extends ClientEngine implements IEngine {
     if (!this._client) {
       try {
         this._client = createClient({
-          url: this._backendChatUrl(),
+          url: this._clientEngine.backendChatUrl(),
           exchanges: [
             fetchExchange,
             subscriptionExchange({
@@ -634,7 +636,7 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns The API URL as a string or null if not set.
    */
   getApiURL() {
-    return this._backendChatUrl()
+    return this._clientEngine.backendChatUrl()
   }
 
   /**
@@ -642,7 +644,7 @@ export class Engine extends ClientEngine implements IEngine {
    * @returns {string} The Realtime API URL as a string or null.
    */
   getRealtimeApiURL(): string {
-    return this._backendChatRealtimeUrl()
+    return this._clientEngine.backendChatRealtimeUrl()
   }
 
   /**
