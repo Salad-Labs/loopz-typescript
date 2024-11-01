@@ -1,4 +1,4 @@
-import { Auth } from "@src/index"
+import { Auth, Chat } from "../.."
 import { Account, Conversation, Message } from ".."
 import { Maybe } from "../../types"
 import { DexieStorage } from "../app"
@@ -51,16 +51,16 @@ export class DetectiveMessage {
     }
   }
 
-  async observe(conversation: Conversation) {
+  async observe(conversationId: string, chat: Chat) {
     if (!this._detectiveMessageCanRun) return
     if (
-      this._currentConversationId !== conversation.id &&
+      this._currentConversationId !== conversationId &&
       this._detectiveMessageObserveTimeout
     )
       clearTimeout(this._detectiveMessageObserveTimeout)
 
     //we assign the current conversation id
-    this._currentConversationId = conversation.id
+    this._currentConversationId = conversationId
 
     //we get the messages from the queue. If we have some results, we filter for the conversation id
     const queues = await this._storage.transaction(
@@ -88,7 +88,7 @@ export class DetectiveMessage {
 
     //after everything is completed, we call again the function recursively
     this._detectiveMessageObserveTimeout = setTimeout(() => {
-      this.observe(conversation)
+      this.observe(conversationId, chat)
     }, DetectiveMessage.DETECTIVE_MESSAGE_OBSERVE_TIME)
   }
 
