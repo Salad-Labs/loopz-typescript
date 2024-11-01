@@ -1043,8 +1043,6 @@ export class Auth implements AuthInternalEvents {
       Auth._emit("__unlink", method)
     })
   }
-<<<<<<< HEAD
-=======
 
   public static async recoverAccountFromLocalDB() {
     if (!!!Auth._config || !!!Auth._instance || !!!Auth._client)
@@ -1193,5 +1191,4 @@ export class Auth implements AuthInternalEvents {
     Auth.authToken = token
     Auth._account?.storeLastUserLoggedKey()
   }
->>>>>>> ce37dab (chore: auth)
 }

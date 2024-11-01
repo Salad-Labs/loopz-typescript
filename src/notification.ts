@@ -4,10 +4,11 @@ import { Maybe } from "./types"
 import { NotificationMessage } from "./types/notification"
 import { v4 as uuid } from "uuid"
 
-export class Notification extends Client {
+export class Notification {
   private static _config: Maybe<{ devMode: boolean }> = null
 
   private static _instance: Maybe<Notification> = null
+  private static _client: Maybe<Client> = null
 
   private _socket: Maybe<WebSocket> = null
 
@@ -34,7 +35,7 @@ export class Notification extends Client {
         "Notification must be configured before getting the instance"
       )
 
-    super(Notification._config.devMode)
+    Notification._client = new Client(Notification._config.devMode)
   }
 
   /** static methods */
@@ -53,10 +54,10 @@ export class Notification extends Client {
   /** public instance methods */
 
   init() {
-    if (!Auth.authToken) return
+    if (!Auth.authToken || !Notification._client) return
     try {
       this._socket = new WebSocket(
-        this._backendNotificationUrl(
+        Notification._client.backendNotificationUrl(
           `?jwt=${Auth.authToken}&organizationId=${Auth.apiKey}`
         )
       )

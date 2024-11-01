@@ -22,10 +22,11 @@ import { Auth } from "."
  * @class Oracle
  * @extends Client
  */
-export class Oracle extends Client {
+export class Oracle {
   private static _config: Maybe<{ devMode: boolean }> = null
 
   private static _instance: Maybe<Oracle> = null
+  private static _client: Maybe<Client> = null
 
   private constructor() {
     if (!!!Oracle._config)
@@ -46,7 +47,12 @@ export class Oracle extends Client {
     return Oracle._instance ?? new Oracle()
   }
 
-  /** private instance methods */
+  private constructor() {
+    if (!!!Oracle._config)
+      throw new Error("Oracle must be configured before getting the instance")
+
+    Oracle._client = new Client(Oracle._config.devMode)
+  }
 
   /**
    * Validates each address in the given array of collections to ensure they are in the correct format.
@@ -80,7 +86,10 @@ export class Oracle extends Client {
   async listCollections(
     args: ListCollectionsArgs
   ): Promise<Maybe<{ total: number; collections: Array<Collection> }>> {
-    const url = this._backendUrl(
+    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+      throw new Error("Oracle has not been configured")
+
+    const url = Oracle._client.backendUrl(
       `/collection/get/all/${args.networkId ? args.networkId : `*`}/${
         args.searchType
       }/${args.skip}/${args.take}${
@@ -89,7 +98,7 @@ export class Oracle extends Client {
     )
 
     try {
-      const { response } = await this._fetch<
+      const { response } = await Oracle._client.fetch<
         ApiResponse<{ total: number; collections: Array<Collection> }>
       >(url)
 
@@ -116,14 +125,17 @@ export class Oracle extends Client {
   async listBookmarkedCollections(
     args: ListBookmarkedCollectionsArgs
   ): Promise<Maybe<{ total: number; collections: Array<Collection> }>> {
-    const url = this._backendUrl(
+    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+      throw new Error("Oracle has not been configured")
+
+    const url = Oracle._client.backendUrl(
       `/collection/get/all/bookmark/${args.networkId ? args.networkId : `*`}/${
         args.skip
       }/${args.take}`
     )
 
     try {
-      const { response } = await this._fetch<
+      const { response } = await Oracle._client.fetch<
         ApiResponse<{ total: number; collections: Array<Collection> }>
       >(url)
 
@@ -158,14 +170,17 @@ export class Oracle extends Client {
       total: number
     }>
   > {
-    const url = this._backendUrl(
+    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+      throw new Error("Oracle has not been configured")
+
+    const url = Oracle._client.backendUrl(
       `/nft/get/all/owner/${args.networkId}/${args.collectionAddress}/${
         args.take
       }${args.continuation ? `/${args.continuation}` : ``}`
     )
 
     try {
-      const { response } = await this._fetch<
+      const { response } = await Oracle._client.fetch<
         ApiResponse<{
           nfts: Array<Collectible>
           continuation: Maybe<string> | undefined
@@ -207,7 +222,10 @@ export class Oracle extends Client {
       total: number
     }>
   > {
-    const url = this._backendUrl(
+    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+      throw new Error("Oracle has not been configured")
+
+    const url = Oracle._client.backendUrl(
       `/nft/get/metadata/owner/${args.networkId ? args.networkId : `*`}/${
         args.collectionAddress
       }/${args.address}/${args.take}${
@@ -216,7 +234,7 @@ export class Oracle extends Client {
     )
 
     try {
-      const { response } = await this._fetch<
+      const { response } = await Oracle._client.fetch<
         ApiResponse<{
           nfts: Array<Collectible>
           continuation: Maybe<string> | undefined
@@ -247,16 +265,19 @@ export class Oracle extends Client {
   async getCollectibleMetadata(
     args: GetCollectibleMetadataArgs
   ): Promise<Maybe<CollectibleMetadata>> {
-    const url = this._backendUrl(
+    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+      throw new Error("Oracle has not been configured")
+
+    const url = Oracle._client.backendUrl(
       `/nft/metadata/${args.networkId}/${args.collectionAddress}/${
         args.tokenId
       }${args.address ? `/${args.address}` : ``}`
     )
 
     try {
-      const { response } = await this._fetch<ApiResponse<CollectibleMetadata>>(
-        url
-      )
+      const { response } = await Oracle._client.fetch<
+        ApiResponse<CollectibleMetadata>
+      >(url)
 
       if (!response || !response.data) return null
 
@@ -281,15 +302,17 @@ export class Oracle extends Client {
   async getCollectibleBalance(
     args: GetCollectibleBalanceArgs
   ): Promise<Maybe<CollectibleBalance>> {
-    const url = this._backendUrl("/nft/balance")
+    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+      throw new Error("Oracle has not been configured")
+
+    const url = Oracle._client.backendUrl("/nft/balance")
     try {
-      const { response } = await this._fetch<ApiResponse<CollectibleBalance>>(
-        url,
-        {
-          method: "PUT",
-          body: args,
-        }
-      )
+      const { response } = await Oracle._client.fetch<
+        ApiResponse<CollectibleBalance>
+      >(url, {
+        method: "PUT",
+        body: args,
+      })
 
       if (!response || !response.data) return null
 
@@ -314,6 +337,9 @@ export class Oracle extends Client {
   async addCollection(
     collections: Array<{ address: string; networkId: string }>
   ): Promise<Maybe<Array<any>>> {
+    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+      throw new Error("Oracle has not been configured")
+
     this._validate(
       collections.map((c) => {
         return c.address
@@ -321,8 +347,8 @@ export class Oracle extends Client {
     )
 
     try {
-      const { response } = await this._fetch<ApiResponse<any>>(
-        this._backendUrl("/collection/add"),
+      const { response } = await Oracle._client.fetch<ApiResponse<any>>(
+        Oracle._client.backendUrl("/collection/add"),
         {
           method: "POST",
           body: {
@@ -354,6 +380,9 @@ export class Oracle extends Client {
   async addCollections(
     collections: Array<{ address: string; networkId: string }>
   ): Promise<Maybe<Array<any>>> {
+    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+      throw new Error("Oracle has not been configured")
+
     this._validate(
       collections.map((c) => {
         return c.address
@@ -361,8 +390,8 @@ export class Oracle extends Client {
     )
 
     try {
-      const { response } = await this._fetch<ApiResponse<any>>(
-        this._backendUrl("/collection/add/bulk"),
+      const { response } = await Oracle._client.fetch<ApiResponse<any>>(
+        Oracle._client.backendUrl("/collection/add/bulk"),
         {
           method: "POST",
           body: {
@@ -400,12 +429,19 @@ export class Oracle extends Client {
   ): Promise<
     Maybe<{ address: string; networkId: string; supported: boolean }>
   > {
+    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+      throw new Error("Oracle has not been configured")
+
     this._validate([address])
 
     try {
-      const { response } = await this._fetch<
+      const { response } = await Oracle._client.fetch<
         ApiResponse<{ address: string; networkId: string; supported: boolean }>
-      >(this._backendUrl(`/collection/is/supported/${address}/${networkId}`))
+      >(
+        Oracle._client.backendUrl(
+          `/collection/is/supported/${address}/${networkId}`
+        )
+      )
 
       if (!response || !response.data) return null
 
@@ -432,6 +468,9 @@ export class Oracle extends Client {
   ): Promise<
     Maybe<Array<{ address: string; networkId: string; supported: boolean }>>
   > {
+    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+      throw new Error("Oracle has not been configured")
+
     this._validate(
       collections.map((c) => {
         return c.address
@@ -439,9 +478,9 @@ export class Oracle extends Client {
     )
 
     try {
-      const { response } = await this._fetch<
+      const { response } = await Oracle._client.fetch<
         ApiResponse<{ address: string; networkId: string; supported: boolean }>
-      >(this._backendUrl("/collection/is/supported/bulk"), {
+      >(Oracle._client.backendUrl("/collection/is/supported/bulk"), {
         method: "POST",
         body: {
           collections,
@@ -473,11 +512,16 @@ export class Oracle extends Client {
     collectionAddress: string,
     networkId: string
   ): Promise<Maybe<Collection>> {
+    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+      throw new Error("Oracle has not been configured")
+
     this._validate([collectionAddress])
 
     try {
-      const { response } = await this._fetch<ApiResponse<Collection>>(
-        this._backendUrl(`/collection/find/${collectionAddress}/${networkId}`)
+      const { response } = await Oracle._client.fetch<ApiResponse<Collection>>(
+        Oracle._client.backendUrl(
+          `/collection/find/${collectionAddress}/${networkId}`
+        )
       )
 
       if (!response || !response.data) return null
@@ -503,10 +547,13 @@ export class Oracle extends Client {
   async getCoinsPairRate(
     pair: `${string}-${string}`
   ): Promise<Maybe<{ amount: string; base: string; currency: string }>> {
+    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+      throw new Error("Oracle has not been configured")
+
     try {
-      const { response } = await this._fetch<
+      const { response } = await Oracle._client.fetch<
         ApiResponse<{ amount: string; base: string; currency: string }>
-      >(this._backendUrl(`/coinbase/get/pair/value/${pair}`))
+      >(Oracle._client.backendUrl(`/coinbase/get/pair/value/${pair}`))
 
       if (!response || !response.data) return null
 
@@ -536,8 +583,11 @@ export class Oracle extends Client {
       }>
     >
   > {
+    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+      throw new Error("Oracle has not been configured")
+
     try {
-      const { response } = await this._fetch<
+      const { response } = await Oracle._client.fetch<
         ApiResponse<
           Array<{
             networkId: string
@@ -545,7 +595,7 @@ export class Oracle extends Client {
             evmLogo: string
           }>
         >
-      >(this._backendUrl("/networks/get/all"))
+      >(Oracle._client.backendUrl("/networks/get/all"))
 
       if (!response || !response.data) return null
 
