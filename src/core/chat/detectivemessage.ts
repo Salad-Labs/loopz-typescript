@@ -9,7 +9,7 @@ import {
 import { v4 as uuid } from "uuid"
 
 export class DetectiveMessage {
-  private _storage: DexieStorage
+  private static _storage: DexieStorage
 
   private _detectiveMessageTimeout: Maybe<NodeJS.Timeout> = null
 
@@ -17,42 +17,65 @@ export class DetectiveMessage {
 
   private _currentConversationId: Maybe<string> = null
 
-  private _detectiveMessageCanRun: boolean = true
+  private static _detectiveMessageCanRun: boolean = true
+
+  private static _config: Maybe<{ storage: DexieStorage }> = null
+
+  private static _instance: Maybe<DetectiveMessage> = null
 
   static readonly DETECTIVE_MESSAGE_TIME: number = 60000
 
-  static readonly DETECTIVE_MESSAGE_OBSERVE_TIME: number = 60000
+  static readonly DETECTIVE_MESSAGE_OBSERVE_TIME: number = 10000
 
-  constructor(storage: DexieStorage) {
-    this._storage = storage
-    this._detectiveMessageCanRun = this._storage.isStorageEnabled()
+  private constructor() {
+    if (!!!DetectiveMessage._config)
+      throw new Error(
+        "DetectiveMessage must be configured before getting the instance"
+      )
+  }
+
+  public static getInstance() {
+    return DetectiveMessage._instance ?? new DetectiveMessage()
+  }
+
+  public static config(config: { storage: DexieStorage }) {
+    if (!!DetectiveMessage._config)
+      throw new Error("DetectiveMessage already configured")
+
+    DetectiveMessage._config = config
+    DetectiveMessage._detectiveMessageCanRun =
+      DetectiveMessage._config.storage.isStorageEnabled()
+    DetectiveMessage._storage = DetectiveMessage._config.storage
 
     if (!this._detectiveMessageCanRun)
       console.log("[detective message]: I am disabled :(")
   }
 
   async collectClue(message: Message, did: string, organizationId: string) {
-    if (!this._detectiveMessageCanRun) return
+    if (!DetectiveMessage._detectiveMessageCanRun) return
 
     try {
-      await this._storage.insertBulkSafe("detectivemessagecollector", [
-        {
-          id: uuid(),
-          did,
-          organizationId,
-          conversationId: message.conversationId,
-          messageId: message.id,
-          order: message.order,
-          createdAt: new Date(),
-        },
-      ])
+      await DetectiveMessage._storage.insertBulkSafe(
+        "detectivemessagecollector",
+        [
+          {
+            id: uuid(),
+            did,
+            organizationId,
+            conversationId: message.conversationId,
+            messageId: message.id,
+            order: message.order,
+            createdAt: new Date(),
+          },
+        ]
+      )
     } catch (error) {
       console.log(error)
     }
   }
 
   async observe(conversationId: string, chat: Chat) {
-    if (!this._detectiveMessageCanRun) return
+    if (!DetectiveMessage._detectiveMessageCanRun) return
     if (
       this._currentConversationId !== conversationId &&
       this._detectiveMessageObserveTimeout
@@ -63,11 +86,13 @@ export class DetectiveMessage {
     this._currentConversationId = conversationId
 
     //we get the messages from the queue. If we have some results, we filter for the conversation id
-    const queues = await this._storage.transaction(
+    const queues = await DetectiveMessage._storage.transaction(
       "r",
       "detectivemessagequeue",
       async (tx) => {
-        return (await this._storage.detectivemessagequeue.toArray()).filter(
+        return (
+          await DetectiveMessage._storage.detectivemessagequeue.toArray()
+        ).filter(
           (element) => element.conversationId === this._currentConversationId
         )
       }
@@ -81,7 +106,9 @@ export class DetectiveMessage {
       //for a queue processed, we delete the item from the database
       if (queueItem.processed) {
         //now that we have the elements to remove, we remove them from the table
-        await this._storage.deleteBulk("detectivemessagequeue", [queueItem.id])
+        await DetectiveMessage._storage.deleteBulk("detectivemessagequeue", [
+          queueItem.id,
+        ])
       } else {
         //for a queue not processed, we ask for the server the missing messages, and after we marked them as processed, in this way in the next iteration
         //these queues will be removed from the database
@@ -123,7 +150,7 @@ export class DetectiveMessage {
           if (isError) continue
 
           //if no error occured, then we store the messages in the local messages table
-          await this._storage.insertBulkSafe(
+          await DetectiveMessage._storage.insertBulkSafe(
             "message",
             messages.map((message) =>
               Converter.fromMessageToLocalDBMessage(
@@ -137,9 +164,12 @@ export class DetectiveMessage {
           )
 
           //finally we mark the queue item as processed
-          await this._storage.detectivemessagequeue.update(queueItem, {
-            processed: true,
-          })
+          await DetectiveMessage._storage.detectivemessagequeue.update(
+            queueItem,
+            {
+              processed: true,
+            }
+          )
         } catch (error) {
           console.log(error)
           continue
@@ -157,22 +187,22 @@ export class DetectiveMessage {
   }
 
   unobserve() {
-    if (!this._detectiveMessageCanRun) return
+    if (!DetectiveMessage._detectiveMessageCanRun) return
     if (this._detectiveMessageObserveTimeout)
       clearTimeout(this._detectiveMessageObserveTimeout)
   }
 
   async scan() {
-    if (!this._detectiveMessageCanRun) return
+    if (!DetectiveMessage._detectiveMessageCanRun) return
 
     //we get the messages stored of the current user
-    const clues = await this._storage.transaction(
+    const clues = await DetectiveMessage._storage.transaction(
       "r",
       "detectivemessagecollector",
       async () => {
-        return (await this._storage.detectivemessagecollector.toArray()).sort(
-          (a, b) => a.order - b.order
-        )
+        return (
+          await DetectiveMessage._storage.detectivemessagecollector.toArray()
+        ).sort((a, b) => a.order - b.order)
       }
     )
 
@@ -236,7 +266,7 @@ export class DetectiveMessage {
               createdAt: new Date(),
             })
 
-            await this._storage.insertBulkSafe(
+            await DetectiveMessage._storage.insertBulkSafe(
               "detectivemessagequeue",
               itemsForQueue
             )
@@ -259,7 +289,7 @@ export class DetectiveMessage {
           }
 
           //now that we have the elements to remove, we remove them from the table
-          await this._storage.deleteBulk(
+          await DetectiveMessage._storage.deleteBulk(
             "detectivemessagecollector",
             elementsToRemove.map((element) => element.id)
           )
@@ -278,7 +308,7 @@ export class DetectiveMessage {
   }
 
   stopScan() {
-    if (!this._detectiveMessageCanRun) return
+    if (!DetectiveMessage._detectiveMessageCanRun) return
     if (this._detectiveMessageTimeout)
       clearTimeout(this._detectiveMessageTimeout)
   }

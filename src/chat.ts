@@ -254,6 +254,7 @@ export class Chat
     UAQueryEngine
 {
   private static _config: Maybe<EngineInitConfig> = null
+
   private static _instance: Maybe<Chat> = null
 
   private _isSyncing = false

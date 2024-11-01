@@ -17,6 +17,7 @@ import { Maybe } from "./types"
 
 export class Loopz {
   private static _instance: Loopz
+
   private static _randomLsname: string
 
   private static _apiKey: string
