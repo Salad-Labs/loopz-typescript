@@ -348,9 +348,11 @@ export class Chat
     super(Chat._config)
 
     //let's build the instance of DetectiveMessage, starting the scan immediately
-    DetectiveMessage.config({ storage: Chat._config.storage })
-    Chat._detectiveMessage = DetectiveMessage.getInstance()
-    Chat._detectiveMessage.scan()
+    if (!Chat._detectiveMessage) {
+      DetectiveMessage.config({ storage: Chat._config.storage })
+      Chat._detectiveMessage = DetectiveMessage.getInstance()
+      Chat._detectiveMessage.scan()
+    }
 
     this._defineHookFnLocalDB()
   }
