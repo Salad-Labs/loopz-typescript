@@ -120,7 +120,7 @@ export class Auth implements AuthInternalEvents {
   private static async _getUserE2EPublicKey(
     did: string,
     organizationId: string
-  ) {
+  ): Promise<Maybe<string>> {
     try {
       const e2ePublicKey = await Auth._storage.transaction(
         "rw",
@@ -132,7 +132,7 @@ export class Auth implements AuthInternalEvents {
             .first()
             .then((existingUser) => existingUser?.e2ePublicKey ?? null)
       )
-      if (!e2ePublicKey) throw new Error("Error retrieven e2e public key.")
+      if (!e2ePublicKey) return null
 
       return e2ePublicKey
     } catch (error) {
