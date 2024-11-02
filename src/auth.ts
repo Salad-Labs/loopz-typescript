@@ -900,7 +900,6 @@ export class Auth implements AuthInternalEvents {
       throw new Error("Auth has not been configured")
     if (Auth._account) return
 
-    // * Maybe Auth._account.recoverLastUserLoggedKey
     const lastUserLoggedKey = window.localStorage.getItem(
       CLIENT_DB_KEY_LAST_USER_LOGGED
     )
