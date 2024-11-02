@@ -914,6 +914,8 @@ export class Auth implements AuthInternalEvents {
         organizationId,
       ])
 
+      Auth.authToken = token
+
       const { response } = await Auth._client.fetch<
         ApiResponse<{
           secrets: {
@@ -933,7 +935,7 @@ export class Auth implements AuthInternalEvents {
 
       Auth._isAuthenticated = true
       Auth.authToken = token
-      Auth._account = new Account({
+      Auth.account = new Account({
         enableDevMode: Auth._config.devMode,
         storage: Auth._config.storage,
         did: user.did,
@@ -1040,6 +1042,27 @@ export class Auth implements AuthInternalEvents {
     const token = await getAccessToken()
 
     Auth.authToken = token
-    Auth._account?.storeLastUserLoggedKey()
+
+    let lastUserLoggedKey = window.localStorage.getItem(
+      CLIENT_DB_KEY_LAST_USER_LOGGED
+    )
+
+    if (!token) throw new Error("Impossible to refresh the token.")
+
+    if (!lastUserLoggedKey)
+      throw new Error("Impossible to detect a logged user key.")
+
+    lastUserLoggedKey = JSON.parse(lastUserLoggedKey)
+    ;(
+      lastUserLoggedKey as unknown as {
+        did: string
+        token: string
+        organizationId: string
+      }
+    ).token = token
+    window.localStorage.setItem(
+      CLIENT_DB_KEY_LAST_USER_LOGGED,
+      JSON.stringify(lastUserLoggedKey)
+    )
   }
 }

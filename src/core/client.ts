@@ -122,7 +122,11 @@ export class Client {
       )
         throw e
 
-      await Auth.fetchAuthToken()
+      try {
+        await Auth.fetchAuthToken()
+      } catch (error) {
+        throw error
+      }
 
       return this.fetch(url, options).then((res) => {
         this._refreshTokenCallCount = 0
