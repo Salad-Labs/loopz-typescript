@@ -71,6 +71,7 @@ export class Order {
     Order._client = new Client(Order._config.devMode)
 
     this._blocksNumberConfirmationRequired = this._MIN_BLOCKS_REQUIRED
+    Order._instance = this
   }
 
   /** static methods */

@@ -36,6 +36,7 @@ export class Notification {
       )
 
     Notification._client = new Client(Notification._config.devMode)
+    Notification._instance = this
   }
 
   /** static methods */

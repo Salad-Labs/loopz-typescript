@@ -36,6 +36,8 @@ export class DetectiveMessage {
       throw new Error(
         "DetectiveMessage must be configured before getting the instance."
       )
+
+    DetectiveMessage._instance = this
   }
 
   public static getInstance() {

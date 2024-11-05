@@ -316,9 +316,10 @@ export class Engine implements IEngine {
     this._realtimeClient.unsubscribeAll() //clear all the subscriptions of UUIDSubscriptionClient
     this._offUUIDSubscriptionEvents() //clear all the events of UUIDSubscriptionClient
     this._realtimeClient.close() //close the websocket connection
-
     this._unsubscribeGarbageCollector = [] //reset the unsubscribe garbage collector array
     this._offEventsFnsCollector = [] //reset the UUIDSubscriptionClient off events collector array
+
+    console.warn("connection closed.")
   }
 
   /**

@@ -355,6 +355,8 @@ export class Chat
     }
 
     this._defineHookFnLocalDB()
+
+    Chat._instance = this
   }
 
   /** static methods */

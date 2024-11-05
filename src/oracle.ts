@@ -45,6 +45,7 @@ export class Oracle {
       throw new Error("Oracle must be configured before getting the instance")
 
     Oracle._client = new Client(Oracle._config.devMode)
+    Oracle._instance = this
   }
 
   /**
