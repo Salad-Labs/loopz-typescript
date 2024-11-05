@@ -66,6 +66,11 @@ export class Account implements AccountSchema, AccountEngine {
   readonly bio: string
   readonly firstLogin: boolean
   readonly avatarUrl: string
+  readonly imageSettings: Maybe<{
+    imageX: number
+    imageY: number
+    imageZoom: number
+  }>
   readonly phone: Maybe<string>
   readonly isVerified: boolean
   readonly isPfpNft: boolean
@@ -174,6 +179,7 @@ export class Account implements AccountSchema, AccountEngine {
     this.bio = config.bio
     this.firstLogin = config.firstLogin
     this.avatarUrl = config.avatarUrl
+    this.imageSettings = config.imageSettings
     this.phone = config.phone
     this.isVerified = config.isVerified
     this.isPfpNft = config.isPfpNft
@@ -436,6 +442,11 @@ export class Account implements AccountSchema, AccountEngine {
         ;(this as any).pfp.tokenId = pfp.tokenId
         ;(this as any).pfp.networkId = pfp.networkId
       }
+      if (imageSettings) {
+        ;(this as any).imageSettings.imageX = imageSettings.imageX
+        ;(this as any).imageSettings.imageY = imageSettings.imageY
+        ;(this as any).imageSettings.imageZoom = imageSettings.imageZoom
+      }
 
       await this._storage.transaction("rw", this._storage.user, async () => {
         const user = await this._storage.user
@@ -449,6 +460,7 @@ export class Account implements AccountSchema, AccountEngine {
           avatarUrl: avatarUrl ? avatarUrl.toString() : undefined,
           bio: bio ? bio : undefined,
           pfp: pfp ? pfp : undefined,
+          imageSettings: imageSettings ? imageSettings : undefined,
         })
       })
     } catch (error: any) {

@@ -54,6 +54,11 @@ export type AccountInitConfig = {
   bio: string
   firstLogin: boolean
   avatarUrl: string
+  imageSettings: Maybe<{
+    imageX: number
+    imageY: number
+    imageZoom: number
+  }>
   phone: Maybe<string>
   isVerified: boolean
   isPfpNft: boolean

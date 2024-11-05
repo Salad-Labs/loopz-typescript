@@ -7,6 +7,11 @@ export interface LocalDBUser {
   email: string
   bio: string
   avatarUrl: string
+  imageSettings: Maybe<{
+    imageX: number
+    imageY: number
+    imageZoom: number
+  }>
   isVerified: boolean
   isPfpNft: boolean
   pfp: Maybe<{
