@@ -856,6 +856,7 @@ export class Auth implements AuthInternalEvents {
 
       // TODO exists?
       Auth._account?.emptyActiveWallets()
+      Chat.getInstance().disconnect()
 
       Auth._emit("__logout")
     })

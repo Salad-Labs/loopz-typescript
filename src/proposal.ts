@@ -57,6 +57,7 @@ export class Proposal {
       throw new Error("Proposal must be configured before getting the instance")
 
     Proposal._client = new Client(Proposal._config.devMode)
+    Proposal._instance = this
   }
 
   /**
