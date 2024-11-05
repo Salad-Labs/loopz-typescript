@@ -256,6 +256,9 @@ export class Conversation
         avatarUrl: response.memberOut.avatarUrl
           ? new URL(response.memberOut.avatarUrl)
           : null,
+        imageSettings: response.memberOut.imageSettings
+          ? response.memberOut.imageSettings
+          : null,
         isVerified: response.memberOut.isVerified
           ? response.memberOut.isVerified
           : false,
@@ -448,6 +451,7 @@ export class Conversation
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -693,6 +697,9 @@ export class Conversation
         avatarUrl: response.memberOut.avatarUrl
           ? new URL(response.memberOut.avatarUrl)
           : null,
+        imageSettings: response.memberOut.imageSettings
+          ? response.memberOut.imageSettings
+          : null,
         isVerified: response.memberOut.isVerified
           ? response.memberOut.isVerified
           : false,
@@ -937,6 +944,7 @@ export class Conversation
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -1212,6 +1220,7 @@ export class Conversation
       avatarUrl: response.owner!.avatarUrl
         ? new URL(response.owner!.avatarUrl)
         : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.owner!.isVerified
         ? response.owner!.isVerified
         : false,

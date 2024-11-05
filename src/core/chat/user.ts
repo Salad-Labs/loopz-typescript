@@ -60,6 +60,10 @@ export class User
    */
   readonly avatarUrl: Maybe<URL>
   /**
+   * @property imageSettings - The image settings of the avatar, if available
+   */
+  readonly imageSettings: Maybe<string>
+  /**
    * @property isVerified - Indicates if the user is verified.
    */
   readonly isVerified: boolean
@@ -148,6 +152,7 @@ export class User
     this.email = config.email
     this.bio = config.bio
     this.avatarUrl = config.avatarUrl
+    this.imageSettings = config.imageSettings
     this.isVerified = config.isVerified
     this.isPfpNft = config.isPfpNft
     this.blacklistIds = config.blacklistIds
@@ -202,6 +207,7 @@ export class User
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -270,6 +276,7 @@ export class User
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -348,6 +355,9 @@ export class User
               bio: item.blockedUser.bio ? item.blockedUser.bio : null,
               avatarUrl: item.blockedUser.avatarUrl
                 ? new URL(item.blockedUser.avatarUrl)
+                : null,
+              imageSettings: response.imageSettings
+                ? response.imageSettings
                 : null,
               isVerified: item.blockedUser.isVerified
                 ? item.blockedUser.isVerified

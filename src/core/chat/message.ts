@@ -998,6 +998,9 @@ export class Message
       avatarUrl: response.user!.avatarUrl
         ? new URL(response.user!.avatarUrl)
         : null,
+      imageSettings: response.user!.imageSettings
+        ? response.user!.imageSettings
+        : null,
       isVerified: response.user!.isVerified ? response.user!.isVerified : false,
       isPfpNft: response.user!.isPfpNft ? response.user!.isPfpNft : false,
       blacklistIds: response.user!.blacklistIds

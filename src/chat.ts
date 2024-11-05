@@ -1930,6 +1930,7 @@ export class Chat
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -2307,6 +2308,7 @@ export class Chat
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -2368,6 +2370,7 @@ export class Chat
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -2869,6 +2872,9 @@ export class Chat
         avatarUrl: response.memberOut.avatarUrl
           ? new URL(response.memberOut.avatarUrl)
           : null,
+        imageSettings: response.memberOut.imageSettings
+          ? response.memberOut.imageSettings
+          : null,
         isVerified: response.memberOut.isVerified
           ? response.memberOut.isVerified
           : false,
@@ -3049,6 +3055,9 @@ export class Chat
         avatarUrl: response.memberOut.avatarUrl
           ? new URL(response.memberOut.avatarUrl)
           : null,
+        imageSettings: response.memberOut.imageSettings
+          ? response.memberOut.imageSettings
+          : null,
         isVerified: response.memberOut.isVerified
           ? response.memberOut.isVerified
           : false,
@@ -3175,6 +3184,7 @@ export class Chat
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -3615,6 +3625,7 @@ export class Chat
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -3676,6 +3687,7 @@ export class Chat
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -3852,6 +3864,7 @@ export class Chat
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -4302,6 +4315,7 @@ export class Chat
           email: item.email ? item.email : null,
           bio: item.bio ? item.bio : null,
           avatarUrl: item.avatarUrl ? new URL(item.avatarUrl) : null,
+          imageSettings: item.imageSettings ? item.imageSettings : null,
           isVerified: item.isVerified ? item.isVerified : false,
           isPfpNft: item.isPfpNft ? item.isPfpNft : false,
           blacklistIds: item.blacklistIds ? item.blacklistIds : null,
@@ -4868,6 +4882,7 @@ export class Chat
           email: item.email ? item.email : null,
           bio: item.bio ? item.bio : null,
           avatarUrl: item.avatarUrl ? new URL(item.avatarUrl) : null,
+          imageSettings: item.imageSettings ? item.imageSettings : null,
           isVerified: item.isVerified ? item.isVerified : false,
           isPfpNft: item.isPfpNft ? item.isPfpNft : false,
           blacklistIds: item.blacklistIds ? item.blacklistIds : null,
@@ -4928,6 +4943,7 @@ export class Chat
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -6065,6 +6081,9 @@ export class Chat
             avatarUrl: r.memberOut.avatarUrl
               ? new URL(r.memberOut.avatarUrl)
               : null,
+            imageSettings: r.memberOut.imageSettings
+              ? r.memberOut.imageSettings
+              : null,
             isVerified: r.memberOut.isVerified ? r.memberOut.isVerified : false,
             isPfpNft: r.memberOut.isPfpNft ? r.memberOut.isPfpNft : false,
             blacklistIds: r.memberOut.blacklistIds
@@ -6203,6 +6222,9 @@ export class Chat
             bio: r.memberOut.bio ? r.memberOut.bio : null,
             avatarUrl: r.memberOut.avatarUrl
               ? new URL(r.memberOut.avatarUrl)
+              : null,
+            imageSettings: r.memberOut.imageSettings
+              ? r.memberOut.imageSettings
               : null,
             isVerified: r.memberOut.isVerified ? r.memberOut.isVerified : false,
             isPfpNft: r.memberOut.isPfpNft ? r.memberOut.isPfpNft : false,
@@ -6610,6 +6632,7 @@ export class Chat
           email: r.email ? r.email : null,
           bio: r.bio ? r.bio : null,
           avatarUrl: r.avatarUrl ? new URL(r.avatarUrl) : null,
+          imageSettings: r.imageSettings ? r.imageSettings : null,
           isVerified: r.isVerified ? r.isVerified : false,
           isPfpNft: r.isPfpNft ? r.isPfpNft : false,
           blacklistIds: r.blacklistIds ? r.blacklistIds : null,

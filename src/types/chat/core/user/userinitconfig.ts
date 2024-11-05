@@ -36,6 +36,10 @@ export type UserInitConfig = {
    */
   avatarUrl: Maybe<URL>
   /**
+   * @property {Maybe<string>} imageSettings - The image settings of the avatar, if available.
+   */
+  imageSettings: Maybe<string>
+  /**
    * @property {boolean} isVerified - Indicates if the user is verified.
    */
   isVerified: boolean
