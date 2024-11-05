@@ -170,7 +170,9 @@ export class Auth implements AuthInternalEvents {
           email: Auth._account.email,
           bio: Auth._account.bio,
           avatarUrl: Auth._account.avatarUrl,
-          imageSettings: Auth._account.imageSettings,
+          imageSettings: Auth._account.imageSettings
+            ? Auth._account.imageSettings
+            : null,
           isVerified: Auth._account.isVerified,
           isPfpNft: Auth._account.isPfpNft,
           pfp: Auth._account.pfp ? Auth._account.pfp : null,
