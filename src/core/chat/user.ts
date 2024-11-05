@@ -63,6 +63,10 @@ export class User
    * @property imageSettings - The image settings of the avatar, if available
    */
   readonly imageSettings: Maybe<string>
+
+  get imageSettingsJSON() {
+    return this.imageSettings ? JSON.parse(this.imageSettings) : {}
+  }
   /**
    * @property isVerified - Indicates if the user is verified.
    */

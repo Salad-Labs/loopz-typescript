@@ -21,6 +21,7 @@ export interface AccountEngine {
     avatarUrl,
     bio,
     pfp: { networkId, collectionAddress, tokenId },
+    imageSettings: { imageX, imageY, imageZoom },
   }: {
     username: string
     avatarUrl: URL
@@ -30,6 +31,7 @@ export interface AccountEngine {
       collectionAddress: string
       tokenId: string
     }
+    imageSettings: { imageX: number; imageY: number; imageZoom: number }
   }): Promise<void>
   updateSettings(
     setting:

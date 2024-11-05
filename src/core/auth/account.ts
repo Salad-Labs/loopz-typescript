@@ -382,6 +382,7 @@ export class Account implements AccountSchema, AccountEngine {
     avatarUrl,
     bio,
     pfp = null,
+    imageSettings = null,
   }: {
     username: Maybe<string>
     avatarUrl: Maybe<URL>
@@ -390,6 +391,11 @@ export class Account implements AccountSchema, AccountEngine {
       networkId: Network
       collectionAddress: string
       tokenId: string
+    }>
+    imageSettings: Maybe<{
+      imageX: number
+      imageY: number
+      imageZoom: number
     }>
   }) {
     try {
@@ -406,6 +412,13 @@ export class Account implements AccountSchema, AccountEngine {
                   networkId: pfp.networkId,
                   collectionAddress: pfp.collectionAddress,
                   tokenId: pfp.tokenId,
+                }
+              : null,
+            imageSettings: imageSettings
+              ? {
+                  imageX: imageSettings.imageX,
+                  imageY: imageSettings.imageY,
+                  imageZoom: imageSettings.imageZoom,
                 }
               : null,
           },
