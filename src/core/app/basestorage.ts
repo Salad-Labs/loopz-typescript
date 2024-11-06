@@ -1,3 +1,4 @@
+// TODO update
 export interface BaseStorage {
   disableStorage(): void
   enableStorage(): void
@@ -23,6 +24,5 @@ export interface BaseStorage {
     key: string,
     value: string
   ): Promise<any>
-  getTable<T>(tableName: "user" | "conversation" | "message"): T
   truncate(tableName: "user" | "conversation" | "message"): Promise<void>
 }
