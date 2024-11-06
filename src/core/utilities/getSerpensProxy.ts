@@ -31,10 +31,7 @@ export const getSerpensProxy = <
       return (...args: any[]) => {
         return new PromiseConstructor((resolve, reject) => {
           Serpens.addAction(() =>
-            target[prop]
-              .apply(target, ...args)
-              .then(resolve)
-              .catch(reject)
+            target[prop].apply(target, args).then(resolve).catch(reject)
           )
         })
       }
