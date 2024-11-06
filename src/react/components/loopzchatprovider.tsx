@@ -122,6 +122,8 @@ export const LoopzChatProvider: FC<
       })
   }, [initialized, chatStatus, autoSync, instance])
 
+  // TODO here useEffect for events
+
   useEffect(() => {
     if (autoConnect || !autoSync) return
 
