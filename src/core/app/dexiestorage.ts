@@ -73,7 +73,7 @@ export class DexieStorage extends Dexie implements BaseStorage {
       PromiseConstructor: Dexie.Promise,
     }
 
-    // * until this methods are not enqueued
+    // * until this, methods are not enqueued
     this.migration = getSerpensProxy(this.migration, tableProxyOptions)
     this.user = getSerpensProxy(this.user, tableProxyOptions)
     this.message = getSerpensProxy(this.message, tableProxyOptions)
@@ -122,16 +122,14 @@ export class DexieStorage extends Dexie implements BaseStorage {
     if (!this._enableStorage) return
 
     return new Promise((resolve, reject) =>
-      Serpens.addAction(() =>
-        this.transaction("r", tableName, () =>
-          this[tableName]
-            .where(key)
-            .equals(value)
-            .first()
-            .then(resolve)
-            .catch(reject)
-        ).catch(reject)
-      )
+      this.transaction("r", tableName, () =>
+        this[tableName]
+          .where(key)
+          .equals(value)
+          .first()
+          .then(resolve)
+          .catch(reject)
+      ).catch(reject)
     )
   }
 
@@ -149,16 +147,14 @@ export class DexieStorage extends Dexie implements BaseStorage {
     if (!this._enableStorage) return
 
     return new Promise((resolve, reject) =>
-      Serpens.addAction(() =>
-        this.transaction("rw", tableName, () =>
-          this[tableName]
-            .where(key)
-            .equals(value)
-            .delete()
-            .then(() => resolve())
-            .catch(reject)
-        ).catch(reject)
-      )
+      this.transaction("rw", tableName, () =>
+        this[tableName]
+          .where(key)
+          .equals(value)
+          .delete()
+          .then(() => resolve())
+          .catch(reject)
+      ).catch(reject)
     )
   }
 
@@ -195,7 +191,7 @@ export class DexieStorage extends Dexie implements BaseStorage {
     if (!(tableName in this)) throw new Error(`Table ${tableName} not found`)
     if (!this._enableStorage) return
 
-    Serpens.addAction(callback.bind(callback, this, this[tableName]))
+    callback(this, this[tableName])
   }
 
   async insertBulkSafe(
@@ -254,6 +250,6 @@ export class DexieStorage extends Dexie implements BaseStorage {
     if (!(tableName in this)) throw new Error(`Table ${tableName} not found`)
     if (!this._enableStorage) return
 
-    Serpens.addAction(this[tableName].clear.bind(this[tableName]))
+    this[tableName].clear()
   }
 }
