@@ -8,9 +8,8 @@ import {
 import { BaseStorage } from "./basestorage"
 import { CreateOrConnectDexieArgs } from "../../types/app"
 import Dexie, { Table } from "dexie"
-import { Serpens } from "../utilities"
-import { getSerpensProxy } from "../utilities/getSerpensProxy"
-import { GetSerpensProxyOptions } from "../../types/app/core/getserpensproxy"
+import { getSerpensProxy } from "../utilities/getserpensproxy"
+import { GetSerpensProxyOptions } from "../../types/app/core/getserpensproxyoptions"
 
 export class DexieStorage extends Dexie implements BaseStorage {
   //db info
