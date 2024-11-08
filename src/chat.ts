@@ -351,7 +351,6 @@ export class Chat
     if (!Chat._detectiveMessage) {
       DetectiveMessage.config({ storage: Chat._config.storage })
       Chat._detectiveMessage = DetectiveMessage.getInstance()
-      Chat._detectiveMessage.scan()
     }
 
     this._defineHookFnLocalDB()
@@ -6901,6 +6900,9 @@ export class Chat
 
     //we're running sync
     this._syncRunning = true
+
+    //let's call the detective message scan method
+    Chat._detectiveMessage.scan()
 
     //let's call all the logics
     await this._sync(this._syncingCounter)

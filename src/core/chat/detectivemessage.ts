@@ -332,6 +332,7 @@ export class DetectiveMessage {
   }
 
   clear() {
+    this.stopScan()
     this.unobserve()
     DetectiveMessage._storage.truncate("detectivemessagecollector")
     DetectiveMessage._storage.truncate("detectivemessagequeue")
