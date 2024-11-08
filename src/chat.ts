@@ -614,7 +614,7 @@ export class Chat
         this._hookConversationUpdated = false
       }
 
-      await this._storage.insertBulkSafe<LocalDBConversation>(
+      await this._storage.insertBulkSafe(
         "conversation",
         conversationsItems.map((conversation: Conversation) => {
           let isConversationArchived = false
@@ -785,13 +785,7 @@ export class Chat
         }
 
         //messages handling
-
-        let messageTable = this._storage.getTable("message") as Dexie.Table<
-          LocalDBMessage,
-          string,
-          LocalDBMessage
-        >
-        let lastMessageStored = await messageTable
+        let lastMessageStored = await this._storage.message
           .orderBy("createdAt")
           .filter(
             (element) =>
@@ -1107,7 +1101,7 @@ export class Chat
             if (index > -1) isConversationArchived = true
           }
 
-          this._storage.insertBulkSafe<LocalDBConversation>("conversation", [
+          this._storage.insertBulkSafe("conversation", [
             Converter.fromConversationToLocalDBConversation(
               conversation,
               Auth.account!.did,

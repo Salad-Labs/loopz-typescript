@@ -8,6 +8,8 @@ import {
 import { BaseStorage } from "./basestorage"
 import { CreateOrConnectDexieArgs } from "../../types/app"
 import Dexie, { Table } from "dexie"
+import { getSerpensProxy } from "../utilities/getserpensproxy"
+import { GetSerpensProxyOptions } from "../../types/app/core/getserpensproxyoptions"
 
 export class DexieStorage extends Dexie implements BaseStorage {
   //db info
@@ -48,6 +50,53 @@ export class DexieStorage extends Dexie implements BaseStorage {
       if (dbVersion !== this._dbVersion)
         await this.migration.put({ key: "dbVersion", value: this._dbVersion })
     })
+
+    const tableProxyOptions: GetSerpensProxyOptions<typeof Dexie.Promise> = {
+      mode: "only",
+      keys: [
+        "get",
+        "count",
+        "each",
+        "toArray",
+        "add",
+        "update",
+        "put",
+        "delete",
+        "clear",
+        "bulkGet",
+        "bulkAdd",
+        "bulkPut",
+        "bulkUpdate",
+        "bulkDelete",
+      ],
+      PromiseConstructor: Dexie.Promise,
+    }
+
+    // * until this, methods are not enqueued
+    this.migration = getSerpensProxy(this.migration, tableProxyOptions)
+    this.user = getSerpensProxy(this.user, tableProxyOptions)
+    this.message = getSerpensProxy(this.message, tableProxyOptions)
+    this.conversation = getSerpensProxy(this.conversation, tableProxyOptions)
+    this.detectivemessagecollector = getSerpensProxy(
+      this.detectivemessagecollector,
+      tableProxyOptions
+    )
+    this.detectivemessagequeue = getSerpensProxy(
+      this.detectivemessagequeue,
+      tableProxyOptions
+    )
+
+    return getSerpensProxy(this, {
+      mode: "exclude",
+      keys: [
+        "disableStorage",
+        "enableStorage",
+        "getDBName",
+        "getDBVersion",
+        "typeOf",
+        "isStorageEnabled",
+      ],
+    })
   }
 
   static async createOrConnect(
@@ -68,38 +117,19 @@ export class DexieStorage extends Dexie implements BaseStorage {
     key: string,
     value: string | string[]
   ): Promise<any> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        if (!this._enableStorage) return
+    if (!(tableName in this)) throw new Error(`Table ${tableName} not found`)
+    if (!this._enableStorage) return
 
-        this.transaction("r", tableName, async () => {
-          if (tableName === "user") {
-            resolve(await this.user.where(key).equals(value).first())
-          } else if (tableName === "conversation") {
-            resolve(await this.conversation.where(key).equals(value).first())
-          } else if (tableName === "message") {
-            resolve(await this.message.where(key).equals(value).first())
-          } else if (tableName === "detectivemessagecollector") {
-            resolve(
-              await this.detectivemessagecollector
-                .where(key)
-                .equals(value)
-                .first()
-            )
-          } else if (tableName === "detectivemessagequeue") {
-            resolve(
-              await this.detectivemessagequeue.where(key).equals(value).first()
-            )
-          } else {
-            reject(
-              `${tableName} argument given is wrong. No table exists with that name.`
-            )
-          }
-        })
-      } catch (error) {
-        reject(error)
-      }
-    })
+    return new Promise((resolve, reject) =>
+      this.transaction("r", tableName, () =>
+        this[tableName]
+          .where(key)
+          .equals(value)
+          .first()
+          .then(resolve)
+          .catch(reject)
+      ).catch(reject)
+    )
   }
 
   async deleteItem(
@@ -112,24 +142,19 @@ export class DexieStorage extends Dexie implements BaseStorage {
     key: string,
     value: string | string[]
   ): Promise<void> {
+    if (!(tableName in this)) throw new Error(`Table ${tableName} not found`)
     if (!this._enableStorage) return
-    return new Promise(async (resolve, reject) => {
-      this.transaction("rw", tableName, async () => {
-        if (tableName === "conversation")
-          await this.conversation.where(key).equals(value).delete()
-        else if (tableName === "user")
-          await this.user.where(key).equals(value).delete()
-        else if (tableName === "message")
-          await this.message.where(key).equals(value).delete()
-        else if (tableName === "detectivemessagecollector")
-          await this.detectivemessagecollector.where(key).equals(value).delete()
-        else if (tableName === "detectivemessagequeue")
-          await this.detectivemessagequeue.where(key).equals(value).delete()
-        resolve()
-      }).catch((error) => {
-        reject(error)
-      })
-    })
+
+    return new Promise((resolve, reject) =>
+      this.transaction("rw", tableName, () =>
+        this[tableName]
+          .where(key)
+          .equals(value)
+          .delete()
+          .then(() => resolve())
+          .catch(reject)
+      ).catch(reject)
+    )
   }
 
   async deleteBulk(
@@ -141,75 +166,52 @@ export class DexieStorage extends Dexie implements BaseStorage {
       | "detectivemessagequeue",
     ids: string[]
   ): Promise<void> {
+    if (!(tableName in this)) throw new Error(`Table ${tableName} not found`)
     if (!this._enableStorage) return
-    return new Promise(async (resolve, reject) => {
-      this.transaction("rw", tableName, async () => {
-        if (tableName === "conversation") this.conversation.bulkDelete(ids)
-        else if (tableName === "user") this.user.bulkDelete(ids)
-        else if (tableName === "message") this.message.bulkDelete(ids)
-        else if (tableName === "detectivemessagecollector")
-          this.detectivemessagecollector.bulkDelete(ids)
-        else if (tableName === "detectivemessagequeue")
-          this.detectivemessagequeue.bulkDelete(ids)
-        resolve()
-      }).catch((error) => {
-        reject(error)
-      })
-    })
+
+    return new Promise((resolve, reject) =>
+      this.transaction("rw", tableName, () =>
+        this[tableName].bulkDelete(ids).then(resolve).catch(reject)
+      ).catch(reject)
+    )
   }
 
-  async query<T>(
-    callback: (db: Dexie, table: Table<T, string, T>) => void,
-    tableName:
+  async query<
+    TN extends
       | "user"
       | "conversation"
       | "message"
       | "detectivemessagecollector"
       | "detectivemessagequeue"
+  >(
+    callback: (db: DexieStorage, table: (typeof this)[TN]) => void,
+    tableName: TN
   ): Promise<void> {
+    if (!(tableName in this)) throw new Error(`Table ${tableName} not found`)
     if (!this._enableStorage) return
-    if (tableName === "user") callback(this, this.user as Table<T, string, T>)
-    else if (tableName === "conversation")
-      callback(this, this.conversation as Table<T, string, T>)
-    else if (tableName === "message")
-      callback(this, this.message as Table<T, string, T>)
-    else if (tableName === "detectivemessagecollector")
-      callback(this, this.detectivemessagecollector as Table<T, string, T>)
-    else if (tableName === "detectivemessagequeue")
-      callback(this, this.detectivemessagequeue as Table<T, string, T>)
+
+    callback(this, this[tableName])
   }
 
-  async insertBulkSafe<T>(
+  async insertBulkSafe(
     tableName:
       | "user"
       | "conversation"
       | "message"
       | "detectivemessagecollector"
       | "detectivemessagequeue",
-    items: T[]
+    items: unknown[]
   ): Promise<void> {
-    return new Promise(async (resolve, reject) => {
-      this.transaction("rw", tableName, async () => {
-        if (tableName === "conversation")
-          await this.conversation.bulkPut(items as LocalDBConversation[])
-        else if (tableName === "user")
-          await this.user.bulkPut(items as LocalDBUser[])
-        else if (tableName === "message")
-          await this.message.bulkPut(items as LocalDBMessage[])
-        else if (tableName === "detectivemessagecollector")
-          await this.detectivemessagecollector.bulkPut(
-            items as LocalDBDetectiveMessageCollector[]
-          )
-        else if (tableName === "detectivemessagequeue")
-          await this.detectivemessagequeue.bulkPut(
-            items as LocalDBDetectiveMessageQueue[]
-          )
+    if (!(tableName in this)) throw new Error(`Table ${tableName} not found`)
+    if (!this._enableStorage) return
 
-        resolve()
-      }).catch((error) => {
-        reject(error)
-      })
-    })
+    const table: Table = this[tableName]
+
+    return new Promise((resolve, reject) =>
+      this.transaction("rw", tableName, () =>
+        table.bulkPut(items).then(resolve).catch(reject)
+      ).catch(reject)
+    )
   }
 
   disableStorage(): void {
@@ -236,25 +238,6 @@ export class DexieStorage extends Dexie implements BaseStorage {
     return this._enableStorage === true
   }
 
-  getTable<T>(
-    tableName:
-      | "user"
-      | "conversation"
-      | "message"
-      | "detectivemessagecollector"
-      | "detectivemessagequeue"
-  ) {
-    if (tableName === "user") return this.user as T
-    else if (tableName === "conversation") return this.conversation as T
-    else if (tableName === "message") return this.message as T
-    else if (tableName === "detectivemessagecollector")
-      return this.detectivemessagecollector as T
-    else if (tableName === "detectivemessagequeue")
-      return this.detectivemessagequeue as T
-
-    throw new Error(`Table ${tableName} not found`)
-  }
-
   async truncate(
     tableName:
       | "user"
@@ -263,20 +246,9 @@ export class DexieStorage extends Dexie implements BaseStorage {
       | "detectivemessagecollector"
       | "detectivemessagequeue"
   ): Promise<void> {
+    if (!(tableName in this)) throw new Error(`Table ${tableName} not found`)
     if (!this._enableStorage) return
 
-    if (tableName === "user") {
-      await this.user.clear()
-    } else if (tableName === "conversation") {
-      await this.conversation.clear()
-    } else if (tableName === "message") {
-      await this.message.clear()
-    } else if (tableName === "detectivemessagecollector") {
-      await this.detectivemessagecollector.clear()
-    } else if (tableName === "detectivemessagequeue") {
-      await this.detectivemessagequeue.clear()
-    }
-
-    throw new Error(`Table ${tableName} not found`)
+    this[tableName].clear()
   }
 }
