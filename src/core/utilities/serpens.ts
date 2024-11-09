@@ -25,7 +25,14 @@ export abstract class Serpens {
       const action = Serpens._queue.shift()
       if (!action) break
 
-      await action()
+      try {
+        await action()
+      } catch {
+        // If the action throws an error we don't want to break the queue so we must continue to the next action
+        // TODO possible improvement: add error handling.
+        // TODO Maybe instead of _queue as an array of function, use an array of objects { action: async () => {}, errorHandler: () => {} }
+        continue
+      }
     }
 
     Serpens._isProcessing = false
