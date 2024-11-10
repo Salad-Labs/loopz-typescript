@@ -7,8 +7,10 @@ export abstract class Serpens {
    * @param action The action to add to the queue
    * @returns A promise resolved with the action return value, fulfilled when the action in the queue gets executed
    */
-  public static addAction<T>(action: Function): Promise<T> {
-    const actionPromise = new Promise<T>((resolve, reject) => {
+  public static addAction<T extends () => any>(
+    action: T
+  ): Promise<ReturnType<T>> {
+    const actionPromise = new Promise<ReturnType<T>>((resolve, reject) =>
       Serpens._queue.push(async () => {
         try {
           const result = await action()
@@ -17,7 +19,7 @@ export abstract class Serpens {
           reject(error)
         }
       })
-    })
+    )
 
     Serpens._processQueue()
 
