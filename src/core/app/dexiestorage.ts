@@ -87,15 +87,9 @@ export class DexieStorage extends Dexie implements BaseStorage {
     )
 
     return getSerpensProxy(this, {
-      mode: "exclude",
-      keys: [
-        "disableStorage",
-        "enableStorage",
-        "getDBName",
-        "getDBVersion",
-        "typeOf",
-        "isStorageEnabled",
-      ],
+      mode: "only",
+      // we need to add only methods that call concatenated methods from this[tableName] since they are Collection methods and not enqueued by default
+      keys: ["get", "deleteItem"],
     })
   }
 
@@ -120,16 +114,7 @@ export class DexieStorage extends Dexie implements BaseStorage {
     if (!(tableName in this)) throw new Error(`Table ${tableName} not found`)
     if (!this._enableStorage) return
 
-    return new Promise((resolve, reject) =>
-      this.transaction("r", tableName, () =>
-        this[tableName]
-          .where(key)
-          .equals(value)
-          .first()
-          .then(resolve)
-          .catch(reject)
-      ).catch(reject)
-    )
+    this[tableName].where(key).equals(value).first()
   }
 
   async deleteItem(
@@ -145,16 +130,11 @@ export class DexieStorage extends Dexie implements BaseStorage {
     if (!(tableName in this)) throw new Error(`Table ${tableName} not found`)
     if (!this._enableStorage) return
 
-    return new Promise((resolve, reject) =>
-      this.transaction("rw", tableName, () =>
-        this[tableName]
-          .where(key)
-          .equals(value)
-          .delete()
-          .then(() => resolve())
-          .catch(reject)
-      ).catch(reject)
-    )
+    return this[tableName]
+      .where(key)
+      .equals(value)
+      .delete()
+      .then(() => {})
   }
 
   async deleteBulk(
@@ -169,28 +149,7 @@ export class DexieStorage extends Dexie implements BaseStorage {
     if (!(tableName in this)) throw new Error(`Table ${tableName} not found`)
     if (!this._enableStorage) return
 
-    return new Promise((resolve, reject) =>
-      this.transaction("rw", tableName, () =>
-        this[tableName].bulkDelete(ids).then(resolve).catch(reject)
-      ).catch(reject)
-    )
-  }
-
-  async query<
-    TN extends
-      | "user"
-      | "conversation"
-      | "message"
-      | "detectivemessagecollector"
-      | "detectivemessagequeue"
-  >(
-    callback: (db: DexieStorage, table: (typeof this)[TN]) => void,
-    tableName: TN
-  ): Promise<void> {
-    if (!(tableName in this)) throw new Error(`Table ${tableName} not found`)
-    if (!this._enableStorage) return
-
-    callback(this, this[tableName])
+    return this[tableName].bulkDelete(ids)
   }
 
   async insertBulkSafe(
@@ -206,12 +165,7 @@ export class DexieStorage extends Dexie implements BaseStorage {
     if (!this._enableStorage) return
 
     const table: Table = this[tableName]
-
-    return new Promise((resolve, reject) =>
-      this.transaction("rw", tableName, () =>
-        table.bulkPut(items).then(resolve).catch(reject)
-      ).catch(reject)
-    )
+    return table.bulkPut(items)
   }
 
   disableStorage(): void {
