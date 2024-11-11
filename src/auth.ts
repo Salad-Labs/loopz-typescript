@@ -954,13 +954,13 @@ export class Auth implements AuthInternalEvents {
       const { e2eSecret, e2eSecretIV } = secrets
 
       Auth._isAuthenticated = true
-      Auth.authToken = token
+
       Auth.account = new Account({
         enableDevMode: Auth._config.devMode,
         storage: Auth._config.storage,
         did: user.did,
         organizationId: user.organizationId,
-        token: token,
+        token: Auth.authToken!, //we use Auth.authToken and not token because in case we have a 401 error, variable 'token' has the value of the previous token. Instead Auth.authToken has the updated value.
         walletAddress: user.wallet.address,
         walletConnectorType: user.wallet.connectorType,
         walletImported: user.wallet.imported,
