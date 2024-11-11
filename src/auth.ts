@@ -934,8 +934,6 @@ export class Auth implements AuthInternalEvents {
         organizationId,
       ])
 
-      console.log(user)
-
       Auth.authToken = token
 
       const { response } = await Auth._client.fetch<
