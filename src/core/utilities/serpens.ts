@@ -5,13 +5,25 @@ export abstract class Serpens {
   /**
    * Adds an action to the queue
    * @param action The action to add to the queue
-   * @returns The position of the action in the queue, starting from 1
+   * @returns A promise resolved with the action return value, fulfilled when the action in the queue gets executed
    */
-  public static addAction<T extends () => any>(action: T) {
-    const queuePosition = Serpens._queue.push(action)
+  public static addAction<T extends () => any>(
+    action: T
+  ): Promise<ReturnType<T>> {
+    const actionPromise = new Promise<ReturnType<T>>((resolve, reject) =>
+      Serpens._queue.push(async () => {
+        try {
+          const result = await action()
+          resolve(result)
+        } catch (error) {
+          reject(error)
+        }
+      })
+    )
+
     Serpens._processQueue()
 
-    return queuePosition
+    return actionPromise
   }
 
   private static async _processQueue() {
@@ -24,16 +36,9 @@ export abstract class Serpens {
 
     while (Serpens._queue.length > 0) {
       const action = Serpens._queue.shift()
-      if (!action) break
+      if (!action) continue
 
-      try {
-        await action()
-      } catch {
-        // If the action throws an error we don't want to break the queue so we must continue to the next action
-        // TODO possible improvement: add error handling.
-        // TODO Maybe instead of _queue as an array of function, use an array of objects { action: async () => {}, errorHandler: () => {} }
-        continue
-      }
+      await action()
     }
 
     Serpens._isProcessing = false
