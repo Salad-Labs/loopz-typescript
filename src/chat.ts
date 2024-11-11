@@ -226,7 +226,7 @@ import {
   LocalDBMessage,
   LocalDBUser,
 } from "./core/app/database"
-import { Converter, findAddedAndRemovedConversation } from "./core"
+import { Converter, findAddedAndRemovedConversation, Serpens } from "./core"
 import Dexie, { Table } from "dexie"
 import { Reaction } from "./core/chat/reaction"
 import { v4 as uuidv4 } from "uuid"
@@ -351,7 +351,6 @@ export class Chat
     if (!Chat._detectiveMessage) {
       DetectiveMessage.config({ storage: Chat._config.storage })
       Chat._detectiveMessage = DetectiveMessage.getInstance()
-      Chat._detectiveMessage.scan()
     }
 
     this._defineHookFnLocalDB()
@@ -785,14 +784,25 @@ export class Chat
         }
 
         //messages handling
-        let lastMessageStored = await this._storage.message
-          .orderBy("createdAt")
-          .filter(
-            (element) =>
-              element.origin === "USER" && element.userDid === Auth.account!.did
-          )
-          .reverse()
-          .first()
+        let lastMessageStored = await new Promise<LocalDBMessage | undefined>(
+          (resolve, reject) => {
+            Serpens.addAction(() => {
+              this._storage.message
+                .orderBy("createdAt")
+                .filter(
+                  (element) =>
+                    element.origin === "USER" &&
+                    element.userDid === Auth.account!.did
+                )
+                .reverse()
+                .first()
+                .then((value) => {
+                  resolve(value)
+                })
+                .catch(reject)
+            })
+          }
+        )
 
         const canDownloadMessages =
           !lastMessageStored ||
@@ -1234,22 +1244,21 @@ export class Chat
         //let's update the conversation in the case it was deleted locally by the user.
         //the conversation if it is deleted, returns visible for the user.
 
-        this._storage.query(
-          async (
-            db: Dexie,
-            table: Table<LocalDBConversation, string, LocalDBConversation>
-          ) => {
-            const conversation = await this._storage.get(
-              "conversation",
-              "[conversationId+userDid]",
-              [response.conversationId, Auth.account!.did]
-            )
-            table.update(conversation, {
-              deletedAt: null,
-            })
-          },
-          "conversation"
+        const conversation = await this._storage.get(
+          "conversation",
+          "[conversationId+userDid]",
+          [response.conversationId, Auth.account!.did]
         )
+        await new Promise((resolve, reject) => {
+          Serpens.addAction(() => {
+            this._storage.conversation
+              .update(conversation, {
+                deletedAt: null,
+              })
+              .then(resolve)
+              .catch(reject)
+          })
+        })
 
         this._emit("messageReceived", {
           message: response,
@@ -1763,13 +1772,8 @@ export class Chat
 
   private _onMessageCreatedLDB() {
     try {
-      this._storage.query(
-        (db: Dexie, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
-          this._hookMessageCreated = true
-          message.hook("creating", this._hookMessageCreatingFn!)
-        },
-        "message"
-      )
+      this._hookMessageCreated = true
+      this._storage.message.hook("creating", this._hookMessageCreatingFn!)
     } catch (error) {
       console.log(error)
       this._hookMessageCreated = false
@@ -1779,18 +1783,36 @@ export class Chat
 
   private _onMessageDeletedLDB() {
     try {
-      this._storage.query(
-        (db: Dexie, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
-          this._hookMessageDeleted = true
-          message.hook("deleting", (primaryKey, record) => {
-            const _message = {
-              ...record,
+      this._hookMessageDeleted = true
+      this._storage.message.hook("deleting", (primaryKey, record) => {
+        const _message = {
+          ...record,
+          content: Crypto.decryptStringOrFail(
+            this.findPrivateKeyById(record.conversationId),
+            record.content
+          ),
+          reactions: record.reactions
+            ? record.reactions.map((reaction) => {
+                return {
+                  ...reaction,
+                  content: Crypto.decryptStringOrFail(
+                    this.findPrivateKeyById(record.conversationId),
+                    reaction.content
+                  ),
+                }
+              })
+            : null,
+        }
+
+        _message.messageRoot = record.messageRoot
+          ? {
+              ...record.messageRoot,
               content: Crypto.decryptStringOrFail(
                 this.findPrivateKeyById(record.conversationId),
-                record.content
+                record.messageRoot.content
               ),
-              reactions: record.reactions
-                ? record.reactions.map((reaction) => {
+              reactions: record.messageRoot.reactions
+                ? record.messageRoot.reactions.map((reaction) => {
                     return {
                       ...reaction,
                       content: Crypto.decryptStringOrFail(
@@ -1801,33 +1823,10 @@ export class Chat
                   })
                 : null,
             }
+          : null
 
-            _message.messageRoot = record.messageRoot
-              ? {
-                  ...record.messageRoot,
-                  content: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(record.conversationId),
-                    record.messageRoot.content
-                  ),
-                  reactions: record.messageRoot.reactions
-                    ? record.messageRoot.reactions.map((reaction) => {
-                        return {
-                          ...reaction,
-                          content: Crypto.decryptStringOrFail(
-                            this.findPrivateKeyById(record.conversationId),
-                            reaction.content
-                          ),
-                        }
-                      })
-                    : null,
-                }
-              : null
-
-            this._emit("messageDeletedLDB", _message)
-          })
-        },
-        "message"
-      )
+        this._emit("messageDeletedLDB", _message)
+      })
     } catch (error) {
       console.log(error)
       this._hookMessageDeleted = false
@@ -1837,13 +1836,8 @@ export class Chat
 
   private _onMessageUpdatedLDB() {
     try {
-      this._storage.query(
-        (db: Dexie, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
-          this._hookMessageUpdated = true
-          message.hook("updating", this._hookMessageUpdatingFn!)
-        },
-        "message"
-      )
+      this._hookMessageUpdated = true
+      this._storage.message.hook("updating", this._hookMessageUpdatingFn!)
     } catch (error) {
       console.log(error)
       this._hookMessageUpdated = false
@@ -1853,15 +1847,10 @@ export class Chat
 
   private _onConversationCreatedLDB() {
     try {
-      this._storage.query(
-        (
-          db: Dexie,
-          conversation: Table<LocalDBConversation, string, LocalDBConversation>
-        ) => {
-          this._hookConversationCreated = true
-          conversation.hook("creating", this._hookConversationCreatingFn!)
-        },
-        "conversation"
+      this._hookConversationCreated = true
+      this._storage.conversation.hook(
+        "creating",
+        this._hookConversationCreatingFn!
       )
     } catch (error) {
       console.log(error)
@@ -1872,15 +1861,10 @@ export class Chat
 
   private _onConversationUpdatedLDB() {
     try {
-      this._storage.query(
-        (
-          db: Dexie,
-          conversation: Table<LocalDBConversation, string, LocalDBConversation>
-        ) => {
-          this._hookConversationUpdated = true
-          conversation.hook("updating", this._hookConversationUpdatingFn!)
-        },
-        "conversation"
+      this._hookConversationUpdated = true
+      this._storage.conversation.hook(
+        "updating",
+        this._hookConversationUpdatingFn!
       )
     } catch (error) {
       console.log(error)
@@ -6902,6 +6886,9 @@ export class Chat
     //we're running sync
     this._syncRunning = true
 
+    //let's call the detective message scan method
+    Chat._detectiveMessage.scan()
+
     //let's call all the logics
     await this._sync(this._syncingCounter)
 
@@ -6981,25 +6968,20 @@ export class Chat
 
   /** read local database */
 
-  fetchLocalDBMessages(
+  async fetchLocalDBMessages(
     conversationId: string,
     page: number,
     numberElements: number
   ): Promise<LocalDBMessage[]> {
     if (!Auth.account) throw new Error("Account must be initialized.")
+    if (page < 0 || numberElements <= 0) return []
 
-    return new Promise((resolve, reject) => {
-      try {
-        if (page < 0 || numberElements <= 0) resolve([])
-
-        const offset = (page - 1) * numberElements
-
-        this._storage.query(
-          async (
-            db: Dexie,
-            message: Table<LocalDBMessage, string, LocalDBMessage>
-          ) => {
-            const messages = await message
+    const offset = (page - 1) * numberElements
+    try {
+      const messages = await new Promise<LocalDBMessage[]>(
+        (resolve, reject) => {
+          Serpens.addAction(() =>
+            this._storage.message
               .orderBy("createdAt")
               .reverse()
               .offset(offset)
@@ -7012,86 +6994,74 @@ export class Chat
                   !!element.deletedAt
               )
               .toArray()
+              .then(resolve)
+              .catch(reject)
+          )
+        }
+      )
 
-            if (!messages) reject([])
-
-            resolve(
-              messages.map((message) => {
-                const _message = {
-                  ...message,
+      return messages.map((message) => {
+        const _message = {
+          ...message,
+          content: Crypto.decryptStringOrFail(
+            this.findPrivateKeyById(conversationId),
+            message.content
+          ),
+          reactions: message.reactions
+            ? message.reactions.map((reaction) => {
+                return {
+                  ...reaction,
                   content: Crypto.decryptStringOrFail(
                     this.findPrivateKeyById(conversationId),
-                    message.content
+                    reaction.content
                   ),
-                  reactions: message.reactions
-                    ? message.reactions.map((reaction) => {
-                        return {
-                          ...reaction,
-                          content: Crypto.decryptStringOrFail(
-                            this.findPrivateKeyById(conversationId),
-                            reaction.content
-                          ),
-                        }
-                      })
-                    : null,
                 }
+              })
+            : null,
+        }
 
-                _message.messageRoot = message.messageRoot
-                  ? {
-                      ...message.messageRoot,
+        _message.messageRoot = message.messageRoot
+          ? {
+              ...message.messageRoot,
+              content: Crypto.decryptStringOrFail(
+                this.findPrivateKeyById(conversationId),
+                message.messageRoot.content
+              ),
+              reactions: message.messageRoot.reactions
+                ? message.messageRoot.reactions.map((reaction) => {
+                    return {
+                      ...reaction,
                       content: Crypto.decryptStringOrFail(
                         this.findPrivateKeyById(conversationId),
-                        message.messageRoot.content
+                        reaction.content
                       ),
-                      reactions: message.messageRoot.reactions
-                        ? message.messageRoot.reactions.map((reaction) => {
-                            return {
-                              ...reaction,
-                              content: Crypto.decryptStringOrFail(
-                                this.findPrivateKeyById(conversationId),
-                                reaction.content
-                              ),
-                            }
-                          })
-                        : null,
                     }
-                  : null
+                  })
+                : null,
+            }
+          : null
 
-                return _message
-              })
-            )
-          },
-          "message"
-        )
-      } catch (error) {
-        console.log("[ERROR]: fetchLocalDBMessages() -> ", error)
-        reject([])
-      }
-    })
+        return _message
+      })
+    } catch (error) {
+      console.log("[ERROR]: fetchLocalDBMessages() -> ", error)
+      return []
+    }
   }
 
-  fetchLocalDBConversations(
+  async fetchLocalDBConversations(
     page: number,
     numberElements: number
   ): Promise<LocalDBConversation[]> {
     if (!Auth.account) throw new Error("Account must be initialized.")
+    if (page < 0 || numberElements <= 0) return []
 
-    return new Promise((resolve, reject) => {
-      try {
-        if (page < 0 || numberElements <= 0) resolve([])
-
-        const offset = (page - 1) * numberElements
-
-        this._storage.query(
-          async (
-            db: Dexie,
-            conversation: Table<
-              LocalDBConversation,
-              string,
-              LocalDBConversation
-            >
-          ) => {
-            const conversations = await conversation
+    const offset = (page - 1) * numberElements
+    try {
+      const conversations = await new Promise<LocalDBConversation[]>(
+        (resolve, reject) => {
+          Serpens.addAction(() =>
+            this._storage.conversation
               .orderBy("createdAt")
               .reverse()
               .offset(offset)
@@ -7103,116 +7073,108 @@ export class Chat
                   !!element.deletedAt
               )
               .toArray()
+              .then(resolve)
+              .catch(reject)
+          )
+        }
+      )
 
-            if (!conversations) reject([])
-
-            resolve(
-              conversations.map((conversation) => {
-                return {
-                  ...conversation,
-                  name: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(conversation.id),
-                    conversation.name
-                  ),
-                  description: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(conversation.id),
-                    conversation.description
-                  ),
-                  imageURL: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(conversation.id),
-                    conversation.imageURL
-                  ),
-                  bannerImageURL: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(conversation.id),
-                    conversation.bannerImageURL
-                  ),
-                }
-              })
-            )
-          },
-          "conversation"
-        )
-      } catch (error) {
-        console.log("[ERROR]: fetchLocalDBMessages() -> ", error)
-        reject([])
-      }
-    })
+      return conversations.map((conversation) => {
+        return {
+          ...conversation,
+          name: Crypto.decryptStringOrFail(
+            this.findPrivateKeyById(conversation.id),
+            conversation.name
+          ),
+          description: Crypto.decryptStringOrFail(
+            this.findPrivateKeyById(conversation.id),
+            conversation.description
+          ),
+          imageURL: Crypto.decryptStringOrFail(
+            this.findPrivateKeyById(conversation.id),
+            conversation.imageURL
+          ),
+          bannerImageURL: Crypto.decryptStringOrFail(
+            this.findPrivateKeyById(conversation.id),
+            conversation.bannerImageURL
+          ),
+        }
+      })
+    } catch (error) {
+      console.log("[ERROR]: fetchLocalDBMessages() -> ", error)
+      return []
+    }
   }
 
   async searchTermsOnLocalDB(
     terms: Array<string>
   ): Promise<Array<{ conversationId: string; messageId: string }>> {
     if (!Auth.account) throw new Error("Account must be initialized.")
-    return new Promise((resolve, reject) => {
-      try {
-        this._storage.query(
-          async (
-            db: Dexie,
-            message: Table<LocalDBMessage, string, LocalDBMessage>
-          ) => {
-            const results = await Dexie.Promise.all(
-              terms.map((prefix) =>
-                message
-                  .where("content")
-                  .startsWith(prefix)
-                  .and((m) => {
-                    return m.userDid === Auth.account!.did
-                  })
-                  .primaryKeys()
-              )
+    try {
+      const results = await Dexie.Promise.all(
+        terms.map(
+          (prefix) =>
+            new Promise<string[]>((resolve, reject) =>
+              this._storage.message
+                .where("content")
+                .startsWith(prefix)
+                .and((m) => {
+                  return m.userDid === Auth.account!.did
+                })
+                .primaryKeys()
+                .then(resolve)
+                .catch(reject)
             )
-
-            // Intersect result set of primary keys
-            const reduced = results.reduce((a, b) => {
-              const set = new Set(b)
-              return a.filter((k) => set.has(k))
-            })
-
-            const messages = (
-              await message.where(":id").anyOf(reduced).toArray()
-            ).map((message) => {
-              return {
-                messageId: message.id,
-                conversationId: message.conversationId,
-              }
-            })
-
-            resolve(messages)
-          },
-          "message"
         )
-      } catch (error) {
-        reject(error)
-      }
-    })
+      )
+
+      // Intersect result set of primary keys
+      const reduced = results.reduce((a, b) => {
+        const set = new Set(b)
+        return a.filter((k) => set.has(k))
+      })
+
+      return new Promise<Array<{ conversationId: string; messageId: string }>>(
+        (resolve, reject) => {
+          Serpens.addAction(() => {
+            this._storage.message
+              .where(":id")
+              .anyOf(reduced)
+              .toArray()
+              .then((messages) =>
+                resolve(
+                  messages.map((message) => ({
+                    messageId: message.id,
+                    conversationId: message.conversationId,
+                  }))
+                )
+              )
+              .catch(reject)
+          })
+        }
+      )
+    } catch (error) {
+      throw error
+    }
   }
 
   /** delete operations local database */
 
-  softDeleteConversationOnLocalDB(conversationId: string): Promise<void> {
+  async softDeleteConversationOnLocalDB(conversationId: string): Promise<void> {
     if (!Auth.account) throw new Error("Account must be initialized.")
-    return new Promise((resolve, reject) => {
-      try {
-        this._storage.query(
-          async (
-            db: Dexie,
-            table: Table<LocalDBConversation, string, LocalDBConversation>
-          ) => {
-            await table
-              .where("[id+userDid]")
-              .equals([conversationId, Auth.account!.did])
-              .modify((conversation: LocalDBConversation) => {
-                conversation.deletedAt = new Date()
-              })
-          },
-          "conversation"
-        )
 
-        resolve()
-      } catch (error) {
-        reject(error)
-      }
-    })
+    try {
+      await Serpens.addAction(() =>
+        this._storage.conversation
+          .where("[id+userDid]")
+          .equals([conversationId, Auth.account!.did])
+          .modify((conversation: LocalDBConversation) => {
+            conversation.deletedAt = new Date()
+          })
+      )
+    } catch (error) {
+      throw error
+    }
   }
 
   async truncateTableOnLocalDB(tableName: "message" | "user" | "conversation") {
@@ -7223,31 +7185,21 @@ export class Chat
 
   /** update operations local database */
 
-  readMessage(conversationId: string): Promise<void> {
+  async readMessage(conversationId: string): Promise<void> {
     if (!Auth.account) throw new Error("Account must be initialized.")
 
-    return new Promise((resolve, reject) => {
-      try {
-        this._storage.query(
-          async (
-            db: Dexie,
-            table: Table<LocalDBConversation, string, LocalDBConversation>
-          ) => {
-            await table
-              .where("[id+userDid]")
-              .equals([conversationId, Auth.account!.did])
-              .modify((conversation: LocalDBConversation) => {
-                conversation.lastMessageRead = new Date()
-              })
-          },
-          "conversation"
-        )
-
-        resolve()
-      } catch (error) {
-        reject(error)
-      }
-    })
+    try {
+      await Serpens.addAction(() =>
+        this._storage.conversation
+          .where("[id+userDid]")
+          .equals([conversationId, Auth.account!.did])
+          .modify((conversation: LocalDBConversation) => {
+            conversation.lastMessageRead = new Date()
+          })
+      )
+    } catch (error) {
+      throw error
+    }
   }
 
   /** transfer keys logic */
@@ -7555,18 +7507,21 @@ export class Chat
           Buffer.from(Auth.account!.e2eSecretIV, "hex").toString("base64")
         )
 
-        await this._storage.transaction("rw", this._storage.user, async () => {
-          let user = await this._storage.get("user", "[did+organizationId]", [
-            Auth.account!.did,
-            Auth.account!.organizationId,
-          ])
+        let user = await this._storage.get("user", "[did+organizationId]", [
+          Auth.account!.did,
+          Auth.account!.organizationId,
+        ])
 
-          await this._storage.user.update(user, {
-            e2eEncryptedPrivateKey: privateKeyForLocalDB,
-            e2ePublicKey: personalPublicKeyPem,
+        await new Promise((resolve, reject) => {
+          Serpens.addAction(() => {
+            this._storage.user
+              .update(user, {
+                e2eEncryptedPrivateKey: privateKeyForLocalDB,
+                e2ePublicKey: personalPublicKeyPem,
+              })
+              .then(resolve)
+              .catch(reject)
           })
-
-          return true
         })
 
         this._canChat = true

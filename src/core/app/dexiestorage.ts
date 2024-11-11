@@ -8,8 +8,7 @@ import {
 import { BaseStorage } from "./basestorage"
 import { CreateOrConnectDexieArgs } from "../../types/app"
 import Dexie, { Table } from "dexie"
-import { getSerpensProxy } from "../utilities/getserpensproxy"
-import { GetSerpensProxyOptions } from "../../types/app/core/getserpensproxyoptions"
+import { Serpens } from "../utilities"
 
 export class DexieStorage extends Dexie implements BaseStorage {
   //db info
@@ -46,56 +45,27 @@ export class DexieStorage extends Dexie implements BaseStorage {
 
     //let's store the current version of the database
     this.on("ready", async () => {
-      const dbVersion = (await this.migration.get("dbVersion"))?.value
-      if (dbVersion !== this._dbVersion)
-        await this.migration.put({ key: "dbVersion", value: this._dbVersion })
-    })
+      const dbVersion = await new Promise<
+        { key: string; value: any } | undefined
+      >((resolve, reject) => {
+        Serpens.addAction(() => {
+          this.migration.get("dbVersion").then(resolve).catch(reject)
+        })
+      })
 
-    const tableProxyOptions: GetSerpensProxyOptions<typeof Dexie.Promise> = {
-      mode: "only",
-      keys: [
-        "get",
-        "count",
-        "each",
-        "toArray",
-        "add",
-        "update",
-        "put",
-        "delete",
-        "clear",
-        "bulkGet",
-        "bulkAdd",
-        "bulkPut",
-        "bulkUpdate",
-        "bulkDelete",
-      ],
-      PromiseConstructor: Dexie.Promise,
-    }
-
-    // * until this, methods are not enqueued
-    this.migration = getSerpensProxy(this.migration, tableProxyOptions)
-    this.user = getSerpensProxy(this.user, tableProxyOptions)
-    this.message = getSerpensProxy(this.message, tableProxyOptions)
-    this.conversation = getSerpensProxy(this.conversation, tableProxyOptions)
-    this.detectivemessagecollector = getSerpensProxy(
-      this.detectivemessagecollector,
-      tableProxyOptions
-    )
-    this.detectivemessagequeue = getSerpensProxy(
-      this.detectivemessagequeue,
-      tableProxyOptions
-    )
-
-    return getSerpensProxy(this, {
-      mode: "exclude",
-      keys: [
-        "disableStorage",
-        "enableStorage",
-        "getDBName",
-        "getDBVersion",
-        "typeOf",
-        "isStorageEnabled",
-      ],
+      if (dbVersion?.value !== this._dbVersion) {
+        await new Promise((resolve, reject) => {
+          Serpens.addAction(() => {
+            this.migration
+              .put({
+                key: "dbVersion",
+                value: this._dbVersion,
+              })
+              .then(resolve)
+              .catch(reject)
+          })
+        })
+      }
     })
   }
 
@@ -120,16 +90,16 @@ export class DexieStorage extends Dexie implements BaseStorage {
     if (!(tableName in this)) throw new Error(`Table ${tableName} not found`)
     if (!this._enableStorage) return
 
-    return new Promise((resolve, reject) =>
-      this.transaction("r", tableName, () =>
+    return new Promise((resolve, reject) => {
+      Serpens.addAction(() => {
         this[tableName]
           .where(key)
           .equals(value)
           .first()
           .then(resolve)
           .catch(reject)
-      ).catch(reject)
-    )
+      })
+    })
   }
 
   async deleteItem(
@@ -141,20 +111,20 @@ export class DexieStorage extends Dexie implements BaseStorage {
       | "detectivemessagequeue",
     key: string,
     value: string | string[]
-  ): Promise<void> {
+  ): Promise<number> {
     if (!(tableName in this)) throw new Error(`Table ${tableName} not found`)
-    if (!this._enableStorage) return
+    if (!this._enableStorage) return -1
 
-    return new Promise((resolve, reject) =>
-      this.transaction("rw", tableName, () =>
+    return new Promise((resolve, reject) => {
+      Serpens.addAction(() => {
         this[tableName]
           .where(key)
           .equals(value)
           .delete()
-          .then(() => resolve())
+          .then(resolve)
           .catch(reject)
-      ).catch(reject)
-    )
+      })
+    })
   }
 
   async deleteBulk(
@@ -169,28 +139,11 @@ export class DexieStorage extends Dexie implements BaseStorage {
     if (!(tableName in this)) throw new Error(`Table ${tableName} not found`)
     if (!this._enableStorage) return
 
-    return new Promise((resolve, reject) =>
-      this.transaction("rw", tableName, () =>
+    return new Promise((resolve, reject) => {
+      Serpens.addAction(() => {
         this[tableName].bulkDelete(ids).then(resolve).catch(reject)
-      ).catch(reject)
-    )
-  }
-
-  async query<
-    TN extends
-      | "user"
-      | "conversation"
-      | "message"
-      | "detectivemessagecollector"
-      | "detectivemessagequeue"
-  >(
-    callback: (db: DexieStorage, table: (typeof this)[TN]) => void,
-    tableName: TN
-  ): Promise<void> {
-    if (!(tableName in this)) throw new Error(`Table ${tableName} not found`)
-    if (!this._enableStorage) return
-
-    callback(this, this[tableName])
+      })
+    })
   }
 
   async insertBulkSafe(
@@ -207,11 +160,29 @@ export class DexieStorage extends Dexie implements BaseStorage {
 
     const table: Table = this[tableName]
 
-    return new Promise((resolve, reject) =>
-      this.transaction("rw", tableName, () =>
+    return new Promise((resolve, reject) => {
+      Serpens.addAction(() => {
         table.bulkPut(items).then(resolve).catch(reject)
-      ).catch(reject)
-    )
+      })
+    })
+  }
+
+  async truncate(
+    tableName:
+      | "user"
+      | "conversation"
+      | "message"
+      | "detectivemessagecollector"
+      | "detectivemessagequeue"
+  ): Promise<void> {
+    if (!(tableName in this)) throw new Error(`Table ${tableName} not found`)
+    if (!this._enableStorage) return
+
+    return new Promise((resolve, reject) => {
+      Serpens.addAction(() => {
+        this[tableName].clear().then(resolve).catch(reject)
+      })
+    })
   }
 
   disableStorage(): void {
@@ -236,19 +207,5 @@ export class DexieStorage extends Dexie implements BaseStorage {
 
   isStorageEnabled(): boolean {
     return this._enableStorage === true
-  }
-
-  async truncate(
-    tableName:
-      | "user"
-      | "conversation"
-      | "message"
-      | "detectivemessagecollector"
-      | "detectivemessagequeue"
-  ): Promise<void> {
-    if (!(tableName in this)) throw new Error(`Table ${tableName} not found`)
-    if (!this._enableStorage) return
-
-    this[tableName].clear()
   }
 }

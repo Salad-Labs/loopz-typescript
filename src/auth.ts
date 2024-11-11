@@ -9,7 +9,7 @@ import {
 import { ApiResponse } from "./types/base/apiresponse"
 import { ApiKeyAuthorized, Maybe } from "./types/base"
 import { Crypto } from "./core"
-import { Account, DexieStorage } from "./core/app"
+import { DexieStorage } from "./core/app"
 import { AuthInternalEvents } from "./interfaces/auth/authinternalevents"
 import { PrivyErrorCode } from "./enums/adapter/auth/privyerrorcode"
 import { PrivyAuthInfo } from "./types/adapter"
@@ -17,7 +17,8 @@ import { AccountInitConfig } from "./types/auth/account"
 import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "./constants/app"
 import { AuthLinkMethod } from "./types/auth/authlinkmethod"
 import { getAccessToken } from "@privy-io/react-auth"
-import { Chat } from "."
+import { Account, Chat, Serpens } from "."
+import { LocalDBUser } from "./core/app/database"
 
 /**
  * Represents an authentication client that interacts with a backend server for user authentication.
@@ -121,23 +122,18 @@ export class Auth implements AuthInternalEvents {
     did: string,
     organizationId: string
   ): Promise<Maybe<string>> {
-    try {
-      const e2ePublicKey = await Auth._storage.transaction(
-        "rw",
-        Auth._storage.user,
-        () =>
-          Auth._storage.user
-            .where("[did+organizationId]")
-            .equals([did, organizationId])
-            .first()
-            .then((existingUser) => existingUser?.e2ePublicKey ?? null)
-      )
-      if (!e2ePublicKey) return null
-
-      return e2ePublicKey
-    } catch (error) {
-      throw error
-    }
+    return new Promise<Maybe<string>>((resolve, reject) => {
+      Serpens.addAction(() => {
+        Auth._storage.user
+          .where("[did+organizationId]")
+          .equals([did, organizationId])
+          .first()
+          .then((existingUser) => {
+            resolve(existingUser ? existingUser.e2ePublicKey : null)
+          })
+          .catch(reject)
+      })
+    })
   }
 
   private static async _handleDexie() {
@@ -153,143 +149,164 @@ export class Auth implements AuthInternalEvents {
       )
       const publicKey = Crypto.convertRSAPublicKeyToPem(keys.publicKey)
 
+      const existingUser = await new Promise<LocalDBUser | undefined>(
+        (resolve, reject) => {
+          Serpens.addAction(() => {
+            if (!Auth._account)
+              throw new Error("Account is not setup correctly.")
+
+            Auth._storage.user
+              .where("[did+organizationId]")
+              .equals([Auth._account!.did, Auth._account!.organizationId])
+              .first()
+              .then(resolve)
+              .catch(reject)
+          })
+        }
+      )
+
+      if (existingUser) return
+
       //save all the data related to this user into the db
-      await Auth._storage.transaction("rw", Auth._storage.user, async () => {
-        if (!Auth._account) throw new Error("Account is not set")
 
-        const existingUser = await Auth._storage.user
-          .where("[did+organizationId]")
-          .equals([Auth._account.did, Auth._account.organizationId])
-          .first()
-        if (existingUser) return
+      await new Promise((resolve, reject) => {
+        Serpens.addAction(() => {
+          if (!Auth._account) throw new Error("Account is not setup correctly.")
 
-        await Auth._storage.user.add({
-          did: Auth._account.did,
-          organizationId: Auth._account.organizationId,
-          username: Auth._account.username,
-          email: Auth._account.email,
-          bio: Auth._account.bio,
-          avatarUrl: Auth._account.avatarUrl,
-          imageSettings: Auth._account.imageSettings
-            ? Auth._account.imageSettings
-            : null,
-          isVerified: Auth._account.isVerified,
-          isPfpNft: Auth._account.isPfpNft,
-          pfp: Auth._account.pfp ? Auth._account.pfp : null,
-          wallet: {
-            address: Auth._account.walletAddress,
-            connectorType: Auth._account.walletConnectorType,
-            imported: Auth._account.walletImported,
-            recoveryMethod: Auth._account.walletRecoveryMethod,
-            clientType: Auth._account.walletClientType,
-          },
-          apple: Auth._account.appleSubject
-            ? {
-                subject: Auth._account.appleSubject,
-                email: Auth._account.email,
-              }
-            : null,
-          discord: Auth._account.discordSubject
-            ? {
-                subject: Auth._account.discordSubject,
-                email: Auth._account.discordEmail,
-                username: Auth._account.username,
-              }
-            : null,
-          farcaster: Auth._account.farcasterFid
-            ? {
-                fid: Auth._account.farcasterFid,
-                displayName: Auth._account.farcasterDisplayName,
-                ownerAddress: Auth._account.farcasterOwnerAddress,
-                pfp: Auth._account.farcasterPfp,
-                username: Auth._account.farcasterUsername,
-                signerPublicKey: Auth._account.farcasterSignerPublicKey,
-              }
-            : null,
-          github: Auth._account.githubSubject
-            ? {
-                subject: Auth._account.githubSubject,
-                email: Auth._account.githubEmail,
-                name: Auth._account.githubName,
-                username: Auth._account.githubUsername,
-              }
-            : null,
-          google: Auth._account.googleSubject
-            ? {
-                subject: Auth._account.googleSubject,
-                email: Auth._account.googleEmail,
-                name: Auth._account.googleName,
-              }
-            : null,
-          instagram: Auth._account.instagramSubject
-            ? {
-                subject: Auth._account.instagramSubject,
-                username: Auth._account.instagramUsername,
-              }
-            : null,
-          linkedin: Auth._account.linkedinSubject
-            ? {
-                subject: Auth._account.linkedinSubject,
-                email: Auth._account.linkedinEmail,
-                name: Auth._account.linkedinName,
-                vanityName: Auth._account.linkedinVanityName,
-              }
-            : null,
-          spotify: Auth._account.spotifySubject
-            ? {
-                subject: Auth._account.spotifySubject,
-                email: Auth._account.spotifyEmail,
-                name: Auth._account.spotifyName,
-              }
-            : null,
-          telegram: Auth._account.telegramUserId
-            ? {
-                firstName: Auth._account.telegramFirstName,
-                lastName: Auth._account.telegramLastName,
-                photoUrl: Auth._account.telegramPhotoUrl,
-                userId: Auth._account.telegramUserId,
-                username: Auth._account.telegramUsername,
-              }
-            : null,
-          tiktok: Auth._account.tiktokSubject
-            ? {
-                name: Auth._account.tiktokName,
-                subject: Auth._account.tiktokSubject,
-                username: Auth._account.tiktokUsername,
-              }
-            : null,
-          twitter: Auth._account.twitterSubject
-            ? {
-                name: Auth._account.twitterName,
-                subject: Auth._account.twitterSubject,
-                profilePictureUrl: Auth._account.twitterProfilePictureUrl,
-                username: Auth._account.twitterUsername,
-              }
-            : null,
-          proposalNotificationPush: Auth._account.proposalNotificationPush,
-          proposalNotificationSystem: Auth._account.proposalNotificationSystem,
-          orderNotificationPush: Auth._account.orderNotificationPush,
-          orderNotificationSystem: Auth._account.orderNotificationSystem,
-          followNotificationPush: Auth._account.followNotificationPush,
-          followNotificationSystem: Auth._account.followNotificationSystem,
-          collectionNotificationPush: Auth._account.collectionNotificationPush,
-          collectionNotificationSystem:
-            Auth._account.collectionNotificationSystem,
-          generalNotificationPush: Auth._account.generalNotificationPush,
-          generalNotificationSystem: Auth._account.generalNotificationSystem,
-          accountSuspended: Auth._account.accountSuspended,
-          allowNotification: Auth._account.allowNotification,
-          allowNotificationSound: Auth._account.allowNotificationSound,
-          visibility: Auth._account.visibility,
-          onlineStatus: Auth._account.onlineStatus,
-          allowReadReceipt: Auth._account.allowReadReceipt,
-          allowReceiveMessageFrom: Auth._account.allowReceiveMessageFrom,
-          allowAddToGroupsFrom: Auth._account.allowAddToGroupsFrom,
-          allowGroupsSuggestion: Auth._account.allowGroupsSuggestion,
-          e2ePublicKey: publicKey,
-          e2eEncryptedPrivateKey: encryptedPrivateKey,
-          createdAt: Auth._account.createdAt,
-          updatedAt: Auth._account.updatedAt,
+          Auth._storage.user
+            .add({
+              did: Auth._account.did,
+              organizationId: Auth._account.organizationId,
+              username: Auth._account.username,
+              email: Auth._account.email,
+              bio: Auth._account.bio,
+              avatarUrl: Auth._account.avatarUrl,
+              imageSettings: Auth._account.imageSettings
+                ? Auth._account.imageSettings
+                : null,
+              isVerified: Auth._account.isVerified,
+              isPfpNft: Auth._account.isPfpNft,
+              pfp: Auth._account.pfp ? Auth._account.pfp : null,
+              wallet: {
+                address: Auth._account.walletAddress,
+                connectorType: Auth._account.walletConnectorType,
+                imported: Auth._account.walletImported,
+                recoveryMethod: Auth._account.walletRecoveryMethod,
+                clientType: Auth._account.walletClientType,
+              },
+              apple: Auth._account.appleSubject
+                ? {
+                    subject: Auth._account.appleSubject,
+                    email: Auth._account.email,
+                  }
+                : null,
+              discord: Auth._account.discordSubject
+                ? {
+                    subject: Auth._account.discordSubject,
+                    email: Auth._account.discordEmail,
+                    username: Auth._account.username,
+                  }
+                : null,
+              farcaster: Auth._account.farcasterFid
+                ? {
+                    fid: Auth._account.farcasterFid,
+                    displayName: Auth._account.farcasterDisplayName,
+                    ownerAddress: Auth._account.farcasterOwnerAddress,
+                    pfp: Auth._account.farcasterPfp,
+                    username: Auth._account.farcasterUsername,
+                    signerPublicKey: Auth._account.farcasterSignerPublicKey,
+                  }
+                : null,
+              github: Auth._account.githubSubject
+                ? {
+                    subject: Auth._account.githubSubject,
+                    email: Auth._account.githubEmail,
+                    name: Auth._account.githubName,
+                    username: Auth._account.githubUsername,
+                  }
+                : null,
+              google: Auth._account.googleSubject
+                ? {
+                    subject: Auth._account.googleSubject,
+                    email: Auth._account.googleEmail,
+                    name: Auth._account.googleName,
+                  }
+                : null,
+              instagram: Auth._account.instagramSubject
+                ? {
+                    subject: Auth._account.instagramSubject,
+                    username: Auth._account.instagramUsername,
+                  }
+                : null,
+              linkedin: Auth._account.linkedinSubject
+                ? {
+                    subject: Auth._account.linkedinSubject,
+                    email: Auth._account.linkedinEmail,
+                    name: Auth._account.linkedinName,
+                    vanityName: Auth._account.linkedinVanityName,
+                  }
+                : null,
+              spotify: Auth._account.spotifySubject
+                ? {
+                    subject: Auth._account.spotifySubject,
+                    email: Auth._account.spotifyEmail,
+                    name: Auth._account.spotifyName,
+                  }
+                : null,
+              telegram: Auth._account.telegramUserId
+                ? {
+                    firstName: Auth._account.telegramFirstName,
+                    lastName: Auth._account.telegramLastName,
+                    photoUrl: Auth._account.telegramPhotoUrl,
+                    userId: Auth._account.telegramUserId,
+                    username: Auth._account.telegramUsername,
+                  }
+                : null,
+              tiktok: Auth._account.tiktokSubject
+                ? {
+                    name: Auth._account.tiktokName,
+                    subject: Auth._account.tiktokSubject,
+                    username: Auth._account.tiktokUsername,
+                  }
+                : null,
+              twitter: Auth._account.twitterSubject
+                ? {
+                    name: Auth._account.twitterName,
+                    subject: Auth._account.twitterSubject,
+                    profilePictureUrl: Auth._account.twitterProfilePictureUrl,
+                    username: Auth._account.twitterUsername,
+                  }
+                : null,
+              proposalNotificationPush: Auth._account.proposalNotificationPush,
+              proposalNotificationSystem:
+                Auth._account.proposalNotificationSystem,
+              orderNotificationPush: Auth._account.orderNotificationPush,
+              orderNotificationSystem: Auth._account.orderNotificationSystem,
+              followNotificationPush: Auth._account.followNotificationPush,
+              followNotificationSystem: Auth._account.followNotificationSystem,
+              collectionNotificationPush:
+                Auth._account.collectionNotificationPush,
+              collectionNotificationSystem:
+                Auth._account.collectionNotificationSystem,
+              generalNotificationPush: Auth._account.generalNotificationPush,
+              generalNotificationSystem:
+                Auth._account.generalNotificationSystem,
+              accountSuspended: Auth._account.accountSuspended,
+              allowNotification: Auth._account.allowNotification,
+              allowNotificationSound: Auth._account.allowNotificationSound,
+              visibility: Auth._account.visibility,
+              onlineStatus: Auth._account.onlineStatus,
+              allowReadReceipt: Auth._account.allowReadReceipt,
+              allowReceiveMessageFrom: Auth._account.allowReceiveMessageFrom,
+              allowAddToGroupsFrom: Auth._account.allowAddToGroupsFrom,
+              allowGroupsSuggestion: Auth._account.allowGroupsSuggestion,
+              e2ePublicKey: publicKey,
+              e2eEncryptedPrivateKey: encryptedPrivateKey,
+              createdAt: Auth._account.createdAt,
+              updatedAt: Auth._account.updatedAt,
+            })
+            .then(resolve)
+            .catch(reject)
         })
       })
     } catch (error) {
