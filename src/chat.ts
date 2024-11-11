@@ -548,6 +548,8 @@ export class Chat
         type,
       })
 
+      console.log(AUCfirstSet)
+
       if (AUCfirstSet instanceof QIError)
         throw new Error(JSON.stringify(AUCfirstSet))
 
@@ -4360,31 +4362,33 @@ export class Chat
       unprocessedKeys?: Maybe<string[]>
       items: Array<Conversation>
     } = {
-      unprocessedKeys: response.unprocessedKeys,
-      items: response.items.map((item) => {
-        return new Conversation({
-          ...this._parentConfig!,
-          id: item.id,
-          name: item.name,
-          description: item.description ? item.description : null,
-          imageURL: item.imageURL ? item.imageURL : null,
-          bannerImageURL: item.bannerImageURL ? item.bannerImageURL : null,
-          imageSettings: item.imageSettings ? item.imageSettings : null,
-          settings: item.settings ? item.settings : null,
-          membersIds: item.membersIds ? item.membersIds : null,
-          mutedBy: item.mutedBy ? item.mutedBy : null,
-          type: item.type,
-          lastMessageSentAt: item.lastMessageSentAt
-            ? item.lastMessageSentAt
-            : null,
-          ownerId: item.ownerId ? item.ownerId : null,
-          createdAt: item.createdAt,
-          updatedAt: item.updatedAt ? item.updatedAt : null,
-          deletedAt: item.deletedAt ? item.deletedAt : null,
-          client: this._client!,
-          realtimeClient: this._realtimeClient!,
-        })
-      }),
+      unprocessedKeys: response ? response.unprocessedKeys : null,
+      items: response
+        ? response.items.map((item) => {
+            return new Conversation({
+              ...this._parentConfig!,
+              id: item.id,
+              name: item.name,
+              description: item.description ? item.description : null,
+              imageURL: item.imageURL ? item.imageURL : null,
+              bannerImageURL: item.bannerImageURL ? item.bannerImageURL : null,
+              imageSettings: item.imageSettings ? item.imageSettings : null,
+              settings: item.settings ? item.settings : null,
+              membersIds: item.membersIds ? item.membersIds : null,
+              mutedBy: item.mutedBy ? item.mutedBy : null,
+              type: item.type,
+              lastMessageSentAt: item.lastMessageSentAt
+                ? item.lastMessageSentAt
+                : null,
+              ownerId: item.ownerId ? item.ownerId : null,
+              createdAt: item.createdAt,
+              updatedAt: item.updatedAt ? item.updatedAt : null,
+              deletedAt: item.deletedAt ? item.deletedAt : null,
+              client: this._client!,
+              realtimeClient: this._realtimeClient!,
+            })
+          })
+        : [],
     }
 
     return listConversations
