@@ -538,6 +538,55 @@ export class Chat
         })
   }
 
+  /** DO NOT DELETE THIS METHOD */
+
+  private static _silentRestoreSubscriptionSync() {
+    if (!Chat._instance) return
+
+    //let's clear the timeout
+    if (Chat._instance._syncTimeout) clearTimeout(Chat._instance._syncTimeout)
+
+    //let's unsubscribe everything from the previous results
+    for (const { conversationId } of Chat._instance._conversationsMap.filter(
+      (conversation) => conversation.type === "ACTIVE"
+    )) {
+      Chat._instance._removeSubscriptionsSync(conversationId)
+    }
+
+    //let's clear the _unsubscribeSyncSet from the previous results
+    Chat._instance._unsubscribeSyncSet = []
+
+    //add member to conversation. This event is global, basically the user is always listening if
+    //someone wants to add him into a conversation.
+    const onAddMembersToConversation =
+      Chat._instance.onAddMembersToConversation(
+        Chat._instance._onAddMembersToConversationSync
+      )
+
+    if (!(onAddMembersToConversation instanceof QIError)) {
+      const { unsubscribe, uuid } = onAddMembersToConversation
+      Chat._instance._unsubscribeSyncSet.push({
+        type: "onAddMembersToConversation",
+        unsubscribe,
+        uuid,
+        conversationId: "", //this value is updated inside the callback fired by the subscription
+      })
+    }
+
+    //now that we have a _conversationsMap array filled, we can add subscription for every conversation that is currently active
+    for (const { conversationId } of Chat._instance._conversationsMap.filter(
+      (conversation) => conversation.type === "ACTIVE"
+    )) {
+      Chat._instance._addSubscriptionsSync(conversationId)
+    }
+
+    ;(async () => {
+      if (!Chat._instance) return
+
+      await Chat._instance._sync(Chat._instance._syncingCounter)
+    })()
+  }
+
   /** syncing data with backend*/
 
   private async recoverUserConversations(
@@ -547,8 +596,6 @@ export class Chat
       let AUCfirstSet = await this.listAllActiveUserConversationIds({
         type,
       })
-
-      console.log(AUCfirstSet)
 
       if (AUCfirstSet instanceof QIError)
         throw new Error(JSON.stringify(AUCfirstSet))
@@ -615,31 +662,59 @@ export class Chat
         this._hookConversationUpdated = false
       }
 
-      await this._storage.insertBulkSafe(
-        "conversation",
-        conversationsItems.map((conversation: Conversation) => {
-          let isConversationArchived = false
+      if (conversationsItems.length > 0) {
+        await this._storage.insertBulkSafe(
+          "conversation",
+          conversationsItems.map((conversation: Conversation) => {
+            let isConversationArchived = false
 
-          if (currentUser.archivedConversations) {
-            const index = currentUser.archivedConversations.findIndex((id) => {
-              return id === conversation.id
-            })
+            if (currentUser.archivedConversations) {
+              const index = currentUser.archivedConversations.findIndex(
+                (id) => {
+                  return id === conversation.id
+                }
+              )
 
-            if (index > -1) isConversationArchived = true
-          }
+              if (index > -1) isConversationArchived = true
+            }
 
-          return Converter.fromConversationToLocalDBConversation(
-            conversation,
-            Auth.account!.did,
-            Auth.account!.organizationId,
-            isConversationArchived
-          )
-        })
-      )
+            return Converter.fromConversationToLocalDBConversation(
+              conversation,
+              Auth.account!.did,
+              Auth.account!.organizationId,
+              isConversationArchived
+            )
+          })
+        )
+      }
 
       return conversationsItems
     } catch (error) {
       console.log("[ERROR]: recoverUserConversations() -> ", error)
+      if (typeof error === "string") {
+        const jsonStart = error.indexOf("{")
+        const jsonPart = error.slice(jsonStart)
+
+        try {
+          let errorObject = JSON.parse(jsonPart)
+
+          if ("graphQLErrors" in errorObject) {
+            const { graphQLErrors } = errorObject
+            const { originalError } = graphQLErrors[0]
+
+            if (
+              "errorType" in originalError &&
+              originalError.errorType == "UnauthorizedException"
+            ) {
+              ;(async () => {
+                await Auth.fetchAuthToken()
+              })()
+            }
+          }
+        } catch (e) {
+          console.error("Error JSON parsing:", e)
+        }
+      }
     }
 
     return null
@@ -698,6 +773,8 @@ export class Chat
         this.setUserKeyPair(userKeyPair)
       }
 
+      console.log("user key pair ", this.getUserKeyPair())
+
       //now, from the private key of the user, we will decrypt all the information about the conversation member.
       //we will store these decrypted pairs public keys/private keys into the _keyPairsMap array.
       const _keyPairsMap: Array<KeyPairItem> = []
@@ -736,6 +813,8 @@ export class Chat
         throw new Error("Failed to convert a public/private key pair.")
 
       this.setKeyPairMap(_keyPairsMap)
+
+      console.log("key pair map is ", _keyPairsMap)
 
       return true
     } catch (error) {
@@ -909,14 +988,23 @@ export class Chat
       ActiveUserConversationType.Canceled
     )
 
+    console.log("activeConversations", activeConversations)
+    console.log("unactiveConversations", unactiveConversations)
+
     if (!activeConversations || !unactiveConversations) {
       this._emit("syncError", { error: `error during conversation syncing.` })
       this.unsync()
       return
     }
 
+    console.log(
+      "after check if (!activeConversations || !unactiveConversations)"
+    )
+
     //second operation. Recover the list of conversation member objects, in order to retrieve the public & private keys of all conversations.
     const keysRecovered = await this.recoverKeysFromConversations()
+    console.log("keysRecovered", keysRecovered)
+
     if (!keysRecovered) {
       this._emit("syncError", {
         error: `error during recovering of the keys from conversations.`,
@@ -925,12 +1013,17 @@ export class Chat
       return
     }
 
+    console.log("after check if (!keysRecovered)")
+
     //third operation. For each conversation, we need to download the messages if the lastMessageSentAt of the conversation is != null
     //and the date of the last message stored in the local db is less recent than the lastMessageSentAt date.
     const messagesRecovered = await this.recoverMessagesFromConversations([
       ...activeConversations,
       ...unactiveConversations,
     ])
+
+    console.log("messagesRecovered", messagesRecovered)
+
     if (!messagesRecovered) {
       this._emit("syncError", {
         error: `error during recovering of the messages from conversations.`,
@@ -939,9 +1032,13 @@ export class Chat
       return
     }
 
+    console.log("after check if (!messagesRecovered)")
+
     //let's setup an array of the conversations in the first sync cycle.
     //This will allow to map the conversations in every single cycle that comes after the first one.
     if (syncingCounter === 0) {
+      console.log("inside check if (syncingCounter === 0)")
+
       for (const activeConversation of activeConversations)
         this._conversationsMap.push({
           type: "ACTIVE",
@@ -955,6 +1052,11 @@ export class Chat
           conversationId: unactiveConversation.id,
           conversation: unactiveConversation,
         })
+
+      console.log(
+        "inside check if (syncingCounter === 0) this._conversationsMap is ",
+        this._conversationsMap
+      )
     } else {
       //this situation happens when a subscription between onAddMembersToConversation, onEjectMember, onLeaveConversation doesn't fire properly.
       //here we can check if there are differences between the previous sync and the current one
@@ -962,6 +1064,11 @@ export class Chat
       //since the subscription role is to keep the array _conversationsMap synchronized.
       //But it can be also the opposite. So inside this block we will check if there are conversations that need
       //subscriptions to be added or the opposite (so subscriptions that need to be removed)
+
+      console.log(
+        "inside else syncingCounter is > 0, now its value is ",
+        this._syncingCounter
+      )
 
       const conversations = [...activeConversations, ...unactiveConversations]
       const flatConversationMap = this._conversationsMap.map(
@@ -972,6 +1079,8 @@ export class Chat
         conversations,
         flatConversationMap
       )
+
+      console.log("added and removed are ", added, removed)
 
       if (added.length > 0)
         for (const conversation of added)
@@ -991,11 +1100,18 @@ export class Chat
 
     this._isSyncing = false
 
+    console.log(
+      "ready to emit sync or syncUpdate, this._syncingCounter is ",
+      this._syncingCounter
+    )
+
     syncingCounter === 0
       ? this._emit("sync")
       : this._emit("syncUpdate", this._syncingCounter)
 
     this._syncingCounter++
+
+    console.log("calling another _sync()")
 
     if (this._syncTimeout) clearTimeout(this._syncTimeout)
     this._syncTimeout = setTimeout(async () => {
@@ -6955,9 +7071,10 @@ export class Chat
     )) {
       this._removeSubscriptionsSync(conversationId)
     }
-    this._conversationsMap = []
-    this._keyPairsMap = []
-    this._userKeyPair = null
+    this._unsubscribeSyncSet = [] //subscription mapping array
+    this._conversationsMap = [] //conversations array
+    this._keyPairsMap = [] //conversations public/private keys
+    this._userKeyPair = null //user private/public key
     this._syncRunning = false
     Chat._detectiveMessage.clear()
   }

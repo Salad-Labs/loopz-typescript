@@ -16,12 +16,11 @@ import { FetchBody } from "@urql/core/dist/urql-core-chunk"
 import UUIDSubscriptionClient from "./uuidsubscriptionclient"
 import { Observable } from "subscriptions-transport-ws"
 import { v4 as uuid4 } from "uuid"
-import { SubscriptionGarbage } from "../../types/chat/subscriptiongarbage"
 import forge from "node-forge"
 import { KeyPairItem } from "../../types/chat/keypairitem"
 import { EngineInitConfig } from "../../types"
 import { DexieStorage } from "../app"
-import { Auth } from "../.."
+import { Auth, Chat } from "../.."
 
 /**
  * Represents an Engine class that extends Client and implements IEngine interface.
@@ -78,10 +77,6 @@ export class Engine implements IEngine {
    */
   private _offEventsFnsCollector: Maybe<Array<Function>> = null
   /**
-   * @property {Maybe<Array<SubscriptionGarbage>>} _unsubscribeGarbageCollector - an array of unsubscribe functions callback to remove the listeners from the subscription object
-   */
-  private _unsubscribeGarbageCollector: Maybe<Array<SubscriptionGarbage>> = null
-  /**
    * @property {number} WS_TIMEOUT - a static property representing the timeout before to close to the websocket connection
    */
   static readonly WS_TIMEOUT = 300000 //five minutes
@@ -101,7 +96,6 @@ export class Engine implements IEngine {
       host: null,
     }
     this._offEventsFnsCollector = []
-    this._unsubscribeGarbageCollector = []
   }
 
   /**
@@ -137,25 +131,6 @@ export class Engine implements IEngine {
   }
 
   /**
-   * Removes duplicated objects from the SubscriptionGarbage array based on the 'uuid' property.
-   * @param {SubscriptionGarbage[]} objects - An array of SubscriptionGarbage objects.
-   * @returns {SubscriptionGarbage[]} - An array of unique SubscriptionGarbage objects.
-   */
-  private _removeDuplicatedFromGarbageCollector(
-    objects: SubscriptionGarbage[]
-  ): SubscriptionGarbage[] {
-    const seen = new Map<string, SubscriptionGarbage>()
-
-    for (const object of objects) {
-      if (!seen.has(object.uuid)) {
-        seen.set(object.uuid, object)
-      }
-    }
-
-    return Array.from(seen.values())
-  }
-
-  /**
    * Handles the WebSocket client events by setting up event listeners for various events
    * such as connecting, reconnecting, disconnected, reconnected, error, and connected.
    * If the WebSocket client or event listener collector is not available, the function returns early.
@@ -170,15 +145,17 @@ export class Engine implements IEngine {
       console.log("connecting...")
     })
 
-    const offReconnecting = this._realtimeClient.on("reconnecting", () => {
+    const offReconnecting = this._realtimeClient.on("reconnecting", (e) => {
       this._isConnecting = true
       console.log("reconnecting...")
+      console.log(e)
     })
 
-    const offDisconnected = this._realtimeClient.on("disconnected", () => {
+    const offDisconnected = this._realtimeClient.on("disconnected", (e) => {
       this._isConnecting = false
       this._isConnected = false
       console.log("disconnected.")
+      console.log(e)
     })
 
     const offReconnected = this._realtimeClient.on("reconnected", (payload) => {
@@ -229,7 +206,8 @@ export class Engine implements IEngine {
           reconnect: true,
           timeout: Engine.WS_TIMEOUT,
         },
-        this._connectionParams!
+        this._connectionParams!,
+        this
       )
 
       this._connectCallback = callback
@@ -304,6 +282,14 @@ export class Engine implements IEngine {
     return this._client
   }
 
+  private _silentReset(): void {
+    if (!this._realtimeClient) return
+
+    this._reset()
+    this._makeWSClient(() => {}) //silent creation of a new realtimeClient instance
+    ;(Chat as any)._silentRestoreSubscriptionSync() //silent restore of the subscriptions from chat
+  }
+
   /**
    * Resets the state of the object by unsubscribing from all events, closing the realtime client,
    * and executing a callback function.
@@ -312,11 +298,9 @@ export class Engine implements IEngine {
   private _reset(): void {
     if (!this._realtimeClient) return
 
-    this._unsubscribeGarbage() //clear all the subscription generated with _subscription()
     this._realtimeClient.unsubscribeAll() //clear all the subscriptions of UUIDSubscriptionClient
     this._offUUIDSubscriptionEvents() //clear all the events of UUIDSubscriptionClient
     this._realtimeClient.close() //close the websocket connection
-    this._unsubscribeGarbageCollector = [] //reset the unsubscribe garbage collector array
     this._offEventsFnsCollector = [] //reset the UUIDSubscriptionClient off events collector array
 
     console.warn("connection closed.")
@@ -339,29 +323,6 @@ export class Engine implements IEngine {
           )
         }
       })
-    }
-  }
-
-  /**
-   * Private method to unsubscribe from garbage collector subscriptions.
-   * If there are subscriptions in the garbage collector, it unsubscribes from each one.
-   * If an error occurs during the unsubscribe process, a warning is logged.
-   * @returns void
-   */
-  private _unsubscribeGarbage(): void {
-    if (this._unsubscribeGarbageCollector) {
-      this._unsubscribeGarbageCollector.forEach(
-        (garbage: SubscriptionGarbage) => {
-          try {
-            garbage.unsubscribe()
-          } catch (error) {
-            console.warn(
-              `[warning]: an exception occured while the client was clearing the subscription [${garbage.uuid}] garbage. More info -> `,
-              error
-            )
-          }
-        }
-      )
     }
   }
 
@@ -421,7 +382,7 @@ export class Engine implements IEngine {
     try {
       const client = this._makeClient()
       if (!client) return this._returnQIErrorInternalClientNotDefined()
-      if (!Auth.authToken) throw new Error("authToken is not set")
+      if (!Auth.authToken) throw new Error("authToken is not setup properly.")
 
       const subscription = client.subscription<
         TSubscriptionResult,
@@ -575,62 +536,6 @@ export class Engine implements IEngine {
   disconnect() {
     return this._reset()
   }
-
-  /**
-   * Collects subscription garbage to be unsubscribed later.
-   * @param garbage - The subscription garbage or array of garbage to collect.
-   * @returns None
-   */
-  collect(garbage: SubscriptionGarbage | SubscriptionGarbage[]) {
-    if (!this._unsubscribeGarbageCollector) {
-      if (garbage instanceof Array) this._unsubscribeGarbageCollector = garbage
-      else this._unsubscribeGarbageCollector = [garbage]
-    } else {
-      if (garbage instanceof Array) {
-        garbage.forEach((g: SubscriptionGarbage) => {
-          if (
-            this._unsubscribeGarbageCollector?.findIndex(
-              (el: SubscriptionGarbage) => {
-                return el.uuid.toLowerCase() === g.uuid.toLowerCase()
-              }
-            ) === -1
-          )
-            this._unsubscribeGarbageCollector.push(g)
-        })
-      } else {
-        if (
-          this._unsubscribeGarbageCollector?.findIndex(
-            (el: SubscriptionGarbage) => {
-              return el.uuid.toLowerCase() === garbage.uuid.toLowerCase()
-            }
-          ) === -1
-        )
-          this._unsubscribeGarbageCollector.push(garbage)
-      }
-    }
-
-    this._removeDuplicatedFromGarbageCollector(
-      this._unsubscribeGarbageCollector
-    )
-  }
-
-  // TODO why the need of this function?
-  /**
-   * Get the JWT token stored in the class instance.
-   * @returns The JWT token as a string, or null if it is not set.
-   */
-  // getJWTToken(): Maybe<string> {
-  //   return this._authToken
-  // }
-
-  // TODO why the need of this function?
-  /**
-   * Get the API key.
-   * @returns {Maybe<string>} The API key, or null if it is not set.
-   */
-  // getApiKey(): Maybe<string> {
-  //   return this._apiKey
-  // }
 
   /**
    * Returns the API URL as a string or null if it is not set.

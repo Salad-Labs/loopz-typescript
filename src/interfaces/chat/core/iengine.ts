@@ -11,10 +11,6 @@ import forge from "node-forge"
 export interface IEngine {
   connect(): Promise<void>
   reconnect(): Promise<void>
-  collect(garbage: Array<SubscriptionGarbage> | SubscriptionGarbage): void
-  // refreshJWTToken(jwt: string): void;
-  // getJWTToken(): Maybe<string>;
-  // getApiKey(): Maybe<string>;
   getApiURL(): Maybe<string>
   getRealtimeApiURL(): Maybe<string>
   addKeyPairItem(newItem: KeyPairItem): Array<KeyPairItem>
