@@ -9,7 +9,7 @@ import {
 import { ApiResponse } from "./types/base/apiresponse"
 import { ApiKeyAuthorized, Maybe } from "./types/base"
 import { Crypto } from "./core"
-import { Account, DexieStorage } from "./core/app"
+import { DexieStorage } from "./core/app"
 import { AuthInternalEvents } from "./interfaces/auth/authinternalevents"
 import { PrivyErrorCode } from "./enums/adapter/auth/privyerrorcode"
 import { PrivyAuthInfo } from "./types/adapter"
@@ -17,7 +17,7 @@ import { AccountInitConfig } from "./types/auth/account"
 import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "./constants/app"
 import { AuthLinkMethod } from "./types/auth/authlinkmethod"
 import { getAccessToken } from "@privy-io/react-auth"
-import { Chat, Serpens } from "."
+import { Account, Chat, Serpens } from "."
 import { LocalDBUser } from "./core/app/database"
 
 /**

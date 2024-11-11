@@ -5,29 +5,16 @@ export abstract class Serpens {
   /**
    * Adds an action to the queue
    * @param action The action to add to the queue
-   * @returns A promise resolved with the action return value, fulfilled when the action in the queue gets executed
+   * @returns The position of the action in the queue, starting from 1
    */
-  public static addAction<T extends () => any>(
-    action: T
-  ): Promise<ReturnType<T>> {
-    const actionPromise = new Promise<ReturnType<T>>((resolve, reject) =>
-      Serpens._queue.push(async () => {
-        try {
-          const result = await action()
-          resolve(result)
-        } catch (error) {
-          reject(error)
-        }
-      })
-    )
-
+  public static addAction<T extends () => any>(action: T) {
+    const queuePosition = Serpens._queue.push(action)
     Serpens._processQueue()
 
-    return actionPromise
+    return queuePosition
   }
 
   private static async _processQueue() {
-    console.log(JSON.stringify(Serpens._queue))
     if (Serpens._isProcessing || Serpens._queue.length === 0) {
       return
     }
@@ -36,7 +23,7 @@ export abstract class Serpens {
 
     while (Serpens._queue.length > 0) {
       const action = Serpens._queue.shift()
-      if (!action) continue
+      if (!action) break
 
       await action()
     }

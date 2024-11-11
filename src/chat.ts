@@ -6978,20 +6978,26 @@ export class Chat
 
     const offset = (page - 1) * numberElements
     try {
-      const messages = await Serpens.addAction(() =>
-        this._storage.message
-          .orderBy("createdAt")
-          .reverse()
-          .offset(offset)
-          .limit(numberElements)
-          .filter(
-            (element) =>
-              element.conversationId === conversationId &&
-              element.userDid === Auth.account!.did &&
-              typeof element.deletedAt !== "undefined" &&
-              !!element.deletedAt
+      const messages = await new Promise<LocalDBMessage[]>(
+        (resolve, reject) => {
+          Serpens.addAction(() =>
+            this._storage.message
+              .orderBy("createdAt")
+              .reverse()
+              .offset(offset)
+              .limit(numberElements)
+              .filter(
+                (element) =>
+                  element.conversationId === conversationId &&
+                  element.userDid === Auth.account!.did &&
+                  typeof element.deletedAt !== "undefined" &&
+                  !!element.deletedAt
+              )
+              .toArray()
+              .then(resolve)
+              .catch(reject)
           )
-          .toArray()
+        }
       )
 
       return messages.map((message) => {
@@ -7052,19 +7058,25 @@ export class Chat
 
     const offset = (page - 1) * numberElements
     try {
-      const conversations = await Serpens.addAction(() =>
-        this._storage.conversation
-          .orderBy("createdAt")
-          .reverse()
-          .offset(offset)
-          .limit(numberElements)
-          .filter(
-            (element) =>
-              element.userDid === Auth.account!.did &&
-              typeof element.deletedAt !== "undefined" &&
-              !!element.deletedAt
+      const conversations = await new Promise<LocalDBConversation[]>(
+        (resolve, reject) => {
+          Serpens.addAction(() =>
+            this._storage.conversation
+              .orderBy("createdAt")
+              .reverse()
+              .offset(offset)
+              .limit(numberElements)
+              .filter(
+                (element) =>
+                  element.userDid === Auth.account!.did &&
+                  typeof element.deletedAt !== "undefined" &&
+                  !!element.deletedAt
+              )
+              .toArray()
+              .then(resolve)
+              .catch(reject)
           )
-          .toArray()
+        }
       )
 
       return conversations.map((conversation) => {

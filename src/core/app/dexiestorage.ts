@@ -8,8 +8,6 @@ import {
 import { BaseStorage } from "./basestorage"
 import { CreateOrConnectDexieArgs } from "../../types/app"
 import Dexie, { Table } from "dexie"
-import { getSerpensProxy } from "../utilities/getserpensproxy"
-import { GetSerpensProxyOptions } from "../../types/app/core/getserpensproxyoptions"
 import { Serpens } from "../utilities"
 
 export class DexieStorage extends Dexie implements BaseStorage {
@@ -47,11 +45,27 @@ export class DexieStorage extends Dexie implements BaseStorage {
 
     //let's store the current version of the database
     this.on("ready", async () => {
-      Serpens.addAction(async () => {
-        const dbVersion = (await this.migration.get("dbVersion"))?.value
-        if (dbVersion !== this._dbVersion)
-          await this.migration.put({ key: "dbVersion", value: this._dbVersion })
+      const dbVersion = await new Promise<
+        { key: string; value: any } | undefined
+      >((resolve, reject) => {
+        Serpens.addAction(() => {
+          this.migration.get("dbVersion").then(resolve).catch(reject)
+        })
       })
+
+      if (dbVersion?.value !== this._dbVersion) {
+        await new Promise((resolve, reject) => {
+          Serpens.addAction(() => {
+            this.migration
+              .put({
+                key: "dbVersion",
+                value: this._dbVersion,
+              })
+              .then(resolve)
+              .catch(reject)
+          })
+        })
+      }
     })
   }
 
