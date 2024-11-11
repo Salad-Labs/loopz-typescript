@@ -2,7 +2,7 @@ import { LoopzChatContextValue } from "./loopzchatcontextvalue"
 
 export type UseLoopzChat = () => Omit<
   LoopzChatContextValue,
-  "setIsConnected" | "setIsSynched"
+  "setIsConnected" | "setIsSynced"
 > & {
   // TODO add remaining functions signatures
   connect(): Promise<void>

@@ -20,10 +20,10 @@ export const useLoopzChat: UseLoopzChat = () => {
   const {
     isConnecting,
     isConnected,
-    isSynching,
-    isSynched,
+    isSyncing,
+    isSynced,
     setIsConnected,
-    setIsSynched,
+    setIsSynced,
   } = chatContext
 
   const connect = useCallback(() => {
@@ -61,29 +61,29 @@ export const useLoopzChat: UseLoopzChat = () => {
     if (!isAuthenticated) throw new UnauthenticatedError()
     if (isConnecting) throw new LoadingError("sync()", "Chat")
     if (!isConnected) throw new NotConnectedError()
-    if (isSynching) throw new LoadingError("sync()", "Chat")
+    if (isSyncing) throw new LoadingError("sync()", "Chat")
 
-    return !isSynched
+    return !isSynced
       ? instance.chat
           .sync()
-          .then(() => setIsSynched(true))
-          .catch(() => setIsSynched(false))
+          .then(() => setIsSynced(true))
+          .catch(() => setIsSynced(false))
       : Promise.resolve()
   }, [
     initialized,
     isAuthenticated,
     isConnecting,
     isConnected,
-    isSynching,
-    isSynched,
+    isSyncing,
+    isSynced,
     instance,
   ])
 
   return {
     isConnecting,
     isConnected,
-    isSynching,
-    isSynched,
+    isSyncing,
+    isSynced,
     connect,
     reconnect,
     disconnect,
