@@ -1,4 +1,4 @@
-import { Auth, Chat } from "../.."
+import { Auth, Chat, Serpens } from "../.."
 import { Converter, getUniquePropertyValues, Message, QIError } from ".."
 import { Maybe } from "../../types"
 import { DexieStorage } from "../app"
@@ -93,15 +93,21 @@ export class DetectiveMessage {
     this._isObserveRunning = true
 
     //we get the messages from the queue. If we have some results, we filter for the conversation id
-    const queues = await DetectiveMessage._storage.transaction(
-      "r",
-      "detectivemessagequeue",
-      async (tx) => {
-        return (
-          await DetectiveMessage._storage.detectivemessagequeue.toArray()
-        ).filter(
-          (element) => element.conversationId === this._currentConversationId
-        )
+    const queues = await new Promise<LocalDBDetectiveMessageQueue[]>(
+      (resolve, reject) => {
+        Serpens.addAction(() => {
+          DetectiveMessage._storage.detectivemessagequeue
+            .toArray()
+            .then((array) => {
+              resolve(
+                array.filter(
+                  (element) =>
+                    element.conversationId === this._currentConversationId
+                )
+              )
+            })
+            .catch(reject)
+        })
       }
     )
 
@@ -171,12 +177,16 @@ export class DetectiveMessage {
           )
 
           //finally we mark the queue item as processed
-          await DetectiveMessage._storage.detectivemessagequeue.update(
-            queueItem,
-            {
-              processed: true,
-            }
-          )
+          await new Promise((resolve, reject) => {
+            Serpens.addAction(() => {
+              DetectiveMessage._storage.detectivemessagequeue
+                .update(queueItem, {
+                  processed: true,
+                })
+                .then(resolve)
+                .catch(reject)
+            })
+          })
         } catch (error) {
           console.log(error)
           continue
@@ -208,13 +218,16 @@ export class DetectiveMessage {
     this._isScanRunning = true
 
     //we get the messages stored of the current user
-    const clues = await DetectiveMessage._storage.transaction(
-      "r",
-      "detectivemessagecollector",
-      async () => {
-        return (
-          await DetectiveMessage._storage.detectivemessagecollector.toArray()
-        ).sort((a, b) => a.order - b.order)
+    const clues = await new Promise<LocalDBDetectiveMessageCollector[]>(
+      (resolve, reject) => {
+        Serpens.addAction(() => {
+          DetectiveMessage._storage.detectivemessagecollector
+            .toArray()
+            .then((array) => {
+              resolve(array.sort((a, b) => a.order - b.order))
+            })
+            .catch(reject)
+        })
       }
     )
 

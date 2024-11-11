@@ -23,7 +23,7 @@ export interface BaseStorage {
       | "detectivemessagequeue",
     key: string,
     value: string | string[]
-  ): Promise<void>
+  ): Promise<number>
   deleteBulk(
     tableName:
       | "user"

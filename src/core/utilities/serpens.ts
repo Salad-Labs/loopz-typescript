@@ -15,6 +15,7 @@ export abstract class Serpens {
   }
 
   private static async _processQueue() {
+    console.log(JSON.stringify(Serpens._queue))
     if (Serpens._isProcessing || Serpens._queue.length === 0) {
       return
     }

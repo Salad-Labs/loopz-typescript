@@ -9,8 +9,9 @@ import { Client } from "../client"
 import { QIError } from ".."
 import { ApiResponse } from "../../types/base/apiresponse"
 import { DexieStorage } from "../app"
-import { Auth, Chat } from "../.."
+import { Auth, Chat, Serpens } from "../.."
 import { AddGroupFrom, ReceiveMessageFrom, UserOnlineStatus } from "../../enums"
+import { LocalDBUser } from "../app/database"
 
 export class Account implements AccountSchema, AccountEngine {
   readonly did: string
@@ -448,19 +449,33 @@ export class Account implements AccountSchema, AccountEngine {
         ;(this as any).imageSettings.imageZoom = imageSettings.imageZoom
       }
 
-      await this._storage.transaction("rw", this._storage.user, async () => {
-        const user = await this._storage.user
-          .where("[did+organizationId]")
-          .equals([this.did, this.organizationId])
-          .first()
-        if (!user) return
+      const user = await new Promise<LocalDBUser | undefined>(
+        (resolve, reject) => {
+          Serpens.addAction(() => {
+            this._storage.user
+              .where("[did+organizationId]")
+              .equals([this.did, this.organizationId])
+              .first()
+              .then(resolve)
+              .catch(reject)
+          })
+        }
+      )
 
-        await this._storage.user.update(user, {
-          username: username ? username : undefined,
-          avatarUrl: avatarUrl ? avatarUrl.toString() : undefined,
-          bio: bio ? bio : undefined,
-          pfp: pfp ? pfp : undefined,
-          imageSettings: imageSettings ? imageSettings : undefined,
+      if (!user) return
+
+      await new Promise((resolve, reject) => {
+        Serpens.addAction(() => {
+          this._storage.user
+            .update(user, {
+              username: username ? username : undefined,
+              avatarUrl: avatarUrl ? avatarUrl.toString() : undefined,
+              bio: bio ? bio : undefined,
+              pfp: pfp ? pfp : undefined,
+              imageSettings: imageSettings ? imageSettings : undefined,
+            })
+            .then(resolve)
+            .catch(reject)
         })
       })
     } catch (error: any) {
@@ -501,34 +516,50 @@ export class Account implements AccountSchema, AccountEngine {
       if (!response) throw new Error("Response is invalid.")
       if (response!.code !== 200) throw new Error("Error")
 
-      await this._storage.transaction("rw", this._storage.user, async () => {
-        const user = await this._storage.user
-          .where("[did+organizationId]")
-          .equals([this.did, this.organizationId])
-          .first()
-        if (!user) return
+      const user = await new Promise<LocalDBUser | undefined>(
+        (resolve, reject) => {
+          Serpens.addAction(() => {
+            this._storage.user
+              .where("[did+organizationId]")
+              .equals([this.did, this.organizationId])
+              .first()
+              .then(resolve)
+              .catch(reject)
+          })
+        }
+      )
 
-        await this._storage.user.update(user, {
-          proposalNotificationPush:
-            setting === "proposalNotificationPush" ? enabled : undefined,
-          proposalNotificationSystem:
-            setting === "proposalNotificationSystem" ? enabled : undefined,
-          orderNotificationPush:
-            setting === "orderNotificationPush" ? enabled : undefined,
-          orderNotificationSystem:
-            setting === "orderNotificationSystem" ? enabled : undefined,
-          followNotificationPush:
-            setting === "followNotificationSystem" ? enabled : undefined,
-          followNotificationSystem:
-            setting === "followNotificationSystem" ? enabled : undefined,
-          collectionNotificationPush:
-            setting === "collectionNotificationPush" ? enabled : undefined,
-          collectionNotificationSystem:
-            setting === "collectionNotificationSystem" ? enabled : undefined,
-          generalNotificationPush:
-            setting === "generalNotificationPush" ? enabled : undefined,
-          generalNotificationSystem:
-            setting === "generalNotificationSystem" ? enabled : undefined,
+      if (!user) return
+
+      await new Promise((resolve, reject) => {
+        Serpens.addAction(() => {
+          this._storage.user
+            .update(user, {
+              proposalNotificationPush:
+                setting === "proposalNotificationPush" ? enabled : undefined,
+              proposalNotificationSystem:
+                setting === "proposalNotificationSystem" ? enabled : undefined,
+              orderNotificationPush:
+                setting === "orderNotificationPush" ? enabled : undefined,
+              orderNotificationSystem:
+                setting === "orderNotificationSystem" ? enabled : undefined,
+              followNotificationPush:
+                setting === "followNotificationSystem" ? enabled : undefined,
+              followNotificationSystem:
+                setting === "followNotificationSystem" ? enabled : undefined,
+              collectionNotificationPush:
+                setting === "collectionNotificationPush" ? enabled : undefined,
+              collectionNotificationSystem:
+                setting === "collectionNotificationSystem"
+                  ? enabled
+                  : undefined,
+              generalNotificationPush:
+                setting === "generalNotificationPush" ? enabled : undefined,
+              generalNotificationSystem:
+                setting === "generalNotificationSystem" ? enabled : undefined,
+            })
+            .then(resolve)
+            .catch(reject)
         })
       })
     } catch (error: any) {
@@ -555,14 +586,25 @@ export class Account implements AccountSchema, AccountEngine {
 
       if (response instanceof QIError) throw response
 
-      await this._storage.transaction("rw", this._storage.user, async () => {
-        const user = await this._storage.user
-          .where("[did+organizationId]")
-          .equals([this.did, this.organizationId])
-          .first()
-        if (!user) return
+      const user = await new Promise<LocalDBUser | undefined>(
+        (resolve, reject) => {
+          Serpens.addAction(() => {
+            this._storage.user
+              .where("[did+organizationId]")
+              .equals([this.did, this.organizationId])
+              .first()
+              .then(resolve)
+              .catch(reject)
+          })
+        }
+      )
 
-        await this._storage.user.update(user, settings)
+      if (!user) return
+
+      await new Promise((resolve, reject) => {
+        Serpens.addAction(() => {
+          this._storage.user.update(user, settings).then(resolve).catch(reject)
+        })
       })
     } catch (error) {
       console.error(error)

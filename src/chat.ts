@@ -784,14 +784,25 @@ export class Chat
         }
 
         //messages handling
-        let lastMessageStored = await this._storage.message
-          .orderBy("createdAt")
-          .filter(
-            (element) =>
-              element.origin === "USER" && element.userDid === Auth.account!.did
-          )
-          .reverse()
-          .first()
+        let lastMessageStored = await new Promise<LocalDBMessage | undefined>(
+          (resolve, reject) => {
+            Serpens.addAction(() => {
+              this._storage.message
+                .orderBy("createdAt")
+                .filter(
+                  (element) =>
+                    element.origin === "USER" &&
+                    element.userDid === Auth.account!.did
+                )
+                .reverse()
+                .first()
+                .then((value) => {
+                  resolve(value)
+                })
+                .catch(reject)
+            })
+          }
+        )
 
         const canDownloadMessages =
           !lastMessageStored ||
@@ -1238,8 +1249,15 @@ export class Chat
           "[conversationId+userDid]",
           [response.conversationId, Auth.account!.did]
         )
-        await this._storage.conversation.update(conversation, {
-          deletedAt: null,
+        await new Promise((resolve, reject) => {
+          Serpens.addAction(() => {
+            this._storage.conversation
+              .update(conversation, {
+                deletedAt: null,
+              })
+              .then(resolve)
+              .catch(reject)
+          })
         })
 
         this._emit("messageReceived", {
@@ -7113,16 +7131,25 @@ export class Chat
         return a.filter((k) => set.has(k))
       })
 
-      return this._storage.message
-        .where(":id")
-        .anyOf(reduced)
-        .toArray()
-        .then((messages) =>
-          messages.map((message) => ({
-            messageId: message.id,
-            conversationId: message.conversationId,
-          }))
-        )
+      return new Promise<Array<{ conversationId: string; messageId: string }>>(
+        (resolve, reject) => {
+          Serpens.addAction(() => {
+            this._storage.message
+              .where(":id")
+              .anyOf(reduced)
+              .toArray()
+              .then((messages) =>
+                resolve(
+                  messages.map((message) => ({
+                    messageId: message.id,
+                    conversationId: message.conversationId,
+                  }))
+                )
+              )
+              .catch(reject)
+          })
+        }
+      )
     } catch (error) {
       throw error
     }
@@ -7485,18 +7512,21 @@ export class Chat
           Buffer.from(Auth.account!.e2eSecretIV, "hex").toString("base64")
         )
 
-        await this._storage.transaction("rw", this._storage.user, async () => {
-          let user = await this._storage.get("user", "[did+organizationId]", [
-            Auth.account!.did,
-            Auth.account!.organizationId,
-          ])
+        let user = await this._storage.get("user", "[did+organizationId]", [
+          Auth.account!.did,
+          Auth.account!.organizationId,
+        ])
 
-          await this._storage.user.update(user, {
-            e2eEncryptedPrivateKey: privateKeyForLocalDB,
-            e2ePublicKey: personalPublicKeyPem,
+        await new Promise((resolve, reject) => {
+          Serpens.addAction(() => {
+            this._storage.user
+              .update(user, {
+                e2eEncryptedPrivateKey: privateKeyForLocalDB,
+                e2ePublicKey: personalPublicKeyPem,
+              })
+              .then(resolve)
+              .catch(reject)
           })
-
-          return true
         })
 
         this._canChat = true
