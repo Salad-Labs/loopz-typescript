@@ -1060,51 +1060,60 @@ export class Auth implements AuthInternalEvents {
   }
 
   public static async fetchAuthToken() {
-    console.log("fetch new token")
-    const token = await getAccessToken()
+    try {
+      console.log("fetch new token")
+      const token = await getAccessToken()
 
-    console.log("old real time auth token is", Auth._realtimeAuthorizationToken)
-    console.log("old token is ", Auth.authToken)
-    console.log("new token is ", token)
+      console.log(
+        "old real time auth token is",
+        Auth._realtimeAuthorizationToken
+      )
+      console.log("old token is ", Auth.authToken)
+      console.log("new token is ", token)
 
-    Auth.authToken = token
+      Auth.authToken = token
 
-    console.log("confirmation for new token ", Auth.authToken)
-    console.log(
-      "confirmation for new real time auth token ",
-      Auth._realtimeAuthorizationToken
-    )
+      console.log("confirmation for new token ", Auth.authToken)
+      console.log(
+        "confirmation for new real time auth token ",
+        Auth._realtimeAuthorizationToken
+      )
 
-    let lastUserLoggedKey = window.localStorage.getItem(
-      CLIENT_DB_KEY_LAST_USER_LOGGED
-    )
+      let lastUserLoggedKey = window.localStorage.getItem(
+        CLIENT_DB_KEY_LAST_USER_LOGGED
+      )
 
-    if (!token) throw new Error("Impossible to refresh the token.")
+      if (!token) throw new Error("Impossible to refresh the token.")
 
-    if (!lastUserLoggedKey)
-      throw new Error("Impossible to detect a logged user key.")
+      if (!lastUserLoggedKey)
+        throw new Error("Impossible to detect a logged user key.")
 
-    console.log(
-      "lastuserlogged key from local storage is ",
-      JSON.parse(lastUserLoggedKey)
-    )
+      console.log(
+        "lastuserlogged key from local storage is ",
+        JSON.parse(lastUserLoggedKey)
+      )
 
-    lastUserLoggedKey = JSON.parse(lastUserLoggedKey)
-    ;(
-      lastUserLoggedKey as unknown as {
-        did: string
-        token: string
-        organizationId: string
-      }
-    ).token = token
-    window.localStorage.setItem(
-      CLIENT_DB_KEY_LAST_USER_LOGGED,
-      JSON.stringify(lastUserLoggedKey)
-    )
+      lastUserLoggedKey = JSON.parse(lastUserLoggedKey)
+      ;(
+        lastUserLoggedKey as unknown as {
+          did: string
+          token: string
+          organizationId: string
+        }
+      ).token = token
+      window.localStorage.setItem(
+        CLIENT_DB_KEY_LAST_USER_LOGGED,
+        JSON.stringify(lastUserLoggedKey)
+      )
 
-    console.log(
-      "setItem performed on local storage with value",
-      lastUserLoggedKey
-    )
+      console.log(
+        "setItem performed on local storage with value",
+        lastUserLoggedKey
+      )
+    } catch (error) {
+      console.log("[fetchAuthToken error]:", error)
+      console.log("logging out...")
+      Auth._instance?.logout()
+    }
   }
 }
