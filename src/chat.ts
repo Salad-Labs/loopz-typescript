@@ -1762,7 +1762,8 @@ export class Chat
     //add reaction(conversationId)
     const onAddReaction = this.onAddReaction(
       conversationId,
-      this._onAddReactionSync
+      this._onAddReactionSync,
+      true
     )
 
     if (!(onAddReaction instanceof QIError)) {
@@ -1773,12 +1774,21 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onAddReaction)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+      }
     }
 
     //remove reaction(conversationId)
     const onRemoveReaction = this.onRemoveReaction(
       conversationId,
-      this._onRemoveReactionSync
+      this._onRemoveReactionSync,
+      true
     )
 
     if (!(onRemoveReaction instanceof QIError)) {
@@ -1789,12 +1799,21 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onRemoveReaction)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+      }
     }
 
     //send message(conversationId)
     const onSendMessage = this.onSendMessage(
       conversationId,
-      this._onSendMessageSync
+      this._onSendMessageSync,
+      true
     )
 
     if (!(onSendMessage instanceof QIError)) {
@@ -1805,12 +1824,21 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onSendMessage)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+      }
     }
 
     //edit message(conversationId)
     const onEditMessage = this.onEditMessage(
       conversationId,
-      this._onEditMessageSync
+      this._onEditMessageSync,
+      true
     )
 
     if (!(onEditMessage instanceof QIError)) {
@@ -1821,12 +1849,21 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onEditMessage)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+      }
     }
 
     //delete message(conversationId)
     const onDeleteMessage = this.onDeleteMessage(
       conversationId,
-      this._onDeleteMessageSync
+      this._onDeleteMessageSync,
+      true
     )
 
     if (!(onDeleteMessage instanceof QIError)) {
@@ -1837,12 +1874,21 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onDeleteMessage)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+      }
     }
 
     //delete batch messages(conversationId)
     const onBatchDeleteMessages = this.onBatchDeleteMessages(
       conversationId,
-      this._onBatchDeleteMessagesSync
+      this._onBatchDeleteMessagesSync,
+      true
     )
 
     if (!(onBatchDeleteMessages instanceof QIError)) {
@@ -1853,12 +1899,21 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onBatchDeleteMessages)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+      }
     }
 
     //update settings group(conversationId)
     const onUpdateConversationGroup = this.onUpdateConversationGroup(
       conversationId,
-      this._onUpdateConversationGroupSync
+      this._onUpdateConversationGroupSync,
+      true
     )
 
     if (!(onUpdateConversationGroup instanceof QIError)) {
@@ -1869,12 +1924,21 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onUpdateConversationGroup)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+      }
     }
 
     //eject member(conversationId)
     const onEjectMember = this.onEjectMember(
       conversationId,
-      this._onEjectMemberSync
+      this._onEjectMemberSync,
+      true
     )
 
     if (!(onEjectMember instanceof QIError)) {
@@ -1885,12 +1949,21 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onEjectMember)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+      }
     }
 
     //leave group/conversation(conversationId)
     const onLeaveConversation = this.onLeaveConversation(
       conversationId,
-      this._onLeaveConversationSync
+      this._onLeaveConversationSync,
+      true
     )
 
     if (!(onLeaveConversation instanceof QIError)) {
@@ -1901,12 +1974,21 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onLeaveConversation)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+      }
     }
 
     //mute conversation(conversationId)
     const onMuteConversation = this.onMuteConversation(
       conversationId,
-      this._onMuteConversationSync
+      this._onMuteConversationSync,
+      true
     )
 
     if (!(onMuteConversation instanceof QIError)) {
@@ -1917,12 +1999,21 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onMuteConversation)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+      }
     }
 
     //unmute conversation(conversationId)
     const onUnmuteConversation = this.onUnmuteConversation(
       conversationId,
-      this._onUnmuteConversationSync
+      this._onUnmuteConversationSync,
+      true
     )
 
     if (!(onUnmuteConversation instanceof QIError)) {
@@ -1933,6 +2024,14 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onUnmuteConversation)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+      }
     }
   }
 
@@ -5775,7 +5874,8 @@ export class Chat
         }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): SubscriptionGarbage | QIError {
     const key = "onSendMessage"
     const metasubcription = this._subscription<
@@ -5783,7 +5883,18 @@ export class Chat
       { onSendMessage: MessageGraphQL }
     >(onSendMessage, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -5794,6 +5905,15 @@ export class Chat
       >("onSendMessage", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -5885,7 +6005,8 @@ export class Chat
         SubscriptionOnEditMessageArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onEditMessage"
     const metasubcription = this._subscription<
@@ -5893,7 +6014,18 @@ export class Chat
       { onEditMessage: MessageGraphQL }
     >(onEditMessage, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -5904,6 +6036,15 @@ export class Chat
       >("onEditMessage", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -5995,7 +6136,8 @@ export class Chat
         SubscriptionOnBatchDeleteMessagesArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onBatchDeleteMessages"
     const metasubcription = this._subscription<
@@ -6003,7 +6145,18 @@ export class Chat
       { onBatchDeleteMessages: BatchDeleteMessagesResultGraphQL }
     >(onBatchDeleteMessages, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -6014,6 +6167,15 @@ export class Chat
       >("onBatchDeleteMessages", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -6040,7 +6202,8 @@ export class Chat
         SubscriptionOnDeleteMessageArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onDeleteMessage"
     const metasubcription = this._subscription<
@@ -6048,7 +6211,18 @@ export class Chat
       { onDeleteMessage: MessageGraphQL }
     >(onDeleteMessage, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -6059,7 +6233,17 @@ export class Chat
       >("onDeleteMessage", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
+
         return
       }
 
@@ -6150,7 +6334,8 @@ export class Chat
         SubscriptionOnAddReactionArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onAddReaction"
     const metasubcription = this._subscription<
@@ -6158,7 +6343,18 @@ export class Chat
       { onAddReaction: MessageGraphQL }
     >(onAddReaction, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -6169,6 +6365,15 @@ export class Chat
       >("onAddReaction", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -6260,7 +6465,8 @@ export class Chat
         SubscriptionOnRemoveReactionArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onRemoveReaction"
     const metasubcription = this._subscription<
@@ -6268,7 +6474,18 @@ export class Chat
       { onRemoveReaction: MessageGraphQL }
     >(onRemoveReaction, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -6279,6 +6496,15 @@ export class Chat
       >("onRemoveReaction", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -6370,7 +6596,8 @@ export class Chat
         SubscriptionOnAddPinMessageArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onAddPinMessage"
     const metasubcription = this._subscription<
@@ -6378,7 +6605,18 @@ export class Chat
       { onAddPinMessage: MessageGraphQL }
     >(onAddPinMessage, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -6389,6 +6627,15 @@ export class Chat
       >("onAddPinMessage", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -6480,7 +6727,8 @@ export class Chat
         SubscriptionOnRemovePinMessageArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onRemovePinMessage"
     const metasubcription = this._subscription<
@@ -6488,7 +6736,18 @@ export class Chat
       { onRemovePinMessage: MessageGraphQL }
     >(onRemovePinMessage, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -6499,6 +6758,15 @@ export class Chat
       >("onRemovePinMessage", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -6590,7 +6858,8 @@ export class Chat
         SubscriptionOnUpdateConversationGroupArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onUpdateConversationGroup"
     const metasubcription = this._subscription<
@@ -6598,7 +6867,18 @@ export class Chat
       { onUpdateConversationGroup: ConversationGraphQL }
     >(onUpdateConversationGroup, key, { id })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -6609,6 +6889,15 @@ export class Chat
       >("onUpdateConversationGroup", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -6657,7 +6946,8 @@ export class Chat
         SubscriptionOnEjectMemberArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onEjectMember"
     const metasubcription = this._subscription<
@@ -6665,7 +6955,18 @@ export class Chat
       { onEjectMember: MemberOutResultGraphQL }
     >(onEjectMember, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -6676,6 +6977,15 @@ export class Chat
       >("onEjectMember", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -6799,7 +7109,8 @@ export class Chat
         SubscriptionOnLeaveConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onLeaveConversation"
     const metasubcription = this._subscription<
@@ -6807,7 +7118,18 @@ export class Chat
       { onLeaveConversation: MemberOutResultGraphQL }
     >(onLeaveConversation, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -6818,6 +7140,15 @@ export class Chat
       >("onLeaveConversation", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -6935,7 +7266,8 @@ export class Chat
         SubscriptionOnAddPinConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onAddPinConversation"
     const metasubcription = this._subscription<
@@ -6943,7 +7275,18 @@ export class Chat
       { onAddPinConversation: ConversationGraphQL }
     >(onAddPinConversation, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -6954,6 +7297,15 @@ export class Chat
       >("onAddPinConversation", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -6996,7 +7348,8 @@ export class Chat
         SubscriptionOnRemovePinConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onRemovePinConversation"
     const metasubcription = this._subscription<
@@ -7004,7 +7357,18 @@ export class Chat
       { onRemovePinConversation: ConversationGraphQL }
     >(onRemovePinConversation, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -7015,6 +7379,15 @@ export class Chat
       >("onRemovePinConversation", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -7057,7 +7430,8 @@ export class Chat
         SubscriptionOnMuteConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onMuteConversation"
     const metasubcription = this._subscription<
@@ -7065,7 +7439,18 @@ export class Chat
       { onMuteConversation: ConversationGraphQL }
     >(onMuteConversation, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -7076,6 +7461,15 @@ export class Chat
       >("onMuteConversation", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -7118,7 +7512,8 @@ export class Chat
         SubscriptionOnUnmuteConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onUnmuteConversation"
     const metasubcription = this._subscription<
@@ -7126,7 +7521,18 @@ export class Chat
       { onUnmuteConversation: ConversationGraphQL }
     >(onUnmuteConversation, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -7137,6 +7543,15 @@ export class Chat
       >("onUnmuteConversation", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -7184,7 +7599,8 @@ export class Chat
         { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onAddMembersToConversation"
     const metasubcription = this._subscription<
@@ -7192,7 +7608,18 @@ export class Chat
       { onAddMembersToConversation: ListConversationMembersGraphQL }
     >(onAddMembersToConversation, key, null)
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -7203,6 +7630,15 @@ export class Chat
       >("onAddMembersToConversation", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -7246,7 +7682,8 @@ export class Chat
         SubscriptionOnUpdateUserArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onUpdateUser"
     const metasubcription = this._subscription<
@@ -7254,7 +7691,18 @@ export class Chat
       { onUpdateUser: UserGraphQL }
     >(onUpdateUser, key, { id })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -7265,6 +7713,15 @@ export class Chat
       >("onUpdateUser", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -7327,7 +7784,8 @@ export class Chat
         SubscriptionOnRequestTradeArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onRequestTrade"
     const metasubcription = this._subscription<
@@ -7335,7 +7793,18 @@ export class Chat
       { onRequestTrade: ConversationTradingPoolGraphQL }
     >(onRequestTrade, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -7346,6 +7815,15 @@ export class Chat
       >("onRequestTrade", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -7383,7 +7861,8 @@ export class Chat
         SubscriptionOnDeleteRequestTradeArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onDeleteRequestTrade"
     const metasubcription = this._subscription<
@@ -7391,7 +7870,18 @@ export class Chat
       { onDeleteRequestTrade: ConversationTradingPoolGraphQL }
     >(onDeleteRequestTrade, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -7402,6 +7892,15 @@ export class Chat
       >("onDeleteRequestTrade", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -7439,7 +7938,8 @@ export class Chat
         SubscriptionOnUpdateRequestTradeArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onUpdateRequestTrade"
     const metasubcription = this._subscription<
@@ -7447,7 +7947,18 @@ export class Chat
       { onUpdateRequestTrade: ConversationTradingPoolGraphQL }
     >(onUpdateRequestTrade, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubcription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubcription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubcription
+    }
 
     const { subscribe, uuid } = metasubcription
     const { unsubscribe } = subscribe((result) => {
@@ -7458,6 +7969,15 @@ export class Chat
       >("onUpdateRequestTrade", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -7562,7 +8082,8 @@ export class Chat
     //add member to conversation. This event is global, basically the user is always listening if
     //someone wants to add him into a conversation.
     const onAddMembersToConversation = this.onAddMembersToConversation(
-      this._onAddMembersToConversationSync
+      this._onAddMembersToConversationSync,
+      true
     )
 
     if (!(onAddMembersToConversation instanceof QIError)) {
@@ -7573,6 +8094,12 @@ export class Chat
         uuid,
         conversationId: "", //this value is updated inside the callback fired by the subscription
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onAddMembersToConversation)
+      if (error) {
+        await Auth.fetchAuthToken()
+        this.silentReset()
+      }
     }
 
     //now that we have a _conversationsMap array filled, we can add subscription for every conversation that is currently active
