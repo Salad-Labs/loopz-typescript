@@ -1754,7 +1754,7 @@ export class Chat
       }
     } catch (error) {
       console.log("[ERROR]: _onUnmuteConversationSync() -> ", error)
-      this._emit("conversationMutedError", error)
+      this._emit("conversationUnmutedError", error)
     }
   }
 

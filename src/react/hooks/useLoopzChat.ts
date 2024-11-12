@@ -7,8 +7,46 @@ import { NotConnectedError } from "../../errors/NotConnectedError"
 import { LoopzContext } from "../context/loopzcontext"
 import { LoopzAuthContext } from "../context/loopzauthcontext"
 import { LoadingError } from "../../errors/AuthLoadingError"
+import { useLoopzChatEvent } from "./useLoopzChatEvent"
 
-export const useLoopzChat: UseLoopzChat = () => {
+export const useLoopzChat: UseLoopzChat = ({
+  onSyncing,
+  onSync,
+  onSyncError,
+  onSyncUpdate,
+  onMessageCreatedLDB,
+  onMessageCreatedLDBError,
+  onMessageDeletedLDB,
+  onMessageDeletedLDBError,
+  onMessageUpdatedLDB,
+  onMessageUpdatedLDBError,
+  onMessageReceived,
+  onMessageReceivedError,
+  onMessageUpdated,
+  onMessageUpdatedError,
+  onMessageDeleted,
+  onMessageDeletedError,
+  onBatchMessagesDeleted,
+  onBatchMessagesDeletedError,
+  onConversationCreatedLDB,
+  onConversationCreatedLDBError,
+  onConversationUpdatedLDB,
+  onConversationUpdatedLDBError,
+  onConversationGroupUpdated,
+  onConversationGroupUpdatedError,
+  onConversationMuted,
+  onConversationMutedError,
+  onConversationUnmuted,
+  onConversationUnmutedError,
+  onConversationNewMembers,
+  onConversationNewMembersError,
+  onMemberEjectedError,
+  onMemberLeftError,
+  onReactionAdded,
+  onReactionAddedError,
+  onReactionRemoved,
+  onReactionRemovedError,
+} = {}) => {
   const loopzContext = useContext(LoopzContext)
   const authContext = useContext(LoopzAuthContext)
   const chatContext = useContext(LoopzChatContext)
@@ -78,6 +116,55 @@ export const useLoopzChat: UseLoopzChat = () => {
     isSynced,
     instance,
   ])
+
+  useLoopzChatEvent("syncing", onSyncing)
+  useLoopzChatEvent("sync", onSync)
+  useLoopzChatEvent("syncError", onSyncError)
+  useLoopzChatEvent("syncUpdate", onSyncUpdate)
+  useLoopzChatEvent("messageCreatedLDB", onMessageCreatedLDB)
+  useLoopzChatEvent("messageCreatedLDBError", onMessageCreatedLDBError)
+  useLoopzChatEvent("messageDeletedLDB", onMessageDeletedLDB)
+  useLoopzChatEvent("messageDeletedLDBError", onMessageDeletedLDBError)
+  useLoopzChatEvent("messageUpdatedLDB", onMessageUpdatedLDB)
+  useLoopzChatEvent("messageUpdatedLDBError", onMessageUpdatedLDBError)
+  useLoopzChatEvent("messageReceived", onMessageReceived)
+  useLoopzChatEvent("messageReceivedError", onMessageReceivedError)
+  useLoopzChatEvent("messageUpdated", onMessageUpdated)
+  useLoopzChatEvent("messageUpdatedError", onMessageUpdatedError)
+  useLoopzChatEvent("messageDeleted", onMessageDeleted)
+  useLoopzChatEvent("messageDeletedError", onMessageDeletedError)
+  useLoopzChatEvent("batchMessagesDeleted", onBatchMessagesDeleted)
+  useLoopzChatEvent("batchMessagesDeletedError", onBatchMessagesDeletedError)
+  useLoopzChatEvent("conversationCreatedLDB", onConversationCreatedLDB)
+  useLoopzChatEvent(
+    "conversationCreatedLDBError",
+    onConversationCreatedLDBError
+  )
+  useLoopzChatEvent("conversationUpdatedLDB", onConversationUpdatedLDB)
+  useLoopzChatEvent(
+    "conversationUpdatedLDBError",
+    onConversationUpdatedLDBError
+  )
+  useLoopzChatEvent("conversationGroupUpdated", onConversationGroupUpdated)
+  useLoopzChatEvent(
+    "conversationGroupUpdatedError",
+    onConversationGroupUpdatedError
+  )
+  useLoopzChatEvent("conversationMuted", onConversationMuted)
+  useLoopzChatEvent("conversationMutedError", onConversationMutedError)
+  useLoopzChatEvent("conversationUnmuted", onConversationUnmuted)
+  useLoopzChatEvent("conversationUnmutedError", onConversationUnmutedError)
+  useLoopzChatEvent("conversationNewMembers", onConversationNewMembers)
+  useLoopzChatEvent(
+    "conversationNewMembersError",
+    onConversationNewMembersError
+  )
+  useLoopzChatEvent("memberEjectedError", onMemberEjectedError)
+  useLoopzChatEvent("memberLeftError", onMemberLeftError)
+  useLoopzChatEvent("reactionAdded", onReactionAdded)
+  useLoopzChatEvent("reactionAddedError", onReactionAddedError)
+  useLoopzChatEvent("reactionRemoved", onReactionRemoved)
+  useLoopzChatEvent("reactionRemovedError", onReactionRemovedError)
 
   return {
     isConnecting,

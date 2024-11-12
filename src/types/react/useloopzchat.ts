@@ -1,6 +1,7 @@
 import { LoopzChatContextValue } from "./loopzchatcontextvalue"
+import { LoopzChatEventHandlers } from "./loopzchateventhandlers"
 
-export type UseLoopzChat = () => Omit<
+export type UseLoopzChat = (eventHandlers?: LoopzChatEventHandlers) => Omit<
   LoopzChatContextValue,
   "setIsConnected" | "setIsSynced"
 > & {
