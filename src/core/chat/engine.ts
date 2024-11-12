@@ -326,9 +326,15 @@ export class Engine implements IEngine {
         "originalError" in _error &&
         _error.originalError &&
         "errorType" in _error.originalError
-      )
+      ) {
+        console.log(
+          "the qi error is ",
+          _error.originalError,
+          _error.originalError.errorType
+        )
         if (_error.originalError.errorType === "UnauthorizedException")
           return "_401_"
+      }
     }
 
     return null
