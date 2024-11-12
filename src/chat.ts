@@ -1255,84 +1255,117 @@ export class Chat
           this._unsubscribeSyncSet[index].conversationId = conversationId
 
         //now we store the conversation in the local database
-        const responseConversation = await this.listConversationsByIds([
-          conversationId,
+        const responseConversation = await this.listConversationsByIds(
+          [conversationId],
+          true
+        )
+
+        if (responseConversation instanceof QIError) {
+          const error = this._handleUnauthorizedQIError(responseConversation)
+          if (error) {
+            await Auth.fetchAuthToken()
+            this.silentReset()
+
+            return
+          }
+
+          this._emit("syncError", {
+            error: responseConversation,
+          })
+          this.unsync()
+
+          throw "_qi_error_"
+        }
+
+        const { items: itemsConversation } = responseConversation
+        const conversation = itemsConversation[0]
+
+        //we need to check if the conversation was already inside the _conversationsMap array. If it exists then we update the array
+        //otherwise we add a new element
+        const indexMap = this._conversationsMap.findIndex(
+          (conversationItem) => {
+            return conversationItem.conversationId === conversation.id
+          }
+        )
+
+        //this is an additional check that it's used to avoid to add the subscriptions to a conversation that potentially
+        //could have them already. This could happen potentially if the _sync() is executed
+        //immediately before the _onAddMembersToConversationSync() in the javascript event loop
+        const subscriptionConversationCheck = {
+          conversationWasActive: false,
+        }
+
+        if (indexMap > -1) {
+          //it should never be ACTIVE at this point, but this is for more safety
+          if (this._conversationsMap[indexMap].type === "ACTIVE")
+            subscriptionConversationCheck.conversationWasActive = true
+
+          this._conversationsMap[indexMap].type = "ACTIVE"
+          this._conversationsMap[indexMap].conversation = conversation
+        } else
+          this._conversationsMap.push({
+            conversation,
+            conversationId: conversation.id,
+            type: "ACTIVE",
+          })
+
+        const currentUser = await this.getCurrentUser(true)
+
+        if (currentUser instanceof QIError) {
+          const error = this._handleUnauthorizedQIError(currentUser)
+          if (error) {
+            await Auth.fetchAuthToken()
+            this.silentReset()
+
+            return
+          }
+
+          this._emit("syncError", {
+            error: currentUser,
+          })
+          this.unsync()
+
+          throw "_qi_error_"
+        }
+
+        //stores/update the conversations into the local db
+        let isConversationArchived = false
+
+        if (currentUser.archivedConversations) {
+          const index = currentUser.archivedConversations.findIndex((id) => {
+            return id === conversationId
+          })
+
+          if (index > -1) isConversationArchived = true
+        }
+
+        this._storage.insertBulkSafe("conversation", [
+          Converter.fromConversationToLocalDBConversation(
+            conversation,
+            Auth.account!.did,
+            Auth.account!.organizationId,
+            isConversationArchived
+          ),
         ])
 
-        if (!(responseConversation instanceof QIError)) {
-          const { items } = responseConversation
-          const conversation = items[0]
-
-          //we need to check if the conversation was already inside the _conversationsMap array. If it exists then we update the array
-          //otherwise we add a new element
-          const index = this._conversationsMap.findIndex((conversationItem) => {
-            return conversationItem.conversationId === conversation.id
-          })
-
-          //this is an additional check that it's used to avoid to add the subscriptions to a conversation that potentially
-          //could have them already. This could happen potentially if the _sync() is executed
-          //immediately before the _onAddMembersToConversationSync() in the javascript event loop
-          const subscriptionConversationCheck = {
-            conversationWasActive: false,
-          }
-
-          if (index > -1) {
-            //it should never be ACTIVE at this point, but this is for more safety
-            if (this._conversationsMap[index].type === "ACTIVE")
-              subscriptionConversationCheck.conversationWasActive = true
-
-            this._conversationsMap[index].type = "ACTIVE"
-            this._conversationsMap[index].conversation = conversation
-          } else
-            this._conversationsMap.push({
-              conversation,
-              conversationId: conversation.id,
-              type: "ACTIVE",
-            })
-
-          const currentUser = await this.getCurrentUser()
-
-          if (currentUser instanceof QIError)
-            throw new Error(JSON.stringify(currentUser))
-
-          //stores/update the conversations into the local db
-          let isConversationArchived = false
-
-          if (currentUser.archivedConversations) {
-            const index = currentUser.archivedConversations.findIndex((id) => {
-              return id === conversationId
-            })
-
-            if (index > -1) isConversationArchived = true
-          }
-
-          this._storage.insertBulkSafe("conversation", [
-            Converter.fromConversationToLocalDBConversation(
-              conversation,
-              Auth.account!.did,
-              Auth.account!.organizationId,
-              isConversationArchived
-            ),
-          ])
-
-          //let's remove all the subscriptions previously added
-          if (subscriptionConversationCheck.conversationWasActive) {
-            this._removeSubscriptionsSync(conversationId)
-            this._conversationsMap[index].type = "ACTIVE" //assign again "type" the value "ACTIVE" because _removeSubscriptionsSync() turns type to "CANCELED"
-          }
-
-          //let's add the subscriptions in order to keep synchronized this conversation
-          this._addSubscriptionsSync(conversationId)
-
-          this._emit("conversationNewMembers", {
-            conversation,
-            conversationId,
-          })
+        //let's remove all the subscriptions previously added
+        if (subscriptionConversationCheck.conversationWasActive) {
+          this._removeSubscriptionsSync(conversationId)
+          this._conversationsMap[index].type = "ACTIVE" //assign again "type" the value "ACTIVE" because _removeSubscriptionsSync() turns type to "CANCELED"
         }
+
+        //let's add the subscriptions in order to keep synchronized this conversation
+        this._addSubscriptionsSync(conversationId)
+
+        this._emit("conversationNewMembers", {
+          conversation,
+          conversationId,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onAddMembersToConversationSync() -> ", error)
-      this._emit("conversationNewMembersError", error)
+      if (!(typeof error === "string" && error === "_qi_error_"))
+        this._emit("conversationNewMembersError", error)
     }
   }
 
@@ -1781,7 +1814,16 @@ export class Chat
           await Auth.fetchAuthToken()
           this.silentReset()
         })()
+
+        return
       }
+
+      this._emit("syncError", {
+        error: onAddReaction,
+      })
+      this.unsync()
+
+      return
     }
 
     //remove reaction(conversationId)
@@ -1806,7 +1848,16 @@ export class Chat
           await Auth.fetchAuthToken()
           this.silentReset()
         })()
+
+        return
       }
+
+      this._emit("syncError", {
+        error: onRemoveReaction,
+      })
+      this.unsync()
+
+      return
     }
 
     //send message(conversationId)
@@ -1831,7 +1882,16 @@ export class Chat
           await Auth.fetchAuthToken()
           this.silentReset()
         })()
+
+        return
       }
+
+      this._emit("syncError", {
+        error: onSendMessage,
+      })
+      this.unsync()
+
+      return
     }
 
     //edit message(conversationId)
@@ -1856,7 +1916,16 @@ export class Chat
           await Auth.fetchAuthToken()
           this.silentReset()
         })()
+
+        return
       }
+
+      this._emit("syncError", {
+        error: onEditMessage,
+      })
+      this.unsync()
+
+      return
     }
 
     //delete message(conversationId)
@@ -1881,7 +1950,16 @@ export class Chat
           await Auth.fetchAuthToken()
           this.silentReset()
         })()
+
+        return
       }
+
+      this._emit("syncError", {
+        error: onDeleteMessage,
+      })
+      this.unsync()
+
+      return
     }
 
     //delete batch messages(conversationId)
@@ -1906,7 +1984,16 @@ export class Chat
           await Auth.fetchAuthToken()
           this.silentReset()
         })()
+
+        return
       }
+
+      this._emit("syncError", {
+        error: onBatchDeleteMessages,
+      })
+      this.unsync()
+
+      return
     }
 
     //update settings group(conversationId)
@@ -1931,7 +2018,16 @@ export class Chat
           await Auth.fetchAuthToken()
           this.silentReset()
         })()
+
+        return
       }
+
+      this._emit("syncError", {
+        error: onUpdateConversationGroup,
+      })
+      this.unsync()
+
+      return
     }
 
     //eject member(conversationId)
@@ -1956,7 +2052,16 @@ export class Chat
           await Auth.fetchAuthToken()
           this.silentReset()
         })()
+
+        return
       }
+
+      this._emit("syncError", {
+        error: onEjectMember,
+      })
+      this.unsync()
+
+      return
     }
 
     //leave group/conversation(conversationId)
@@ -1981,7 +2086,16 @@ export class Chat
           await Auth.fetchAuthToken()
           this.silentReset()
         })()
+
+        return
       }
+
+      this._emit("syncError", {
+        error: onLeaveConversation,
+      })
+      this.unsync()
+
+      return
     }
 
     //mute conversation(conversationId)
@@ -2006,7 +2120,16 @@ export class Chat
           await Auth.fetchAuthToken()
           this.silentReset()
         })()
+
+        return
       }
+
+      this._emit("syncError", {
+        error: onMuteConversation,
+      })
+      this.unsync()
+
+      return
     }
 
     //unmute conversation(conversationId)
@@ -2031,7 +2154,16 @@ export class Chat
           await Auth.fetchAuthToken()
           this.silentReset()
         })()
+
+        return
       }
+
+      this._emit("syncError", {
+        error: onUnmuteConversation,
+      })
+      this.unsync()
+
+      return
     }
   }
 
@@ -2045,7 +2177,12 @@ export class Chat
       try {
         item.unsubscribe()
       } catch (error) {
-        console.log("[ERROR]: unsubscribe() -> ", item.uuid, item.type)
+        console.log(
+          "[ERROR]: unsubscribe() failed for conversation item -> ",
+          item.uuid,
+          item.type,
+          conversationId
+        )
       }
     })
 
@@ -8099,6 +8236,8 @@ export class Chat
       if (error) {
         await Auth.fetchAuthToken()
         this.silentReset()
+
+        return
       }
     }
 
