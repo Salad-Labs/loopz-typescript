@@ -145,17 +145,15 @@ export class Engine implements IEngine {
       console.log("connecting...")
     })
 
-    const offReconnecting = this._realtimeClient.on("reconnecting", (e) => {
+    const offReconnecting = this._realtimeClient.on("reconnecting", () => {
       this._isConnecting = true
       console.log("reconnecting...")
-      console.log(e)
     })
 
-    const offDisconnected = this._realtimeClient.on("disconnected", (e) => {
+    const offDisconnected = this._realtimeClient.on("disconnected", () => {
       this._isConnecting = false
       this._isConnected = false
       console.log("disconnected.")
-      console.log(e)
     })
 
     const offReconnected = this._realtimeClient.on("reconnected", (payload) => {
@@ -282,14 +280,6 @@ export class Engine implements IEngine {
     return this._client
   }
 
-  private _silentReset(): void {
-    if (!this._realtimeClient) return
-
-    this._reset()
-    this._makeWSClient(() => {}) //silent creation of a new realtimeClient instance
-    ;(Chat as any)._silentRestoreSubscriptionSync() //silent restore of the subscriptions from chat
-  }
-
   /**
    * Resets the state of the object by unsubscribing from all events, closing the realtime client,
    * and executing a callback function.
@@ -324,6 +314,23 @@ export class Engine implements IEngine {
         }
       })
     }
+  }
+
+  protected _handleUnauthoraizedQIError(error: QIError): Maybe<"_401_"> {
+    console.log(error)
+    if (error.graphQLErrors && Array.isArray(error.graphQLErrors)) {
+      const _error = error.graphQLErrors[0]
+      console.log(_error)
+      if (
+        "originalError" in _error &&
+        _error.originalError &&
+        "errorType" in _error.originalError
+      )
+        if (_error.originalError.errorType === "UnauthorizedException")
+          return "_401_"
+    }
+
+    return null
   }
 
   /**
@@ -535,6 +542,16 @@ export class Engine implements IEngine {
 
   disconnect() {
     return this._reset()
+  }
+
+  silentReset() {
+    if (!this._realtimeClient) return
+
+    console.log("silent reset! shhhh...")
+
+    this._reset()
+    this._makeWSClient(() => {}) //silent creation of a new realtimeClient instance
+    Chat.silentRestoreSubscriptionSync() //silent restore of the subscriptions from chat
   }
 
   /**

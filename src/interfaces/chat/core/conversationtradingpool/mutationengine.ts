@@ -7,11 +7,16 @@ import { RequestTradeArgs, UpdateRequestTradeArgs } from "../../../../types"
  * @interface ConversationTradingPoolMutationEngine
  */
 export interface ConversationTradingPoolMutationEngine {
-  deleteRequestTrade(id: string): Promise<ConversationTradingPool | QIError>
+  deleteRequestTrade(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<ConversationTradingPool | QIError>
   requestTrade(
-    args: RequestTradeArgs
+    args: RequestTradeArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<ConversationTradingPool | QIError>
   updateRequestTrade(
-    args: UpdateRequestTradeArgs
+    args: UpdateRequestTradeArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<ConversationTradingPool | QIError>
 }

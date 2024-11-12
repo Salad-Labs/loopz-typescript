@@ -66,7 +66,7 @@ export default class UUIDSubscriptionClient extends SubscriptionClient {
               //let's refresh the token and store it into local storage
               await Auth.fetchAuthToken()
               //let's call a silent reset that basically reset the realtimeClient, create a new instance of it and restore the subscriptions previously added
-              ;(this._engine as any)._silentReset()
+              this._engine.silentReset()
             })()
           }
         }

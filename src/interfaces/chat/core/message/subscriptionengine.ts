@@ -34,7 +34,8 @@ export interface MessageSubscriptionEngine {
         }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): SubscriptionGarbage | QIError
   onEditMessage(
     conversationId: string,
@@ -49,7 +50,8 @@ export interface MessageSubscriptionEngine {
         }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): SubscriptionGarbage | QIError
   onDeleteMessage(
     conversationId: string,
@@ -64,7 +66,8 @@ export interface MessageSubscriptionEngine {
         }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): SubscriptionGarbage | QIError
   onBatchDeleteMessages(
     conversationId: string,
@@ -79,7 +82,8 @@ export interface MessageSubscriptionEngine {
         }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): SubscriptionGarbage | QIError
   onAddReaction(
     conversationId: string,
@@ -94,7 +98,8 @@ export interface MessageSubscriptionEngine {
         }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): SubscriptionGarbage | QIError
   onRemoveReaction(
     conversationId: string,
@@ -109,7 +114,8 @@ export interface MessageSubscriptionEngine {
         }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): SubscriptionGarbage | QIError
   onAddPinMessage(
     conversationId: string,
@@ -124,7 +130,8 @@ export interface MessageSubscriptionEngine {
         }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): SubscriptionGarbage | QIError
   onRemovePinMessage(
     conversationId: string,
@@ -139,6 +146,7 @@ export interface MessageSubscriptionEngine {
         }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): SubscriptionGarbage | QIError
 }

@@ -20,6 +20,7 @@ export interface UserSubscriptionEngine {
         SubscriptionOnUpdateUserArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): QIError | SubscriptionGarbage
 }

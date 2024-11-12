@@ -62,6 +62,7 @@ import {
 } from "../../constants/chat/queries"
 import { EngineInitConfig } from "../../types"
 import { Reaction } from "./reaction"
+import { Auth } from "../.."
 
 /**
  * Represents a conversation in a chat application.
@@ -178,7 +179,10 @@ export class Conversation
         memberOut: User
       } | QIError>} - A Promise that resolves to an object that contains Conversation, the conversation id and the user that was ejected if successful, or a QIError object if there was an error.
    */
-  async ejectMember(args: Pick<EjectMemberArgs, "userId">): Promise<
+  async ejectMember(
+    args: Pick<EjectMemberArgs, "userId">,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<
     | {
         conversationId: string
         conversation: Conversation
@@ -197,7 +201,14 @@ export class Conversation
       },
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return {
       conversationId: response.conversationId,
@@ -320,7 +331,8 @@ export class Conversation
    * @returns {Promise<QIError | { conversationId: string; items: ConversationMember[] }>} A promise that resolves to either a QIError object if there was an error, or an object containing the conversation ID and an array of ConversationMember objects.
    */
   async addMembersToConversation(
-    args: Pick<AddMembersToConversationArgs, "members">
+    args: Pick<AddMembersToConversationArgs, "members">,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<
     | QIError
     | {
@@ -345,7 +357,14 @@ export class Conversation
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listConversations: {
       conversationId: string
@@ -380,7 +399,8 @@ export class Conversation
    * @returns {Promise<QIError | ConversationReport>} A promise that resolves to either a QIError if there was an error, or a ConversationReport object.
    */
   async addReportToConversation(
-    args: Pick<AddReportToConversationArgs, "description">
+    args: Pick<AddReportToConversationArgs, "description">,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<QIError | ConversationReport> {
     const response = await this._mutation<
       MutationAddReportToConversationArgs,
@@ -398,7 +418,14 @@ export class Conversation
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new ConversationReport({
       ...this._parentConfig!,
@@ -419,9 +446,17 @@ export class Conversation
    * @returns {Promise<User | QIError>} A Promise that resolves to a Conversation object if successful,
    * or a QIError object if an error occurs.
    */
-  async archiveConversation(): Promise<User | QIError>
-  async archiveConversation(id: string): Promise<User | QIError>
-  async archiveConversation(id?: unknown): Promise<User | QIError> {
+  async archiveConversation(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<User | QIError>
+  async archiveConversation(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<User | QIError>
+  async archiveConversation(
+    id?: unknown,
+    overrideHandlingUnauthoraizedQIError?: unknown
+  ): Promise<User | QIError> {
     if (id)
       throw new Error(
         "id argument can not be defined. Consider to use archiveConversation() instead."
@@ -440,7 +475,14 @@ export class Conversation
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -494,7 +536,10 @@ export class Conversation
    * @returns {Promise<QIError | Message>} A promise that resolves to either a QIError if the deletion fails,
    * or a Message object representing the deleted message.
    */
-  async deleteMessage(id: string): Promise<QIError | Message> {
+  async deleteMessage(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<QIError | Message> {
     const response = await this._mutation<
       MutationDeleteConversationMessageArgs,
       { deleteConversationMessage: MessageGraphQL },
@@ -510,7 +555,14 @@ export class Conversation
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -596,7 +648,9 @@ export class Conversation
         memberOut: User
       } | QIError>} A Promise that resolves to a Conversation object if successful, or a QIError object if an error occurs.
    */
-  async leaveConversation(): Promise<
+  async leaveConversation(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<
     | {
         conversationId: string
         conversation: Conversation
@@ -604,7 +658,10 @@ export class Conversation
       }
     | QIError
   >
-  async leaveConversation(id: string): Promise<
+  async leaveConversation(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<
     | {
         conversationId: string
         conversation: Conversation
@@ -612,7 +669,10 @@ export class Conversation
       }
     | QIError
   >
-  async leaveConversation(id?: unknown): Promise<
+  async leaveConversation(
+    id?: unknown,
+    overrideHandlingUnauthoraizedQIError?: unknown
+  ): Promise<
     | {
         conversationId: string
         conversation: Conversation
@@ -638,7 +698,14 @@ export class Conversation
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return {
       conversationId: response.conversationId,
@@ -761,7 +828,8 @@ export class Conversation
    * @returns {Promise<Conversation | QIError>} - A Promise that resolves to a Conversation object if successful, or a QIError object if there was an error.
    */
   async muteConversation(
-    args: MuteConversationArgs
+    args: MuteConversationArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<Conversation | QIError> {
     const response = await this._mutation<
       MutationMuteConversationArgs,
@@ -776,7 +844,14 @@ export class Conversation
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Conversation({
       ...this._parentConfig!,
@@ -808,7 +883,8 @@ export class Conversation
    * @returns {Promise<QIError | Message>} A promise that resolves to either a QIError if there was an error sending the message, or a Message object if the message was sent successfully.
    */
   async sendMessage(
-    args: Pick<SendMessageArgs, "content" | "type">
+    args: Pick<SendMessageArgs, "content" | "type">,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<QIError | Message> {
     let content: string
 
@@ -830,7 +906,14 @@ export class Conversation
       },
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -912,9 +995,17 @@ export class Conversation
    * If an id is provided, it throws an error.
    * @returns {Promise<User | QIError>} A Promise that resolves to a Conversation object if successful, or a QIError object if there was an error.
    */
-  async unarchiveConversation(): Promise<User | QIError>
-  async unarchiveConversation(id: string): Promise<User | QIError>
-  async unarchiveConversation(id?: unknown): Promise<User | QIError> {
+  async unarchiveConversation(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<User | QIError>
+  async unarchiveConversation(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<User | QIError>
+  async unarchiveConversation(
+    id?: unknown,
+    overrideHandlingUnauthoraizedQIError?: unknown
+  ): Promise<User | QIError> {
     if (id)
       throw new Error(
         "id argument can not be defined. Consider to use unarchiveConversation() instead."
@@ -933,7 +1024,14 @@ export class Conversation
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -986,9 +1084,17 @@ export class Conversation
    * If an id is provided, it throws an error.
    * @returns {Promise<Conversation | QIError>} A Promise that resolves to a Conversation object if successful, or a QIError object if there was an error.
    */
-  async unmuteConversation(): Promise<Conversation | QIError>
-  async unmuteConversation(id: string): Promise<Conversation | QIError>
-  async unmuteConversation(id?: unknown): Promise<Conversation | QIError> {
+  async unmuteConversation(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Conversation | QIError>
+  async unmuteConversation(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Conversation | QIError>
+  async unmuteConversation(
+    id?: unknown,
+    overrideHandlingUnauthoraizedQIError?: unknown
+  ): Promise<Conversation | QIError> {
     if (id)
       throw new Error(
         "id argument can not be defined. Consider to use unarchiveConversation() instead."
@@ -1007,7 +1113,14 @@ export class Conversation
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Conversation({
       ...this._parentConfig!,
@@ -1042,7 +1155,8 @@ export class Conversation
     args: Pick<
       UpdateConversationGroupInputArgs,
       "bannerImageURL" | "description" | "imageURL" | "name" | "settings"
-    >
+    >,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<Conversation | QIError> {
     const response = await this._mutation<
       MutationUpdateConversationGroupArgs,
@@ -1080,7 +1194,14 @@ export class Conversation
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Conversation({
       ...this._parentConfig!,
@@ -1111,9 +1232,17 @@ export class Conversation
    * If an id is provided, it throws an error.
    * @returns {Promise<Conversation | QIError>} A Promise that resolves to the pinned conversation or an error.
    */
-  async pinConversation(): Promise<Conversation | QIError>
-  async pinConversation(id: string): Promise<Conversation | QIError>
-  async pinConversation(id?: unknown): Promise<Conversation | QIError> {
+  async pinConversation(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Conversation | QIError>
+  async pinConversation(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Conversation | QIError>
+  async pinConversation(
+    id?: unknown,
+    overrideHandlingUnauthoraizedQIError?: unknown
+  ): Promise<Conversation | QIError> {
     if (id)
       throw new Error(
         "id argument can not be defined. Consider to use pinConversation() instead."
@@ -1132,7 +1261,14 @@ export class Conversation
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Conversation({
       ...this._parentConfig!,
@@ -1163,9 +1299,17 @@ export class Conversation
    * If an id is provided, it throws an error.
    * @returns {Promise<Conversation | QIError>} A Promise that resolves to the unpinned conversation or an error.
    */
-  async unpinConversation(): Promise<boolean | QIError>
-  async unpinConversation(id: string): Promise<boolean | QIError>
-  async unpinConversation(id?: unknown): Promise<boolean | QIError> {
+  async unpinConversation(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<boolean | QIError>
+  async unpinConversation(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<boolean | QIError>
+  async unpinConversation(
+    id?: unknown,
+    overrideHandlingUnauthoraizedQIError?: unknown
+  ): Promise<boolean | QIError> {
     if (id)
       throw new Error(
         "id argument can not be defined. Consider to use unpinConversation() instead."
@@ -1184,7 +1328,14 @@ export class Conversation
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return true
   }
@@ -1193,7 +1344,9 @@ export class Conversation
    * Retrieves the owner information from a conversation and returns a User object.
    * @returns A Promise that resolves to a User object if successful, or a QIError object if there was an error.
    */
-  async owner(): Promise<User | QIError> {
+  async owner(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<User | QIError> {
     const response = await this._query<
       null,
       {
@@ -1207,7 +1360,14 @@ export class Conversation
       null
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -1275,7 +1435,9 @@ export class Conversation
    * Retrieves the conversation members from the conversation by its ID.
    * @returns A Promise that resolves to an array of ConversationMember objects or a QIError object.
    */
-  async members(): Promise<ConversationMember[] | QIError> {
+  async members(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<ConversationMember[] | QIError> {
     const response = await this._query<
       null,
       {
@@ -1289,7 +1451,14 @@ export class Conversation
       null
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listConversationMembers: Array<ConversationMember> =
       response.members!.map((item) => {
@@ -1316,7 +1485,9 @@ export class Conversation
    * Retrieves a list of messages from a conversation.
    * @returns A Promise that resolves to an array of Message objects or a QIError object.
    */
-  async messages(): Promise<Message[] | QIError> {
+  async messages(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Message[] | QIError> {
     const response = await this._query<
       null,
       {
@@ -1330,7 +1501,14 @@ export class Conversation
       null
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listMessages: Array<Message> = response.messages!.map((item) => {
       return new Message({

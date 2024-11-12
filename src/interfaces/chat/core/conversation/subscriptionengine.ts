@@ -33,7 +33,8 @@ export interface ConversationSubscriptionEngine {
         SubscriptionOnUpdateConversationGroupArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onEjectMember(
     conversationId: string,
@@ -50,7 +51,8 @@ export interface ConversationSubscriptionEngine {
         SubscriptionOnEjectMemberArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onLeaveConversation(
     conversationId: string,
@@ -67,7 +69,8 @@ export interface ConversationSubscriptionEngine {
         SubscriptionOnLeaveConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onMuteConversation(
     conversationId: string,
@@ -78,7 +81,8 @@ export interface ConversationSubscriptionEngine {
         SubscriptionOnMuteConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onUnmuteConversation(
     conversationId: string,
@@ -89,7 +93,8 @@ export interface ConversationSubscriptionEngine {
         SubscriptionOnUnmuteConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onAddPinConversation(
     conversationId: string,
@@ -100,7 +105,8 @@ export interface ConversationSubscriptionEngine {
         SubscriptionOnAddPinConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onRemovePinConversation(
     conversationId: string,
@@ -111,7 +117,8 @@ export interface ConversationSubscriptionEngine {
         SubscriptionOnRemovePinConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onAddMembersToConversation(
     callback: (
@@ -127,6 +134,7 @@ export interface ConversationSubscriptionEngine {
         { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): QIError | SubscriptionGarbage
 }

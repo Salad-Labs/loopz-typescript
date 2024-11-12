@@ -227,7 +227,7 @@ import {
   LocalDBUser,
 } from "./core/app/database"
 import { Converter, findAddedAndRemovedConversation, Serpens } from "./core"
-import Dexie, { Table } from "dexie"
+import Dexie from "dexie"
 import { Reaction } from "./core/chat/reaction"
 import { v4 as uuidv4 } from "uuid"
 import * as bip39 from "@scure/bip39"
@@ -372,6 +372,53 @@ export class Chat
 
   static getDetectiveMessageInstance() {
     return Chat._detectiveMessage
+  }
+
+  static silentRestoreSubscriptionSync() {
+    if (!Chat._instance) return
+
+    //let's clear the timeout
+    if (Chat._instance._syncTimeout) clearTimeout(Chat._instance._syncTimeout)
+
+    //let's unsubscribe everything from the previous results
+    for (const { conversationId } of Chat._instance._conversationsMap.filter(
+      (conversation) => conversation.type === "ACTIVE"
+    )) {
+      Chat._instance._removeSubscriptionsSync(conversationId)
+    }
+
+    //let's clear the _unsubscribeSyncSet from the previous results
+    Chat._instance._unsubscribeSyncSet = []
+
+    //add member to conversation. This event is global, basically the user is always listening if
+    //someone wants to add him into a conversation.
+    const onAddMembersToConversation =
+      Chat._instance.onAddMembersToConversation(
+        Chat._instance._onAddMembersToConversationSync
+      )
+
+    if (!(onAddMembersToConversation instanceof QIError)) {
+      const { unsubscribe, uuid } = onAddMembersToConversation
+      Chat._instance._unsubscribeSyncSet.push({
+        type: "onAddMembersToConversation",
+        unsubscribe,
+        uuid,
+        conversationId: "", //this value is updated inside the callback fired by the subscription
+      })
+    }
+
+    //now that we have a _conversationsMap array filled, we can add subscription for every conversation that is currently active
+    for (const { conversationId } of Chat._instance._conversationsMap.filter(
+      (conversation) => conversation.type === "ACTIVE"
+    )) {
+      Chat._instance._addSubscriptionsSync(conversationId)
+    }
+
+    ;(async () => {
+      if (!Chat._instance) return
+
+      await Chat._instance._sync(Chat._instance._syncingCounter)
+    })()
   }
 
   /** private instance methods */
@@ -538,78 +585,44 @@ export class Chat
         })
   }
 
-  /** DO NOT DELETE THIS METHOD */
-
-  private static _silentRestoreSubscriptionSync() {
-    if (!Chat._instance) return
-
-    //let's clear the timeout
-    if (Chat._instance._syncTimeout) clearTimeout(Chat._instance._syncTimeout)
-
-    //let's unsubscribe everything from the previous results
-    for (const { conversationId } of Chat._instance._conversationsMap.filter(
-      (conversation) => conversation.type === "ACTIVE"
-    )) {
-      Chat._instance._removeSubscriptionsSync(conversationId)
-    }
-
-    //let's clear the _unsubscribeSyncSet from the previous results
-    Chat._instance._unsubscribeSyncSet = []
-
-    //add member to conversation. This event is global, basically the user is always listening if
-    //someone wants to add him into a conversation.
-    const onAddMembersToConversation =
-      Chat._instance.onAddMembersToConversation(
-        Chat._instance._onAddMembersToConversationSync
-      )
-
-    if (!(onAddMembersToConversation instanceof QIError)) {
-      const { unsubscribe, uuid } = onAddMembersToConversation
-      Chat._instance._unsubscribeSyncSet.push({
-        type: "onAddMembersToConversation",
-        unsubscribe,
-        uuid,
-        conversationId: "", //this value is updated inside the callback fired by the subscription
-      })
-    }
-
-    //now that we have a _conversationsMap array filled, we can add subscription for every conversation that is currently active
-    for (const { conversationId } of Chat._instance._conversationsMap.filter(
-      (conversation) => conversation.type === "ACTIVE"
-    )) {
-      Chat._instance._addSubscriptionsSync(conversationId)
-    }
-
-    ;(async () => {
-      if (!Chat._instance) return
-
-      await Chat._instance._sync(Chat._instance._syncingCounter)
-    })()
-  }
-
   /** syncing data with backend*/
 
   private async recoverUserConversations(
     type: ActiveUserConversationType
-  ): Promise<Maybe<Array<Conversation>>> {
+  ): Promise<Maybe<Array<Conversation> | "_401_">> {
     try {
-      let AUCfirstSet = await this.listAllActiveUserConversationIds({
-        type,
-      })
+      let AUCfirstSet = await this.listAllActiveUserConversationIds(
+        {
+          type,
+        },
+        true
+      )
 
-      if (AUCfirstSet instanceof QIError)
+      if (AUCfirstSet instanceof QIError) {
+        const error = this._handleUnauthoraizedQIError(AUCfirstSet)
+        if (error) throw "_401_"
+
         throw new Error(JSON.stringify(AUCfirstSet))
+      }
 
       let { nextToken, items } = AUCfirstSet
       let activeIds = [...items]
 
       while (nextToken) {
-        const set = await this.listAllActiveUserConversationIds({
-          type,
-          nextToken,
-        })
+        const set = await this.listAllActiveUserConversationIds(
+          {
+            type,
+            nextToken,
+          },
+          true
+        )
 
-        if (set instanceof QIError) break
+        if (set instanceof QIError) {
+          const error = this._handleUnauthoraizedQIError(set)
+          if (error) throw "_401_"
+
+          break
+        }
 
         const { nextToken: token, items } = set
 
@@ -619,18 +632,30 @@ export class Chat
         else break
       }
 
-      let conversationfirstSet = await this.listConversationsByIds(activeIds)
+      let conversationfirstSet = await this.listConversationsByIds(
+        activeIds,
+        true
+      )
 
-      if (conversationfirstSet instanceof QIError)
+      if (conversationfirstSet instanceof QIError) {
+        const error = this._handleUnauthoraizedQIError(conversationfirstSet)
+        if (error) throw "_401_"
+
         throw new Error(JSON.stringify(conversationfirstSet))
+      }
 
       let { unprocessedKeys, items: conversations } = conversationfirstSet
       let conversationsItems = [...conversations]
 
       while (unprocessedKeys) {
-        const set = await this.listConversationsByIds(unprocessedKeys)
+        const set = await this.listConversationsByIds(unprocessedKeys, true)
 
-        if (set instanceof QIError) break
+        if (set instanceof QIError) {
+          const error = this._handleUnauthoraizedQIError(set)
+          if (error) throw "_401_"
+
+          break
+        }
 
         const { unprocessedKeys: ids, items } = set
 
@@ -640,10 +665,14 @@ export class Chat
         else break
       }
 
-      const currentUser = await this.getCurrentUser()
+      const currentUser = await this.getCurrentUser(true)
 
-      if (currentUser instanceof QIError)
+      if (currentUser instanceof QIError) {
+        const error = this._handleUnauthoraizedQIError(currentUser)
+        if (error) throw "_401_"
+
         throw new Error(JSON.stringify(currentUser))
+      }
 
       //? Serpens
       //stores/update the conversations into the local db
@@ -690,51 +719,45 @@ export class Chat
 
       return conversationsItems
     } catch (error) {
-      console.log("[ERROR]: recoverUserConversations() -> ", error)
-      if (typeof error === "string") {
-        const jsonStart = error.indexOf("{")
-        const jsonPart = error.slice(jsonStart)
+      if (typeof error === "string" && error === "_401_") {
+        await Auth.fetchAuthToken()
+        this.silentReset()
 
-        try {
-          let errorObject = JSON.parse(jsonPart)
-
-          if ("graphQLErrors" in errorObject) {
-            const { graphQLErrors } = errorObject
-            const { originalError } = graphQLErrors[0]
-
-            if (
-              "errorType" in originalError &&
-              originalError.errorType == "UnauthorizedException"
-            ) {
-              ;(async () => {
-                await Auth.fetchAuthToken()
-              })()
-            }
-          }
-        } catch (e) {
-          console.error("Error JSON parsing:", e)
-        }
+        return "_401_"
       }
+
+      console.log("[ERROR]: recoverUserConversations() -> ", error)
     }
 
     return null
   }
 
-  private async recoverKeysFromConversations(): Promise<boolean> {
+  private async recoverKeysFromConversations(): Promise<boolean | "_401_"> {
     try {
       let firstConversationMemberSet =
-        await this.listConversationMemberByUserId()
+        await this.listConversationMemberByUserId(undefined, true)
 
-      if (firstConversationMemberSet instanceof QIError)
+      if (firstConversationMemberSet instanceof QIError) {
+        const error = this._handleUnauthoraizedQIError(
+          firstConversationMemberSet
+        )
+        if (error) throw "_401_"
+
         throw new Error(JSON.stringify(firstConversationMemberSet))
+      }
 
       let { nextToken, items } = firstConversationMemberSet
       let conversationMemberItems = [...items]
 
       while (nextToken) {
-        const set = await this.listConversationMemberByUserId(nextToken)
+        const set = await this.listConversationMemberByUserId(nextToken, true)
 
-        if (set instanceof QIError) break
+        if (set instanceof QIError) {
+          const error = this._handleUnauthoraizedQIError(set)
+          if (error) throw "_401_"
+
+          break
+        }
 
         const { nextToken: token, items } = set
 
@@ -819,6 +842,12 @@ export class Chat
       return true
     } catch (error) {
       console.log("[ERROR]: recoverKeysFromConversations() -> ", error)
+      if (typeof error === "string" && error === "_401_") {
+        await Auth.fetchAuthToken()
+        this.silentReset()
+
+        return "_401_"
+      }
     }
 
     return false
@@ -826,7 +855,7 @@ export class Chat
 
   private async recoverMessagesFromConversations(
     conversations: Array<Conversation>
-  ): Promise<boolean> {
+  ): Promise<boolean | "_401_"> {
     try {
       for (const conversation of conversations) {
         const { id, lastMessageSentAt } = conversation
@@ -838,23 +867,40 @@ export class Chat
 
         //messages important handling
         const messagesImportantFirstSet =
-          await this.listMessagesImportantByUserConversationId({
-            conversationId: id,
-          })
+          await this.listMessagesImportantByUserConversationId(
+            {
+              conversationId: id,
+            },
+            true
+          )
 
-        if (messagesImportantFirstSet instanceof QIError)
+        if (messagesImportantFirstSet instanceof QIError) {
+          const error = this._handleUnauthoraizedQIError(
+            messagesImportantFirstSet
+          )
+          if (error) throw "_401_"
+
           throw new Error(JSON.stringify(messagesImportantFirstSet))
+        }
 
         let { nextToken, items } = messagesImportantFirstSet
         let messagesImportant = [...items]
 
         while (nextToken) {
-          const set = await this.listMessagesImportantByUserConversationId({
-            conversationId: id,
-            nextToken,
-          })
+          const set = await this.listMessagesImportantByUserConversationId(
+            {
+              conversationId: id,
+              nextToken,
+            },
+            true
+          )
 
-          if (set instanceof QIError) break
+          if (set instanceof QIError) {
+            const error = this._handleUnauthoraizedQIError(set)
+            if (error) throw "_401_"
+
+            break
+          }
 
           const { nextToken: token, items } = set
 
@@ -893,23 +939,38 @@ export class Chat
         //the check of history message is already done on backend side
 
         if (canDownloadMessages) {
-          const messagesFirstSet = await this.listMessagesByConversationId({
-            id,
-          })
+          const messagesFirstSet = await this.listMessagesByConversationId(
+            {
+              id,
+            },
+            true
+          )
 
-          if (messagesFirstSet instanceof QIError)
+          if (messagesFirstSet instanceof QIError) {
+            const error = this._handleUnauthoraizedQIError(messagesFirstSet)
+            if (error) throw "_401_"
+
             throw new Error(JSON.stringify(messagesFirstSet))
+          }
 
           let { nextToken, items } = messagesFirstSet
           let messages = [...items]
 
           while (nextToken) {
-            const set = await this.listMessagesByConversationId({
-              id,
-              nextToken,
-            })
+            const set = await this.listMessagesByConversationId(
+              {
+                id,
+                nextToken,
+              },
+              true
+            )
 
-            if (set instanceof QIError) break
+            if (set instanceof QIError) {
+              const error = this._handleUnauthoraizedQIError(set)
+              if (error) throw "_401_"
+
+              break
+            }
 
             const { nextToken: token, items } = set
 
@@ -970,6 +1031,12 @@ export class Chat
       return true
     } catch (error) {
       console.log("[ERROR]: recoverMessagesFromConversations() -> ", error)
+      if (typeof error === "string" && error === "_401_") {
+        await Auth.fetchAuthToken()
+        this.silentReset()
+
+        return "_401_"
+      }
     }
 
     return false
@@ -997,6 +1064,10 @@ export class Chat
       return
     }
 
+    //_sync(..) is called internally by silentReset()
+    if (activeConversations === "_401_" || unactiveConversations === "_401_")
+      return
+
     console.log(
       "after check if (!activeConversations || !unactiveConversations)"
     )
@@ -1005,13 +1076,16 @@ export class Chat
     const keysRecovered = await this.recoverKeysFromConversations()
     console.log("keysRecovered", keysRecovered)
 
-    if (!keysRecovered) {
+    if (typeof keysRecovered === "boolean" && !keysRecovered) {
       this._emit("syncError", {
         error: `error during recovering of the keys from conversations.`,
       })
       this.unsync()
       return
     }
+
+    //_sync(..) is called internally by silentReset()
+    if (keysRecovered === "_401_") return
 
     console.log("after check if (!keysRecovered)")
 
@@ -1031,6 +1105,9 @@ export class Chat
       this.unsync()
       return
     }
+
+    //_sync(..) is called internally by silentReset()
+    if (messagesRecovered === "_401_") return
 
     console.log("after check if (!messagesRecovered)")
 
@@ -2000,9 +2077,17 @@ export class Chat
    * @param {string} [id] - The ID of the user to block.
    * @returns {Promise<User | QIError>} A promise that resolves to a User object if successful, or a QIError object if there was an error.
    */
-  async blockUser(): Promise<User | QIError>
-  async blockUser(id: string): Promise<User | QIError>
-  async blockUser(id?: unknown): Promise<User | QIError> {
+  async blockUser(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<User | QIError>
+  async blockUser(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<User | QIError>
+  async blockUser(
+    id?: unknown,
+    overrideHandlingUnauthoraizedQIError?: unknown
+  ): Promise<User | QIError> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use blockUser(id : string) instead."
@@ -2017,7 +2102,14 @@ export class Chat
       blockId: id,
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -2066,7 +2158,8 @@ export class Chat
   }
 
   async addMembersToConversation(
-    args: AddMembersToConversationArgs
+    args: AddMembersToConversationArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<
     { conversationId: string; items: Array<ConversationMember> } | QIError
   > {
@@ -2086,7 +2179,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listConversationMembers: {
       conversationId: string
@@ -2113,9 +2213,17 @@ export class Chat
     return listConversationMembers
   }
 
-  async pinMessage(): Promise<Message | QIError>
-  async pinMessage(id: string): Promise<Message | QIError>
-  async pinMessage(id?: unknown): Promise<Message | QIError> {
+  async pinMessage(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Message | QIError>
+  async pinMessage(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Message | QIError>
+  async pinMessage(
+    id?: unknown,
+    overrideHandlingUnauthoraizedQIError?: unknown
+  ): Promise<Message | QIError> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use pinMessage(id : string) instead."
@@ -2130,7 +2238,14 @@ export class Chat
       messageId: id,
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -2208,7 +2323,8 @@ export class Chat
   }
 
   async addReactionToMessage(
-    args: AddReactionToMessageArgs
+    args: AddReactionToMessageArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<Message | QIError> {
     const response = await this._mutation<
       MutationAddReactionToMessageArgs,
@@ -2230,7 +2346,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -2308,7 +2431,8 @@ export class Chat
   }
 
   async addReportToConversation(
-    args: AddReportToConversationArgs
+    args: AddReportToConversationArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<QIError | ConversationReport> {
     const response = await this._mutation<
       MutationAddReportToConversationArgs,
@@ -2326,7 +2450,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new ConversationReport({
       ...this._parentConfig!,
@@ -2341,7 +2472,8 @@ export class Chat
   }
 
   async addReportToMessage(
-    args: AddReportToMessageArgs
+    args: AddReportToMessageArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<QIError | MessageReport> {
     const response = await this._mutation<
       MutationAddReportToMessageArgs,
@@ -2359,7 +2491,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new MessageReport({
       ...this._parentConfig!,
@@ -2373,9 +2512,17 @@ export class Chat
     })
   }
 
-  async archiveConversation(): Promise<User | QIError>
-  async archiveConversation(id: string): Promise<User | QIError>
-  async archiveConversation(id?: unknown): Promise<User | QIError> {
+  async archiveConversation(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<User | QIError>
+  async archiveConversation(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<User | QIError>
+  async archiveConversation(
+    id?: unknown,
+    overrideHandlingUnauthoraizedQIError?: unknown
+  ): Promise<User | QIError> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use archiveConversation(id : string) instead."
@@ -2395,7 +2542,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -2443,7 +2597,10 @@ export class Chat
     })
   }
 
-  async archiveConversations(ids: Array<string>): Promise<User | QIError> {
+  async archiveConversations(
+    ids: Array<string>,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<User | QIError> {
     const response = await this._mutation<
       MutationArchiveConversationsArgs,
       { archiveConversations: UserGraphQL },
@@ -2457,7 +2614,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -2506,7 +2670,8 @@ export class Chat
   }
 
   async createConversationGroup(
-    args: CreateConversationGroupArgs
+    args: CreateConversationGroupArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<
     { keypairItem: KeyPairItem | null; conversation: Conversation } | QIError
   > {
@@ -2536,7 +2701,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     this.addKeyPairItem({
       id: response.id,
@@ -2581,7 +2753,8 @@ export class Chat
   }
 
   async createConversationOneToOne(
-    args: CreateConversationOneToOneArgs
+    args: CreateConversationOneToOneArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<
     QIError | { keypairItem: KeyPairItem | null; conversation: Conversation }
   > {
@@ -2607,7 +2780,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const conversationItem: {
       keypairItem: KeyPairItem | null
@@ -2647,7 +2827,8 @@ export class Chat
   }
 
   async deleteBatchConversationMessages(
-    args: DeleteBatchConversationMessagesArgs
+    args: DeleteBatchConversationMessagesArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<{ conversationId: string; messagesIds: string[] } | QIError> {
     const response = await this._mutation<
       MutationDeleteBatchConversationMessagesArgs,
@@ -2665,7 +2846,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return {
       conversationId: response.conversationId,
@@ -2673,7 +2861,10 @@ export class Chat
     }
   }
 
-  async deleteMessage(id: string): Promise<Message | QIError> {
+  async deleteMessage(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Message | QIError> {
     const response = await this._mutation<
       MutationDeleteConversationMessageArgs,
       { deleteConversationMessage: MessageGraphQL },
@@ -2689,7 +2880,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -2767,7 +2965,8 @@ export class Chat
   }
 
   async deleteRequestTrade(
-    id: string
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<ConversationTradingPool | QIError> {
     const response = await this._mutation<
       MutationDeleteRequestTradeArgs,
@@ -2782,7 +2981,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new ConversationTradingPool({
       ...this._parentConfig!,
@@ -2801,7 +3007,10 @@ export class Chat
     })
   }
 
-  async editMessage(args: EditMessageArgs): Promise<QIError | Message> {
+  async editMessage(
+    args: EditMessageArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<QIError | Message> {
     const response = await this._mutation<
       MutationEditMessageArgs,
       { editMessage: MessageGraphQL },
@@ -2817,7 +3026,14 @@ export class Chat
       },
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -2895,7 +3111,8 @@ export class Chat
   }
 
   async ejectMember(
-    args: EjectMemberArgs
+    args: EjectMemberArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<
     | QIError
     | { conversationId: string; conversation: Conversation; memberOut: User }
@@ -2911,7 +3128,14 @@ export class Chat
       },
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return {
       conversationId: response.conversationId,
@@ -3029,7 +3253,8 @@ export class Chat
   }
 
   async eraseConversationByAdmin(
-    id: string
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<
     { conversationId: string; items: Array<{ id: string }> } | QIError
   > {
@@ -3046,7 +3271,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listConversations: {
       conversationId: string
@@ -3059,18 +3291,22 @@ export class Chat
     return listConversations
   }
 
-  async leaveConversation(): Promise<
-    | { conversationId: string; conversation: Conversation; memberOut: User }
-    | QIError
-  >
   async leaveConversation(
-    id: string
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<
     | { conversationId: string; conversation: Conversation; memberOut: User }
     | QIError
   >
   async leaveConversation(
-    id?: unknown
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<
+    | { conversationId: string; conversation: Conversation; memberOut: User }
+    | QIError
+  >
+  async leaveConversation(
+    id?: unknown,
+    overrideHandlingUnauthoraizedQIError?: unknown
   ): Promise<
     | { conversationId: string; conversation: Conversation; memberOut: User }
     | QIError
@@ -3094,7 +3330,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return {
       conversationId: response.conversationId,
@@ -3212,9 +3455,13 @@ export class Chat
   }
 
   async muteConversation(
-    args: MuteConversationArgs
+    args: MuteConversationArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<QIError | Conversation>
-  async muteConversation(args: unknown): Promise<Conversation | QIError> {
+  async muteConversation(
+    args: unknown,
+    overrideHandlingUnauthoraizedQIError?: unknown
+  ): Promise<Conversation | QIError> {
     const response = await this._mutation<
       MutationMuteConversationArgs,
       { muteConversation: ConversationGraphQL },
@@ -3228,7 +3475,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Conversation({
       ...this._parentConfig!,
@@ -3254,9 +3508,17 @@ export class Chat
     })
   }
 
-  async unlockUser(): Promise<QIError | User>
-  async unlockUser(id: string): Promise<QIError | User>
-  async unlockUser(id?: unknown): Promise<QIError | User> {
+  async unlockUser(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<QIError | User>
+  async unlockUser(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<QIError | User>
+  async unlockUser(
+    id?: unknown,
+    overrideHandlingUnauthoraizedQIError?: unknown
+  ): Promise<QIError | User> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unlockUser(id : string) instead."
@@ -3271,7 +3533,14 @@ export class Chat
       blockId: id,
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -3319,9 +3588,17 @@ export class Chat
     })
   }
 
-  async unpinMessage(): Promise<QIError | Message>
-  async unpinMessage(id: string): Promise<QIError | Message>
-  async unpinMessage(id?: unknown): Promise<QIError | Message> {
+  async unpinMessage(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<QIError | Message>
+  async unpinMessage(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<QIError | Message>
+  async unpinMessage(
+    id?: unknown,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<QIError | Message> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unpinMessage(id : string) instead."
@@ -3341,7 +3618,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -3419,7 +3703,8 @@ export class Chat
   }
 
   async removeReactionFromMessage(
-    args: RemoveReactionFromMessageArgs
+    args: RemoveReactionFromMessageArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<QIError | Message> {
     const response = await this._mutation<
       MutationRemoveReactionFromMessageArgs,
@@ -3441,7 +3726,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -3519,7 +3811,8 @@ export class Chat
   }
 
   async requestTrade(
-    args: RequestTradeArgs
+    args: RequestTradeArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<QIError | ConversationTradingPool> {
     const response = await this._mutation<
       MutationRequestTradeArgs,
@@ -3533,7 +3826,14 @@ export class Chat
       },
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new ConversationTradingPool({
       ...this._parentConfig!,
@@ -3553,7 +3853,8 @@ export class Chat
   }
 
   async updateRequestTrade(
-    args: UpdateRequestTradeArgs
+    args: UpdateRequestTradeArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<QIError | ConversationTradingPool> {
     const response = await this._mutation<
       MutationUpdateRequestTradeArgs,
@@ -3573,7 +3874,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new ConversationTradingPool({
       ...this._parentConfig!,
@@ -3592,7 +3900,10 @@ export class Chat
     })
   }
 
-  async sendMessage(args: SendMessageArgs): Promise<QIError | Message> {
+  async sendMessage(
+    args: SendMessageArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<QIError | Message> {
     let content: string
 
     if (typeof args.content === "object") content = JSON.stringify(args.content)
@@ -3613,7 +3924,14 @@ export class Chat
       },
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -3690,9 +4008,17 @@ export class Chat
     })
   }
 
-  async unarchiveConversation(): Promise<QIError | User>
-  async unarchiveConversation(id: string): Promise<QIError | User>
-  async unarchiveConversation(id?: unknown): Promise<QIError | User> {
+  async unarchiveConversation(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<QIError | User>
+  async unarchiveConversation(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<QIError | User>
+  async unarchiveConversation(
+    id?: unknown,
+    overrideHandlingUnauthoraizedQIError?: unknown
+  ): Promise<QIError | User> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unarchiveConversation(id : string) instead."
@@ -3712,7 +4038,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -3760,7 +4093,10 @@ export class Chat
     })
   }
 
-  async unarchiveConversations(ids: Array<string>): Promise<User | QIError> {
+  async unarchiveConversations(
+    ids: Array<string>,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<User | QIError> {
     const response = await this._mutation<
       MutationUnarchiveConversationsArgs,
       { unarchiveConversations: UserGraphQL },
@@ -3774,7 +4110,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -3822,9 +4165,17 @@ export class Chat
     })
   }
 
-  async unmuteConversation(): Promise<QIError | Conversation>
-  async unmuteConversation(id: string): Promise<QIError | Conversation>
-  async unmuteConversation(id?: unknown): Promise<QIError | Conversation> {
+  async unmuteConversation(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<QIError | Conversation>
+  async unmuteConversation(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<QIError | Conversation>
+  async unmuteConversation(
+    id?: unknown,
+    overrideHandlingUnauthoraizedQIError?: unknown
+  ): Promise<QIError | Conversation> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unmuteConversation(id : string) instead."
@@ -3844,7 +4195,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Conversation({
       ...this._parentConfig!,
@@ -3871,7 +4229,8 @@ export class Chat
   }
 
   async updateConversationGroup(
-    args: UpdateConversationGroupInputArgs
+    args: UpdateConversationGroupInputArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<QIError | Conversation> {
     const response = await this._mutation<
       MutationUpdateConversationGroupArgs,
@@ -3905,7 +4264,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Conversation({
       ...this._parentConfig!,
@@ -3931,7 +4297,10 @@ export class Chat
     })
   }
 
-  async updateUser(args: UpdateUserArgs): Promise<QIError | User> {
+  async updateUser(
+    args: UpdateUserArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<QIError | User> {
     const response = await this._mutation<
       MutationUpdateUserInfoArgs,
       { updateUserInfo: UserGraphQL },
@@ -3951,7 +4320,14 @@ export class Chat
       },
     })
 
-    if (response instanceof QIError) throw response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -3999,9 +4375,17 @@ export class Chat
     })
   }
 
-  async markImportantMessage(): Promise<Message | QIError>
-  async markImportantMessage(id: string): Promise<Message | QIError>
-  async markImportantMessage(id?: unknown): Promise<Message | QIError> {
+  async markImportantMessage(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Message | QIError>
+  async markImportantMessage(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Message | QIError>
+  async markImportantMessage(
+    id?: unknown,
+    overrideHandlingUnauthoraizedQIError?: unknown
+  ): Promise<Message | QIError> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use markImportantMessage(id : string) instead."
@@ -4021,7 +4405,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const message = new Message({
       ...this._parentConfig!,
@@ -4111,9 +4502,17 @@ export class Chat
     return message
   }
 
-  async unmarkImportantMessage(): Promise<QIError | Message>
-  async unmarkImportantMessage(id: string): Promise<QIError | Message>
-  async unmarkImportantMessage(id?: unknown): Promise<QIError | Message> {
+  async unmarkImportantMessage(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<QIError | Message>
+  async unmarkImportantMessage(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<QIError | Message>
+  async unmarkImportantMessage(
+    id?: unknown,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<QIError | Message> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unmarkImportantMessage(id : string) instead."
@@ -4133,7 +4532,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const message = new Message({
       ...this._parentConfig!,
@@ -4223,9 +4629,17 @@ export class Chat
     return message
   }
 
-  async pinConversation(): Promise<Conversation | QIError>
-  async pinConversation(id: string): Promise<Conversation | QIError>
-  async pinConversation(id?: unknown): Promise<Conversation | QIError> {
+  async pinConversation(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Conversation | QIError>
+  async pinConversation(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Conversation | QIError>
+  async pinConversation(
+    id?: unknown,
+    overrideHandlingUnauthoraizedQIError?: unknown
+  ): Promise<Conversation | QIError> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use pinConversation(id : string) instead."
@@ -4245,7 +4659,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Conversation({
       ...this._parentConfig!,
@@ -4271,9 +4692,17 @@ export class Chat
     })
   }
 
-  async unpinConversation(): Promise<QIError | boolean>
-  async unpinConversation(id: string): Promise<QIError | boolean>
-  async unpinConversation(id?: unknown): Promise<QIError | boolean> {
+  async unpinConversation(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<QIError | boolean>
+  async unpinConversation(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<QIError | boolean>
+  async unpinConversation(
+    id?: unknown,
+    overrideHandlingUnauthoraizedQIError?: unknown
+  ): Promise<QIError | boolean> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unpinConversation(id : string) instead."
@@ -4293,7 +4722,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return true
   }
@@ -4303,7 +4739,8 @@ export class Chat
   */
 
   async listAllActiveUserConversationIds(
-    args: ListAllActiveUserConversationIdsArgs
+    args: ListAllActiveUserConversationIdsArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<QIError | { items: string[]; nextToken?: string | undefined }> {
     const response = await this._query<
       QueryListAllActiveUserConversationIdsArgs,
@@ -4323,7 +4760,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const activeUserConversationIds = {
       items: response.items,
@@ -4334,7 +4778,8 @@ export class Chat
   }
 
   async listConversationMemberByUserId(
-    nextToken?: string | undefined
+    nextToken?: string | undefined,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<
     | QIError
     | { items: ConversationMember[]; nextToken?: Maybe<string> | undefined }
@@ -4354,7 +4799,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listConversationMember: {
       nextToken?: string
@@ -4381,7 +4833,10 @@ export class Chat
     return listConversationMember
   }
 
-  async listUsersByIds(ids: string[]): Promise<
+  async listUsersByIds(
+    ids: string[],
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<
     | QIError
     | {
         items: User[]
@@ -4396,7 +4851,14 @@ export class Chat
       usersIds: ids,
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listUsers: {
       unprocessedKeys?: Maybe<string[]>
@@ -4454,7 +4916,10 @@ export class Chat
     return listUsers
   }
 
-  async listConversationsByIds(ids: string[]): Promise<
+  async listConversationsByIds(
+    ids: string[],
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<
     | QIError
     | {
         items: Conversation[]
@@ -4472,7 +4937,14 @@ export class Chat
       { conversationsIds: ids }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listConversations: {
       unprocessedKeys?: Maybe<string[]>
@@ -4511,7 +4983,8 @@ export class Chat
   }
 
   async listMessagesByConversationId(
-    args: ListMessagesByConversationIdArgs
+    args: ListMessagesByConversationIdArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<
     QIError | { items: Message[]; nextToken?: Maybe<string> | undefined }
   > {
@@ -4533,7 +5006,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listMessages: {
       nextToken?: string
@@ -4621,7 +5101,8 @@ export class Chat
   }
 
   async listMessagesByRangeOrder(
-    args: ListMessagesByRangeOrderArgs
+    args: ListMessagesByRangeOrderArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<
     QIError | { items: Message[]; nextToken?: Maybe<string> | undefined }
   > {
@@ -4643,7 +5124,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listMessages: {
       nextToken?: string
@@ -4731,7 +5219,8 @@ export class Chat
   }
 
   async listMessagesImportantByUserConversationId(
-    args: ListMessagesImportantByUserConversationIdArgs
+    args: ListMessagesImportantByUserConversationIdArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<
     | {
         items: MessageImportant[]
@@ -4757,7 +5246,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listMessagesImportant: {
       nextToken?: string
@@ -4858,7 +5354,8 @@ export class Chat
   }
 
   async listConversationsPinnedByCurrentUser(
-    nextToken?: string | undefined
+    nextToken?: string | undefined,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<
     | QIError
     | { items: ConversationPin[]; nextToken?: Maybe<string> | undefined }
@@ -4878,7 +5375,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listConversationsPinned: {
       nextToken?: string
@@ -4945,7 +5449,8 @@ export class Chat
   }
 
   async findUsersByUsernameOrAddress(
-    args: FindUsersByUsernameOrAddressArgs
+    args: FindUsersByUsernameOrAddressArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<QIError | { items: User[]; nextToken?: String | undefined }> {
     const response = await this._query<
       QueryFindUsersByUsernameOrAddressArgs,
@@ -4965,7 +5470,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listUsers: {
       nextToken?: string
@@ -5023,7 +5535,9 @@ export class Chat
     return listUsers
   }
 
-  async getCurrentUser(): Promise<QIError | User> {
+  async getCurrentUser(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<QIError | User> {
     const response = await this._query<
       null,
       {
@@ -5032,7 +5546,14 @@ export class Chat
       UserGraphQL
     >("getCurrentUser", getCurrentUser, "_query() -> getCurrentUser()", null)
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -5080,7 +5601,10 @@ export class Chat
     })
   }
 
-  async getConversationById(id: string): Promise<Conversation | QIError> {
+  async getConversationById(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Conversation | QIError> {
     const response = await this._query<
       QueryGetConversationByIdArgs,
       { getConversationById: ConversationGraphQL },
@@ -5094,7 +5618,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Conversation({
       ...this._parentConfig!,
@@ -5121,7 +5652,8 @@ export class Chat
   }
 
   async listTradesByConversationId(
-    args: ListTradesByConversationIdArgs
+    args: ListTradesByConversationIdArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<
     | { items: Array<ConversationTradingPool>; nextToken?: Maybe<string> }
     | QIError
@@ -5145,7 +5677,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listTrades: {
       nextToken?: string
@@ -5175,7 +5714,8 @@ export class Chat
   }
 
   async getConversationTradingPoolById(
-    conversationTradingPoolId: string
+    conversationTradingPoolId: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<ConversationTradingPool | QIError> {
     const response = await this._query<
       QueryGetConversationTradingPoolByIdArgs,
@@ -5192,7 +5732,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthoraizedQIError) {
+        const error = this._handleUnauthoraizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new ConversationTradingPool({
       ...this._parentConfig!,

@@ -11,22 +11,48 @@ import {
  * @interface MessageMutationEngine
  */
 export interface MessageMutationEngine {
-  pinMessage(): Promise<Message | QIError>
-  pinMessage(id: string): Promise<Message | QIError>
+  pinMessage(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Message | QIError>
+  pinMessage(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Message | QIError>
   addReactionToMessage(
-    args: AddReactionToMessageArgs
+    args: AddReactionToMessageArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<Message | QIError>
   addReportToMessage(
-    args: AddReportToMessageArgs
+    args: AddReportToMessageArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<MessageReport | QIError>
-  editMessage(args: EditMessageArgs): Promise<Message | QIError>
-  unpinMessage(): Promise<Message | QIError>
-  unpinMessage(id: string): Promise<Message | QIError>
-  removeReactionFromMessage(
-    args: RemoveReactionFromMessageArgs
+  editMessage(
+    args: EditMessageArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
   ): Promise<Message | QIError>
-  markImportantMessage(): Promise<Message | QIError>
-  markImportantMessage(id: string): Promise<Message | QIError>
-  unmarkImportantMessage(): Promise<Message | QIError>
-  unmarkImportantMessage(id: string): Promise<Message | QIError>
+  unpinMessage(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Message | QIError>
+  unpinMessage(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Message | QIError>
+  removeReactionFromMessage(
+    args: RemoveReactionFromMessageArgs,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Message | QIError>
+  markImportantMessage(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Message | QIError>
+  markImportantMessage(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Message | QIError>
+  unmarkImportantMessage(
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Message | QIError>
+  unmarkImportantMessage(
+    id: string,
+    overrideHandlingUnauthoraizedQIError?: boolean
+  ): Promise<Message | QIError>
 }
