@@ -22,7 +22,7 @@ import {
 export interface UAQueryEngine {
   listAllActiveUserConversationIds(
     args: ListAllActiveUserConversationIdsArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     | {
         items: Array<string>
@@ -32,45 +32,45 @@ export interface UAQueryEngine {
   >
   listConversationsByIds(
     ids: Array<string>,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     { items: Array<Conversation>; unprocessedKeys?: Maybe<string[]> } | QIError
   >
   listMessagesByConversationId(
     args: ListMessagesByConversationIdArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<{ items: Array<Message>; nextToken?: Maybe<string> } | QIError>
   listMessagesImportantByUserConversationId(
     args: ListMessagesImportantByUserConversationIdArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     { items: Array<MessageImportant>; nextToken?: Maybe<string> } | QIError
   >
   listMessagesByRangeOrder(
     args: ListMessagesByRangeOrderArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<{ items: Array<Message>; nextToken?: Maybe<string> } | QIError>
   listConversationsPinnedByCurrentUser(
     nextToken?: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     { items: Array<ConversationPin>; nextToken?: Maybe<string> } | QIError
   >
   listUsersByIds(
     ids: Array<string>,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     { items: Array<User>; unprocessedKeys?: Maybe<string[]> } | QIError
   >
   getConversationById(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Conversation | QIError>
   findUsersByUsernameOrAddress(
     args: FindUsersByUsernameOrAddressArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<{ items: Array<User>; nextToken?: String } | QIError>
   getCurrentUser(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<User | QIError>
 }

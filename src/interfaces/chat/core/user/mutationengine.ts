@@ -7,17 +7,17 @@ import { User } from "../../../../core/chat/user"
  */
 export interface UserMutationEngine {
   blockUser(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<User | QIError>
   blockUser(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<User | QIError>
   unlockUser(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<User | QIError>
   unlockUser(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<User | QIError>
 }

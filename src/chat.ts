@@ -599,7 +599,7 @@ export class Chat
       )
 
       if (AUCfirstSet instanceof QIError) {
-        const error = this._handleUnauthoraizedQIError(AUCfirstSet)
+        const error = this._handleUnauthorizedQIError(AUCfirstSet)
         if (error) throw "_401_"
 
         throw new Error(JSON.stringify(AUCfirstSet))
@@ -618,7 +618,7 @@ export class Chat
         )
 
         if (set instanceof QIError) {
-          const error = this._handleUnauthoraizedQIError(set)
+          const error = this._handleUnauthorizedQIError(set)
           if (error) throw "_401_"
 
           break
@@ -638,7 +638,7 @@ export class Chat
       )
 
       if (conversationfirstSet instanceof QIError) {
-        const error = this._handleUnauthoraizedQIError(conversationfirstSet)
+        const error = this._handleUnauthorizedQIError(conversationfirstSet)
         if (error) throw "_401_"
 
         throw new Error(JSON.stringify(conversationfirstSet))
@@ -651,7 +651,7 @@ export class Chat
         const set = await this.listConversationsByIds(unprocessedKeys, true)
 
         if (set instanceof QIError) {
-          const error = this._handleUnauthoraizedQIError(set)
+          const error = this._handleUnauthorizedQIError(set)
           if (error) throw "_401_"
 
           break
@@ -668,7 +668,7 @@ export class Chat
       const currentUser = await this.getCurrentUser(true)
 
       if (currentUser instanceof QIError) {
-        const error = this._handleUnauthoraizedQIError(currentUser)
+        const error = this._handleUnauthorizedQIError(currentUser)
         if (error) throw "_401_"
 
         throw new Error(JSON.stringify(currentUser))
@@ -738,7 +738,7 @@ export class Chat
         await this.listConversationMemberByUserId(undefined, true)
 
       if (firstConversationMemberSet instanceof QIError) {
-        const error = this._handleUnauthoraizedQIError(
+        const error = this._handleUnauthorizedQIError(
           firstConversationMemberSet
         )
         if (error) throw "_401_"
@@ -753,7 +753,7 @@ export class Chat
         const set = await this.listConversationMemberByUserId(nextToken, true)
 
         if (set instanceof QIError) {
-          const error = this._handleUnauthoraizedQIError(set)
+          const error = this._handleUnauthorizedQIError(set)
           if (error) throw "_401_"
 
           break
@@ -875,7 +875,7 @@ export class Chat
           )
 
         if (messagesImportantFirstSet instanceof QIError) {
-          const error = this._handleUnauthoraizedQIError(
+          const error = this._handleUnauthorizedQIError(
             messagesImportantFirstSet
           )
           if (error) throw "_401_"
@@ -896,7 +896,7 @@ export class Chat
           )
 
           if (set instanceof QIError) {
-            const error = this._handleUnauthoraizedQIError(set)
+            const error = this._handleUnauthorizedQIError(set)
             if (error) throw "_401_"
 
             break
@@ -947,7 +947,7 @@ export class Chat
           )
 
           if (messagesFirstSet instanceof QIError) {
-            const error = this._handleUnauthoraizedQIError(messagesFirstSet)
+            const error = this._handleUnauthorizedQIError(messagesFirstSet)
             if (error) throw "_401_"
 
             throw new Error(JSON.stringify(messagesFirstSet))
@@ -966,7 +966,7 @@ export class Chat
             )
 
             if (set instanceof QIError) {
-              const error = this._handleUnauthoraizedQIError(set)
+              const error = this._handleUnauthorizedQIError(set)
               if (error) throw "_401_"
 
               break
@@ -2078,15 +2078,15 @@ export class Chat
    * @returns {Promise<User | QIError>} A promise that resolves to a User object if successful, or a QIError object if there was an error.
    */
   async blockUser(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<User | QIError>
   async blockUser(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<User | QIError>
   async blockUser(
     id?: unknown,
-    overrideHandlingUnauthoraizedQIError?: unknown
+    overrideHandlingUnauthorizedQIError?: unknown
   ): Promise<User | QIError> {
     if (!id)
       throw new Error(
@@ -2103,8 +2103,8 @@ export class Chat
     })
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -2159,7 +2159,7 @@ export class Chat
 
   async addMembersToConversation(
     args: AddMembersToConversationArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     { conversationId: string; items: Array<ConversationMember> } | QIError
   > {
@@ -2180,8 +2180,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -2214,15 +2214,15 @@ export class Chat
   }
 
   async pinMessage(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError>
   async pinMessage(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError>
   async pinMessage(
     id?: unknown,
-    overrideHandlingUnauthoraizedQIError?: unknown
+    overrideHandlingUnauthorizedQIError?: unknown
   ): Promise<Message | QIError> {
     if (!id)
       throw new Error(
@@ -2239,8 +2239,8 @@ export class Chat
     })
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -2324,7 +2324,7 @@ export class Chat
 
   async addReactionToMessage(
     args: AddReactionToMessageArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError> {
     const response = await this._mutation<
       MutationAddReactionToMessageArgs,
@@ -2347,8 +2347,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -2432,7 +2432,7 @@ export class Chat
 
   async addReportToConversation(
     args: AddReportToConversationArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | ConversationReport> {
     const response = await this._mutation<
       MutationAddReportToConversationArgs,
@@ -2451,8 +2451,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -2473,7 +2473,7 @@ export class Chat
 
   async addReportToMessage(
     args: AddReportToMessageArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | MessageReport> {
     const response = await this._mutation<
       MutationAddReportToMessageArgs,
@@ -2492,8 +2492,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -2513,15 +2513,15 @@ export class Chat
   }
 
   async archiveConversation(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<User | QIError>
   async archiveConversation(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<User | QIError>
   async archiveConversation(
     id?: unknown,
-    overrideHandlingUnauthoraizedQIError?: unknown
+    overrideHandlingUnauthorizedQIError?: unknown
   ): Promise<User | QIError> {
     if (!id)
       throw new Error(
@@ -2543,8 +2543,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -2599,7 +2599,7 @@ export class Chat
 
   async archiveConversations(
     ids: Array<string>,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<User | QIError> {
     const response = await this._mutation<
       MutationArchiveConversationsArgs,
@@ -2615,8 +2615,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -2671,7 +2671,7 @@ export class Chat
 
   async createConversationGroup(
     args: CreateConversationGroupArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     { keypairItem: KeyPairItem | null; conversation: Conversation } | QIError
   > {
@@ -2702,8 +2702,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -2754,7 +2754,7 @@ export class Chat
 
   async createConversationOneToOne(
     args: CreateConversationOneToOneArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     QIError | { keypairItem: KeyPairItem | null; conversation: Conversation }
   > {
@@ -2781,8 +2781,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -2828,7 +2828,7 @@ export class Chat
 
   async deleteBatchConversationMessages(
     args: DeleteBatchConversationMessagesArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<{ conversationId: string; messagesIds: string[] } | QIError> {
     const response = await this._mutation<
       MutationDeleteBatchConversationMessagesArgs,
@@ -2847,8 +2847,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -2863,7 +2863,7 @@ export class Chat
 
   async deleteMessage(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError> {
     const response = await this._mutation<
       MutationDeleteConversationMessageArgs,
@@ -2881,8 +2881,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -2966,7 +2966,7 @@ export class Chat
 
   async deleteRequestTrade(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<ConversationTradingPool | QIError> {
     const response = await this._mutation<
       MutationDeleteRequestTradeArgs,
@@ -2982,8 +2982,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -3009,7 +3009,7 @@ export class Chat
 
   async editMessage(
     args: EditMessageArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Message> {
     const response = await this._mutation<
       MutationEditMessageArgs,
@@ -3027,8 +3027,8 @@ export class Chat
     })
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -3112,7 +3112,7 @@ export class Chat
 
   async ejectMember(
     args: EjectMemberArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     | QIError
     | { conversationId: string; conversation: Conversation; memberOut: User }
@@ -3129,8 +3129,8 @@ export class Chat
     })
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -3254,7 +3254,7 @@ export class Chat
 
   async eraseConversationByAdmin(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     { conversationId: string; items: Array<{ id: string }> } | QIError
   > {
@@ -3272,8 +3272,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -3292,21 +3292,21 @@ export class Chat
   }
 
   async leaveConversation(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     | { conversationId: string; conversation: Conversation; memberOut: User }
     | QIError
   >
   async leaveConversation(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     | { conversationId: string; conversation: Conversation; memberOut: User }
     | QIError
   >
   async leaveConversation(
     id?: unknown,
-    overrideHandlingUnauthoraizedQIError?: unknown
+    overrideHandlingUnauthorizedQIError?: unknown
   ): Promise<
     | { conversationId: string; conversation: Conversation; memberOut: User }
     | QIError
@@ -3331,8 +3331,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -3456,11 +3456,11 @@ export class Chat
 
   async muteConversation(
     args: MuteConversationArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Conversation>
   async muteConversation(
     args: unknown,
-    overrideHandlingUnauthoraizedQIError?: unknown
+    overrideHandlingUnauthorizedQIError?: unknown
   ): Promise<Conversation | QIError> {
     const response = await this._mutation<
       MutationMuteConversationArgs,
@@ -3476,8 +3476,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -3509,15 +3509,15 @@ export class Chat
   }
 
   async unlockUser(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | User>
   async unlockUser(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | User>
   async unlockUser(
     id?: unknown,
-    overrideHandlingUnauthoraizedQIError?: unknown
+    overrideHandlingUnauthorizedQIError?: unknown
   ): Promise<QIError | User> {
     if (!id)
       throw new Error(
@@ -3534,8 +3534,8 @@ export class Chat
     })
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -3589,15 +3589,15 @@ export class Chat
   }
 
   async unpinMessage(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Message>
   async unpinMessage(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Message>
   async unpinMessage(
     id?: unknown,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Message> {
     if (!id)
       throw new Error(
@@ -3619,8 +3619,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -3704,7 +3704,7 @@ export class Chat
 
   async removeReactionFromMessage(
     args: RemoveReactionFromMessageArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Message> {
     const response = await this._mutation<
       MutationRemoveReactionFromMessageArgs,
@@ -3727,8 +3727,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -3812,7 +3812,7 @@ export class Chat
 
   async requestTrade(
     args: RequestTradeArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | ConversationTradingPool> {
     const response = await this._mutation<
       MutationRequestTradeArgs,
@@ -3827,8 +3827,8 @@ export class Chat
     })
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -3854,7 +3854,7 @@ export class Chat
 
   async updateRequestTrade(
     args: UpdateRequestTradeArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | ConversationTradingPool> {
     const response = await this._mutation<
       MutationUpdateRequestTradeArgs,
@@ -3875,8 +3875,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -3902,7 +3902,7 @@ export class Chat
 
   async sendMessage(
     args: SendMessageArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Message> {
     let content: string
 
@@ -3925,8 +3925,8 @@ export class Chat
     })
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -4009,15 +4009,15 @@ export class Chat
   }
 
   async unarchiveConversation(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | User>
   async unarchiveConversation(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | User>
   async unarchiveConversation(
     id?: unknown,
-    overrideHandlingUnauthoraizedQIError?: unknown
+    overrideHandlingUnauthorizedQIError?: unknown
   ): Promise<QIError | User> {
     if (!id)
       throw new Error(
@@ -4039,8 +4039,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -4095,7 +4095,7 @@ export class Chat
 
   async unarchiveConversations(
     ids: Array<string>,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<User | QIError> {
     const response = await this._mutation<
       MutationUnarchiveConversationsArgs,
@@ -4111,8 +4111,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -4166,15 +4166,15 @@ export class Chat
   }
 
   async unmuteConversation(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Conversation>
   async unmuteConversation(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Conversation>
   async unmuteConversation(
     id?: unknown,
-    overrideHandlingUnauthoraizedQIError?: unknown
+    overrideHandlingUnauthorizedQIError?: unknown
   ): Promise<QIError | Conversation> {
     if (!id)
       throw new Error(
@@ -4196,8 +4196,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -4230,7 +4230,7 @@ export class Chat
 
   async updateConversationGroup(
     args: UpdateConversationGroupInputArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Conversation> {
     const response = await this._mutation<
       MutationUpdateConversationGroupArgs,
@@ -4265,8 +4265,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -4299,7 +4299,7 @@ export class Chat
 
   async updateUser(
     args: UpdateUserArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | User> {
     const response = await this._mutation<
       MutationUpdateUserInfoArgs,
@@ -4321,8 +4321,8 @@ export class Chat
     })
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -4376,15 +4376,15 @@ export class Chat
   }
 
   async markImportantMessage(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError>
   async markImportantMessage(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError>
   async markImportantMessage(
     id?: unknown,
-    overrideHandlingUnauthoraizedQIError?: unknown
+    overrideHandlingUnauthorizedQIError?: unknown
   ): Promise<Message | QIError> {
     if (!id)
       throw new Error(
@@ -4406,8 +4406,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -4503,15 +4503,15 @@ export class Chat
   }
 
   async unmarkImportantMessage(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Message>
   async unmarkImportantMessage(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Message>
   async unmarkImportantMessage(
     id?: unknown,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Message> {
     if (!id)
       throw new Error(
@@ -4533,8 +4533,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -4630,15 +4630,15 @@ export class Chat
   }
 
   async pinConversation(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Conversation | QIError>
   async pinConversation(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Conversation | QIError>
   async pinConversation(
     id?: unknown,
-    overrideHandlingUnauthoraizedQIError?: unknown
+    overrideHandlingUnauthorizedQIError?: unknown
   ): Promise<Conversation | QIError> {
     if (!id)
       throw new Error(
@@ -4660,8 +4660,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -4693,15 +4693,15 @@ export class Chat
   }
 
   async unpinConversation(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | boolean>
   async unpinConversation(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | boolean>
   async unpinConversation(
     id?: unknown,
-    overrideHandlingUnauthoraizedQIError?: unknown
+    overrideHandlingUnauthorizedQIError?: unknown
   ): Promise<QIError | boolean> {
     if (!id)
       throw new Error(
@@ -4723,8 +4723,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -4740,7 +4740,7 @@ export class Chat
 
   async listAllActiveUserConversationIds(
     args: ListAllActiveUserConversationIdsArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | { items: string[]; nextToken?: string | undefined }> {
     const response = await this._query<
       QueryListAllActiveUserConversationIdsArgs,
@@ -4761,8 +4761,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -4779,7 +4779,7 @@ export class Chat
 
   async listConversationMemberByUserId(
     nextToken?: string | undefined,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     | QIError
     | { items: ConversationMember[]; nextToken?: Maybe<string> | undefined }
@@ -4800,8 +4800,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -4835,7 +4835,7 @@ export class Chat
 
   async listUsersByIds(
     ids: string[],
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     | QIError
     | {
@@ -4852,8 +4852,8 @@ export class Chat
     })
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -4918,7 +4918,7 @@ export class Chat
 
   async listConversationsByIds(
     ids: string[],
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     | QIError
     | {
@@ -4938,8 +4938,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -4984,7 +4984,7 @@ export class Chat
 
   async listMessagesByConversationId(
     args: ListMessagesByConversationIdArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     QIError | { items: Message[]; nextToken?: Maybe<string> | undefined }
   > {
@@ -5007,8 +5007,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -5102,7 +5102,7 @@ export class Chat
 
   async listMessagesByRangeOrder(
     args: ListMessagesByRangeOrderArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     QIError | { items: Message[]; nextToken?: Maybe<string> | undefined }
   > {
@@ -5125,8 +5125,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -5220,7 +5220,7 @@ export class Chat
 
   async listMessagesImportantByUserConversationId(
     args: ListMessagesImportantByUserConversationIdArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     | {
         items: MessageImportant[]
@@ -5247,8 +5247,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -5355,7 +5355,7 @@ export class Chat
 
   async listConversationsPinnedByCurrentUser(
     nextToken?: string | undefined,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     | QIError
     | { items: ConversationPin[]; nextToken?: Maybe<string> | undefined }
@@ -5376,8 +5376,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -5450,7 +5450,7 @@ export class Chat
 
   async findUsersByUsernameOrAddress(
     args: FindUsersByUsernameOrAddressArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | { items: User[]; nextToken?: String | undefined }> {
     const response = await this._query<
       QueryFindUsersByUsernameOrAddressArgs,
@@ -5471,8 +5471,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -5536,7 +5536,7 @@ export class Chat
   }
 
   async getCurrentUser(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | User> {
     const response = await this._query<
       null,
@@ -5547,8 +5547,8 @@ export class Chat
     >("getCurrentUser", getCurrentUser, "_query() -> getCurrentUser()", null)
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -5603,7 +5603,7 @@ export class Chat
 
   async getConversationById(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Conversation | QIError> {
     const response = await this._query<
       QueryGetConversationByIdArgs,
@@ -5619,8 +5619,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -5653,7 +5653,7 @@ export class Chat
 
   async listTradesByConversationId(
     args: ListTradesByConversationIdArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     | { items: Array<ConversationTradingPool>; nextToken?: Maybe<string> }
     | QIError
@@ -5678,8 +5678,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 
@@ -5715,7 +5715,7 @@ export class Chat
 
   async getConversationTradingPoolById(
     conversationTradingPoolId: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<ConversationTradingPool | QIError> {
     const response = await this._query<
       QueryGetConversationTradingPoolByIdArgs,
@@ -5733,8 +5733,8 @@ export class Chat
     )
 
     if (response instanceof QIError) {
-      if (!overrideHandlingUnauthoraizedQIError) {
-        const error = this._handleUnauthoraizedQIError(response)
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
         if (error) await Auth.fetchAuthToken()
       }
 

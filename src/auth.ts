@@ -1060,9 +1060,20 @@ export class Auth implements AuthInternalEvents {
   }
 
   public static async fetchAuthToken() {
+    console.log("fetch new token")
     const token = await getAccessToken()
 
+    console.log("old real time auth token is", Auth._realtimeAuthorizationToken)
+    console.log("old token is ", Auth.authToken)
+    console.log("new token is ", token)
+
     Auth.authToken = token
+
+    console.log("confirmation for new token ", Auth.authToken)
+    console.log(
+      "confirmation for new real time auth token ",
+      Auth._realtimeAuthorizationToken
+    )
 
     let lastUserLoggedKey = window.localStorage.getItem(
       CLIENT_DB_KEY_LAST_USER_LOGGED
@@ -1072,6 +1083,11 @@ export class Auth implements AuthInternalEvents {
 
     if (!lastUserLoggedKey)
       throw new Error("Impossible to detect a logged user key.")
+
+    console.log(
+      "lastuserlogged key from local storage is ",
+      JSON.parse(lastUserLoggedKey)
+    )
 
     lastUserLoggedKey = JSON.parse(lastUserLoggedKey)
     ;(
@@ -1084,6 +1100,11 @@ export class Auth implements AuthInternalEvents {
     window.localStorage.setItem(
       CLIENT_DB_KEY_LAST_USER_LOGGED,
       JSON.stringify(lastUserLoggedKey)
+    )
+
+    console.log(
+      "setItem performed on local storage with value",
+      lastUserLoggedKey
     )
   }
 }

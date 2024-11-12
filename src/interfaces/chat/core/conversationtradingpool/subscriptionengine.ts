@@ -24,7 +24,7 @@ export interface ConversationTradingPoolSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onDeleteRequestTrade(
     conversationId: string,
@@ -36,7 +36,7 @@ export interface ConversationTradingPoolSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onUpdateRequestTrade(
     conversationId: string,
@@ -48,6 +48,6 @@ export interface ConversationTradingPoolSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
 }

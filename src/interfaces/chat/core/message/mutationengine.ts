@@ -12,47 +12,47 @@ import {
  */
 export interface MessageMutationEngine {
   pinMessage(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError>
   pinMessage(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError>
   addReactionToMessage(
     args: AddReactionToMessageArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError>
   addReportToMessage(
     args: AddReportToMessageArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<MessageReport | QIError>
   editMessage(
     args: EditMessageArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError>
   unpinMessage(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError>
   unpinMessage(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError>
   removeReactionFromMessage(
     args: RemoveReactionFromMessageArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError>
   markImportantMessage(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError>
   markImportantMessage(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError>
   unmarkImportantMessage(
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError>
   unmarkImportantMessage(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError>
 }

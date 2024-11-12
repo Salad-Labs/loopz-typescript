@@ -9,14 +9,14 @@ import { RequestTradeArgs, UpdateRequestTradeArgs } from "../../../../types"
 export interface ConversationTradingPoolMutationEngine {
   deleteRequestTrade(
     id: string,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<ConversationTradingPool | QIError>
   requestTrade(
     args: RequestTradeArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<ConversationTradingPool | QIError>
   updateRequestTrade(
     args: UpdateRequestTradeArgs,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<ConversationTradingPool | QIError>
 }

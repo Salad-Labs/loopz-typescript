@@ -35,7 +35,7 @@ export interface MessageSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): SubscriptionGarbage | QIError
   onEditMessage(
     conversationId: string,
@@ -51,7 +51,7 @@ export interface MessageSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): SubscriptionGarbage | QIError
   onDeleteMessage(
     conversationId: string,
@@ -67,7 +67,7 @@ export interface MessageSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): SubscriptionGarbage | QIError
   onBatchDeleteMessages(
     conversationId: string,
@@ -83,7 +83,7 @@ export interface MessageSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): SubscriptionGarbage | QIError
   onAddReaction(
     conversationId: string,
@@ -99,7 +99,7 @@ export interface MessageSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): SubscriptionGarbage | QIError
   onRemoveReaction(
     conversationId: string,
@@ -115,7 +115,7 @@ export interface MessageSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): SubscriptionGarbage | QIError
   onAddPinMessage(
     conversationId: string,
@@ -131,7 +131,7 @@ export interface MessageSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): SubscriptionGarbage | QIError
   onRemovePinMessage(
     conversationId: string,
@@ -147,6 +147,6 @@ export interface MessageSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): SubscriptionGarbage | QIError
 }

@@ -34,7 +34,7 @@ export interface ConversationSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onEjectMember(
     conversationId: string,
@@ -52,7 +52,7 @@ export interface ConversationSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onLeaveConversation(
     conversationId: string,
@@ -70,7 +70,7 @@ export interface ConversationSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onMuteConversation(
     conversationId: string,
@@ -82,7 +82,7 @@ export interface ConversationSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onUnmuteConversation(
     conversationId: string,
@@ -94,7 +94,7 @@ export interface ConversationSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onAddPinConversation(
     conversationId: string,
@@ -106,7 +106,7 @@ export interface ConversationSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onRemovePinConversation(
     conversationId: string,
@@ -118,7 +118,7 @@ export interface ConversationSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onAddMembersToConversation(
     callback: (
@@ -135,6 +135,6 @@ export interface ConversationSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
 }

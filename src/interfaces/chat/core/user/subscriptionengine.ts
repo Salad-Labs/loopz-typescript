@@ -21,6 +21,6 @@ export interface UserSubscriptionEngine {
       >,
       uuid: string
     ) => void,
-    overrideHandlingUnauthoraizedQIError?: boolean
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
 }

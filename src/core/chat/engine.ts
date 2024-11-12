@@ -316,12 +316,13 @@ export class Engine implements IEngine {
     }
   }
 
-  protected _handleUnauthoraizedQIError(error: QIError): Maybe<"_401_"> {
-    console.log(error)
+  protected _handleUnauthorizedQIError(error: QIError): Maybe<"_401_"> {
+    console.log(error, typeof error)
     if (error.graphQLErrors && Array.isArray(error.graphQLErrors)) {
       const _error = error.graphQLErrors[0]
       console.log(_error)
       if (
+        _error &&
         "originalError" in _error &&
         _error.originalError &&
         "errorType" in _error.originalError
