@@ -61,7 +61,7 @@ export default class UUIDSubscriptionClient extends SubscriptionClient {
         if ("errors" in payload && Array.isArray(payload.errors)) {
           const error = payload.errors[0]
 
-          if ("errorCode" in error && error.errorCode === 401) {
+          if (error && "errorCode" in error && error.errorCode === 401) {
             ;(async () => {
               //let's refresh the token and store it into local storage
               await Auth.fetchAuthToken()
