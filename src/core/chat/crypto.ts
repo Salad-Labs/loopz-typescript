@@ -232,6 +232,10 @@ export class Crypto {
     return decipher.output.toString()
   }
 
+  static convertPublicKeyPemToRSA(publicKey: string): forge.pki.rsa.PublicKey {
+    return forge.pki.publicKeyFromPem(publicKey)
+  }
+
   static convertRSAPublicKeyToPem(publicKey: forge.pki.rsa.PublicKey): string {
     return forge.pki.publicKeyToPem(publicKey)
   }

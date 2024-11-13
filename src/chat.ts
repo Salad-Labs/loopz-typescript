@@ -1238,6 +1238,8 @@ export class Chat
     try {
       if (!(response instanceof QIError)) {
         //we need to update the _keyPairsMap with the new keys of the new conversation
+        //TODO, improve this part because even if the current user has already added this conversation in its own keypair map, we calculate the public/private key.
+        //so, we can skip this part if the user has already the keypair of the conversation (this happens because this subscription fire every time a user is added in the convo)
         const { conversationId, items } = response
         const item = items.find(
           (item) => item.userId === Auth.account?.dynamoDBUserID
@@ -8162,6 +8164,138 @@ export class Chat
     })
 
     return { unsubscribe, uuid }
+  }
+
+  /** Chat shortcut methods */
+
+  async createConversation(
+    type: "ONE_TO_ONE" | "GROUP",
+    args: CreateConversationOneToOneArgs | CreateConversationGroupArgs,
+    members: Array<User>
+  ): Promise<QIError | boolean> {
+    if (!Auth.account)
+      throw new Error("You must be logged in order to use this method.")
+    if (type === "ONE_TO_ONE" && "imageSettings" in args)
+      throw new Error(
+        "If you specific a type 'ONE_TO_ONE' the param 'args' can not be a CreateConversationGroupArgs."
+      )
+    else if (type === "GROUP" && !("imageSettings" in args))
+      throw new Error(
+        "If you specific a type 'GROUP' the param 'args' can not be a CreateConversationOneToOneArgs."
+      )
+    if (type === "ONE_TO_ONE" && members.length !== 2)
+      throw new Error("A 'ONE_TO_ONE' conversation must have two members.")
+    if (
+      members.findIndex(
+        (member) => member.id === Auth.account!.dynamoDBUserID
+      ) === -1
+    )
+      throw new Error(
+        "The current user must be included in the 'members' array param."
+      )
+
+    //after we have checked the arguments properly, we need to perform the following operations:
+    //1) we need to get the public key of every member we want to add in the conversation
+    //2) we need to create the conversation (so the relative mutation) and obtain a public/private key pair of the conversation
+    //3) we need to encrypt the public/private key of the conversation with the public key of each member we want to add in the conversation
+    //4) we need to call the addmemberstoconversation mutation in order to add the members
+
+    //let's go
+
+    //1)
+    //this is an array of public keys in .pem format
+    const membersPublicKeys = members.map((member) => {
+      return {
+        publicKeyPem: member.e2ePublicKey,
+        memberId: member.id,
+        encryptedConversationPublicKey: null,
+        encrypteConversationPrivateKey: null,
+      }
+    })
+
+    //2)
+    //we create the conversation. Please to take note of the variable this._syncRunning. We use this variable (a boolean) to override the standard behavior of the 401 handling.
+    //If the sync() is running, means we need to handle the 401 in a particular way because in case of that we need to reset silently the sync
+    //If instead we are not in that scenario, we can not override this behavior, and in fact the this._syncRunning value in that case will be 'false'.
+    const conversation =
+      type === "ONE_TO_ONE"
+        ? await this.createConversationOneToOne(
+            args as CreateConversationOneToOneArgs,
+            this._syncRunning
+          )
+        : await this.createConversationGroup(
+            args as CreateConversationGroupArgs,
+            this._syncRunning
+          )
+
+    //handling of QIError in case we are running sync()
+    if (this._syncRunning && conversation instanceof QIError) {
+      const error = this._handleUnauthorizedQIError(conversation)
+      if (error) {
+        await Auth.fetchAuthToken()
+        this.silentReset()
+      }
+
+      return conversation
+    }
+
+    //3)
+    //we need to obtain the key/pair of the conversation, convert them to .pem format and encrypt these keys using the public key of every member we want to add
+    if (!(conversation instanceof QIError)) {
+      const conversationKeyPairItem = conversation.keypairItem
+
+      if (!conversationKeyPairItem) return false
+
+      const conversationKeyPair = conversationKeyPairItem.keypair
+      const conversationPublicKeyPem = Crypto.convertRSAPublicKeyToPem(
+        conversationKeyPair.publicKey
+      )
+      const conversationPrivateKeyPem = Crypto.convertRSAPrivateKeyToPem(
+        conversationKeyPair.privateKey
+      )
+
+      const membersToAdd = membersPublicKeys.map((member) => {
+        const memberPublicKey = Crypto.convertPublicKeyPemToRSA(
+          member.publicKeyPem!
+        )
+
+        return {
+          memberId: member.memberId,
+          encryptedConversationPrivateKey: Crypto.encryptStringOrFail(
+            memberPublicKey,
+            conversationPrivateKeyPem
+          ),
+          encryptedConversationPublicKey: Crypto.encryptStringOrFail(
+            memberPublicKey,
+            conversationPublicKeyPem
+          ),
+        }
+      })
+
+      //4)
+      //let's add the members to the conversation
+
+      const addMembersToConversation = await this.addMembersToConversation(
+        {
+          id: conversation.conversation.id,
+          members: membersToAdd,
+        },
+        this._syncRunning
+      )
+
+      //handling of QIError in case we are running sync()
+      if (this._syncRunning && addMembersToConversation instanceof QIError) {
+        const error = this._handleUnauthorizedQIError(addMembersToConversation)
+        if (error) {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        }
+
+        return addMembersToConversation
+      }
+    }
+
+    return true
   }
 
   /** Chat events methods */
