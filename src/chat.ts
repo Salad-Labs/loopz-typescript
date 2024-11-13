@@ -405,6 +405,27 @@ export class Chat
         uuid,
         conversationId: "", //this value is updated inside the callback fired by the subscription
       })
+    } else {
+      const error = Chat._instance._handleUnauthorizedQIError(
+        onAddMembersToConversation
+      )
+      if (error) {
+        ;(async () => {
+          if (!Chat._instance) return
+
+          await Auth.fetchAuthToken()
+          Chat._instance.silentReset()
+        })()
+
+        return
+      }
+
+      Chat._instance._emit("syncError", {
+        error: onAddMembersToConversation,
+      })
+      Chat._instance.unsync()
+
+      return
     }
 
     //now that we have a _conversationsMap array filled, we can add subscription for every conversation that is currently active
@@ -8239,6 +8260,13 @@ export class Chat
 
         return
       }
+
+      this._emit("syncError", {
+        error: onAddMembersToConversation,
+      })
+      this.unsync()
+
+      return
     }
 
     //now that we have a _conversationsMap array filled, we can add subscription for every conversation that is currently active
