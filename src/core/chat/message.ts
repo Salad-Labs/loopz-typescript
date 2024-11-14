@@ -88,6 +88,13 @@ export class Message
    */
   readonly type: Maybe<"TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT">
   /**
+   * @property {id: string; username: string} user - The user, author of the message
+   */
+  readonly user: {
+    id: string
+    username: string
+  }
+  /**
    * @property {Maybe<number>} order - The order of the message.
    */
   readonly order: number
@@ -123,6 +130,7 @@ export class Message
     this.messageRoot = config.messageRoot
     this.messageRootId = config.messageRootId
     this.type = config.type
+    this.user = config.user
     this.order = config.order
     this.createdAt = config.createdAt
     this.updatedAt = config.updatedAt
@@ -216,6 +224,12 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+            },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
@@ -236,6 +250,10 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+      },
       order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -329,6 +347,12 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+            },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
@@ -349,6 +373,10 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+      },
       order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -483,6 +511,12 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+            },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
@@ -503,6 +537,10 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+      },
       order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -592,6 +630,12 @@ export class Message
                 })
               : null,
             userId: response.messageRoot.userId,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+            },
             messageRoot: null,
             messageRootId: null,
             type: response.messageRoot.type
@@ -601,6 +645,7 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
@@ -621,6 +666,10 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+      },
       order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -714,6 +763,12 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+            },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
@@ -734,6 +789,10 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+      },
       order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -832,6 +891,12 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+            },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
@@ -852,6 +917,10 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+      },
       order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -963,6 +1032,12 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+            },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
@@ -983,6 +1058,10 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+      },
       order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -1077,7 +1156,7 @@ export class Message
    * Retrieves user information from the server and returns a User object.
    * @returns {Promise<User | QIError>} A promise that resolves to a User object if successful, or a QIError object if there was an error.
    */
-  async user(
+  async author(
     overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<User | QIError> {
     const response = await this._query<

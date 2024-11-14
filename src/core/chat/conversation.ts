@@ -611,6 +611,12 @@ export class Conversation
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+            },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
@@ -630,6 +636,10 @@ export class Conversation
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+      },
       order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -962,6 +972,12 @@ export class Conversation
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+            },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
@@ -981,6 +997,10 @@ export class Conversation
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+      },
       order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -1557,6 +1577,12 @@ export class Conversation
                     | "TRADE_PROPOSAL"
                     | "RENT")
                 : null,
+              user: {
+                id: item!.messageRoot.user!.id,
+                username: item!.messageRoot.user!.username
+                  ? item!.messageRoot.user!.username
+                  : "",
+              },
               order: item!.messageRoot.order,
               createdAt: item!.messageRoot.createdAt,
               updatedAt: item!.messageRoot.updatedAt
@@ -1573,6 +1599,10 @@ export class Conversation
         type: item!.type
           ? (item!.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
           : null,
+        user: {
+          id: item!.user!.id,
+          username: item!.user!.username ? item!.user!.username : "",
+        },
         order: item!.order,
         createdAt: item!.createdAt,
         updatedAt: item!.updatedAt ? item!.updatedAt : null,

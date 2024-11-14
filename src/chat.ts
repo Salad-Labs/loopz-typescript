@@ -1016,7 +1016,7 @@ export class Chat
               this._hookMessageCreated = false
               this._hookMessageUpdated = false
             }
-            //Serpens?
+
             //it's possible this array is empty when the chat history settings has value 'false'
             this._storage.insertBulkSafe(
               "message",
@@ -2552,6 +2552,12 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+            },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
@@ -2572,6 +2578,10 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+      },
       order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -2660,6 +2670,12 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+            },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
@@ -2680,6 +2696,10 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+      },
       order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -3194,6 +3214,12 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+            },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
@@ -3214,6 +3240,10 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+      },
       order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -3340,6 +3370,12 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+            },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
@@ -3360,6 +3396,10 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+      },
       order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -3932,6 +3972,12 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+            },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
@@ -3952,6 +3998,10 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+      },
       order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -4040,6 +4090,12 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+            },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
@@ -4060,6 +4116,10 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+      },
       order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -4238,6 +4298,12 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+            },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
@@ -4258,6 +4324,10 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+      },
       order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -4719,6 +4789,12 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+            },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
@@ -4739,6 +4815,10 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+      },
       order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -4846,6 +4926,12 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+            },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
@@ -4866,6 +4952,10 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+      },
       order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
@@ -5326,6 +5416,12 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                user: {
+                  id: item.messageRoot.user!.id,
+                  username: item.messageRoot.user!.username
+                    ? item.messageRoot.user!.username
+                    : "",
+                },
                 order: item.messageRoot.order,
                 createdAt: item.messageRoot.createdAt,
                 updatedAt: item.messageRoot.updatedAt
@@ -5346,6 +5442,10 @@ export class Chat
                 | "TRADE_PROPOSAL"
                 | "RENT")
             : null,
+          user: {
+            id: item.user!.id,
+            username: item.user!.username ? item.user!.username : "",
+          },
           order: item.order,
           createdAt: item.createdAt,
           updatedAt: item.updatedAt ? item.updatedAt : null,
@@ -5444,6 +5544,12 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                user: {
+                  id: item.messageRoot.user!.id,
+                  username: item.messageRoot.user!.username
+                    ? item.messageRoot.user!.username
+                    : "",
+                },
                 order: item.messageRoot.order,
                 createdAt: item.messageRoot.createdAt,
                 updatedAt: item.messageRoot.updatedAt
@@ -5464,6 +5570,10 @@ export class Chat
                 | "TRADE_PROPOSAL"
                 | "RENT")
             : null,
+          user: {
+            id: item.user!.id,
+            username: item.user!.username ? item.user!.username : "",
+          },
           order: item.order,
           createdAt: item.createdAt,
           updatedAt: item.updatedAt ? item.updatedAt : null,
@@ -5571,6 +5681,12 @@ export class Chat
                         | "TRADE_PROPOSAL"
                         | "RENT")
                     : null,
+                  user: {
+                    id: item.message!.messageRoot.user!.id,
+                    username: item.message!.messageRoot.user!.username
+                      ? item.message!.messageRoot.user!.username
+                      : "",
+                  },
                   order: item.message!.messageRoot.order,
                   createdAt: item.message!.messageRoot.createdAt,
                   updatedAt: item.message!.messageRoot.updatedAt
@@ -5593,6 +5709,10 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: item.user!.id,
+              username: item.user!.username ? item.user!.username : "",
+            },
             order: item.message!.order,
             createdAt: item.message!.createdAt,
             updatedAt: item.message!.updatedAt ? item.message!.updatedAt : null,
@@ -6125,6 +6245,12 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                user: {
+                  id: r.messageRoot.user!.id,
+                  username: r.messageRoot.user!.username
+                    ? r.messageRoot.user!.username
+                    : "",
+                },
                 order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
@@ -6141,6 +6267,10 @@ export class Chat
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          user: {
+            id: r.user!.id,
+            username: r.user!.username ? r.user!.username : "",
+          },
           order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
@@ -6256,6 +6386,12 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                user: {
+                  id: r.messageRoot.user!.id,
+                  username: r.messageRoot.user!.username
+                    ? r.messageRoot.user!.username
+                    : "",
+                },
                 order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
@@ -6272,6 +6408,10 @@ export class Chat
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          user: {
+            id: r.user!.id,
+            username: r.user!.username ? r.user!.username : "",
+          },
           order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
@@ -6455,6 +6595,12 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                user: {
+                  id: r.messageRoot.user!.id,
+                  username: r.messageRoot.user!.username
+                    ? r.messageRoot.user!.username
+                    : "",
+                },
                 order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
@@ -6470,6 +6616,10 @@ export class Chat
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          user: {
+            id: r.user!.id,
+            username: r.user!.username ? r.user!.username : "",
+          },
           order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
@@ -6586,6 +6736,12 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                user: {
+                  id: r.messageRoot.user!.id,
+                  username: r.messageRoot.user!.username
+                    ? r.messageRoot.user!.username
+                    : "",
+                },
                 order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
@@ -6601,6 +6757,10 @@ export class Chat
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          user: {
+            id: r.user!.id,
+            username: r.user!.username ? r.user!.username : "",
+          },
           order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
@@ -6717,6 +6877,12 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                user: {
+                  id: r.messageRoot.user!.id,
+                  username: r.messageRoot.user!.username
+                    ? r.messageRoot.user!.username
+                    : "",
+                },
                 order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
@@ -6732,6 +6898,10 @@ export class Chat
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          user: {
+            id: r.user!.id,
+            username: r.user!.username ? r.user!.username : "",
+          },
           order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
@@ -6848,6 +7018,12 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                user: {
+                  id: r.messageRoot.user!.id,
+                  username: r.messageRoot.user!.username
+                    ? r.messageRoot.user!.username
+                    : "",
+                },
                 order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
@@ -6863,6 +7039,10 @@ export class Chat
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          user: {
+            id: r.user!.id,
+            username: r.user!.username ? r.user!.username : "",
+          },
           order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
@@ -6978,6 +7158,12 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                user: {
+                  id: r.messageRoot.user!.id,
+                  username: r.messageRoot.user!.username
+                    ? r.messageRoot.user!.username
+                    : "",
+                },
                 order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
@@ -6994,6 +7180,10 @@ export class Chat
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          user: {
+            id: r.user!.id,
+            username: r.user!.username ? r.user!.username : "",
+          },
           order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,

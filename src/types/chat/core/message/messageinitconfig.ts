@@ -42,6 +42,13 @@ export type MessageInitConfig = {
    */
   type: Maybe<"TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT">
   /**
+   * @property {id: string; username: string} user - The user, author of the message
+   */
+  user: {
+    id: string
+    username: string
+  }
+  /**
    * @property {number} order - The order of the message.
    */
   order: number

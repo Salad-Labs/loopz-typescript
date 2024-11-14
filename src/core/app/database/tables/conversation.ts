@@ -8,10 +8,18 @@ export interface LocalDBConversation {
   description: string
   imageURL: string
   bannerImageURL: string
+  imageSettings: Maybe<{
+    imageX: number
+    imageY: number
+    imageZoom: number
+  }>
   settings: string
   isArchived: boolean
+  type: "ONE_TO_ONE" | "GROUP"
   lastMessageSentAt: Maybe<Date>
   lastMessageRead: Maybe<Date>
+  lastMessageAuthor: Maybe<string>
+  lastMessageText: Maybe<string>
   createdAt: Date
   updatedAt: Maybe<Date>
   deletedAt: Maybe<Date>
