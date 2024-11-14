@@ -32,6 +32,10 @@ export class Loopz {
 
   private static _devMode: boolean = false
 
+  static get devMode(): boolean {
+    return Loopz._devMode
+  }
+
   private constructor(
     config: LoopzConfig,
     runAdapter?: boolean,

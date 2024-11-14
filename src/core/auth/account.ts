@@ -9,7 +9,7 @@ import { Client } from "../client"
 import { QIError } from ".."
 import { ApiResponse } from "../../types/base/apiresponse"
 import { DexieStorage } from "../app"
-import { Auth, Chat, Serpens } from "../.."
+import { Auth, Chat, Loopz, Serpens, User } from "../.."
 import { AddGroupFrom, ReceiveMessageFrom, UserOnlineStatus } from "../../enums"
 import { LocalDBUser } from "../app/database"
 
@@ -636,5 +636,41 @@ export class Account implements AccountSchema, AccountEngine {
       console.error(error)
       throw error
     }
+  }
+
+  toUser() {
+    return new User({
+      devMode: Loopz.devMode,
+      id: this.dynamoDBUserID,
+      did: this.did,
+      address: this.walletAddress,
+      username: this.username,
+      bio: this.bio,
+      email: this.email,
+      avatarUrl: this.avatarUrl ? new URL(this.avatarUrl) : null,
+      imageSettings: this.imageSettings
+        ? JSON.stringify(this.imageSettings)
+        : null,
+      isVerified: this.isVerified,
+      isPfpNft: this.isPfpNft,
+      blacklistIds: [],
+      allowNotification: this.allowNotification,
+      allowNotificationSound: this.allowNotificationSound,
+      allowAddToGroupsFrom: this.allowAddToGroupsFrom,
+      allowGroupsSuggestion: this.allowGroupsSuggestion,
+      allowReadReceipt: this.allowReadReceipt,
+      allowReceiveMessageFrom: this.allowReceiveMessageFrom,
+      visibility: this.visibility,
+      archivedConversations: [],
+      onlineStatus: this.onlineStatus,
+      e2ePublicKey: this.e2ePublicKey,
+      e2eSecret: this.e2eSecret,
+      e2eSecretIV: this.e2eSecretIV,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+      client: {} as any,
+      realtimeClient: {} as any,
+      storage: this._storage,
+    })
   }
 }
