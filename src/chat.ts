@@ -1035,6 +1035,24 @@ export class Chat
                 )
               })
             )
+            await new Promise((resolve, reject) => {
+              Serpens.addAction(() =>
+                this._storage.conversation
+                  .where("[id+userDid]")
+                  .equals([
+                    messages[messages.length - 1].conversationId,
+                    Auth.account!.did,
+                  ])
+                  .modify((conversation: LocalDBConversation) => {
+                    const lastMessage = messages[messages.length - 1]
+
+                    conversation.lastMessageAuthor = lastMessage.user.username
+                    conversation.lastMessageText = lastMessage.content
+                  })
+                  .then(resolve)
+                  .catch(reject)
+              )
+            })
 
             //let's collect these messages for our detective message instance (only if this sync is not the first)
             if (this._syncingCounter > 0)
@@ -1497,7 +1515,7 @@ export class Chat
 
         const conversation = await this._storage.get(
           "conversation",
-          "[conversationId+userDid]",
+          "[id+userDid]",
           [response.conversationId, Auth.account!.did]
         )
         await new Promise((resolve, reject) => {
@@ -1505,6 +1523,9 @@ export class Chat
             this._storage.conversation
               .update(conversation, {
                 deletedAt: null,
+                lastMessageAuthor: response.user.username,
+                lastMessageSentAt: new Date(),
+                lastMessageText: response.content,
               })
               .then(resolve)
               .catch(reject)
@@ -8848,14 +8869,18 @@ export class Chat
     if (!Auth.account) throw new Error("Account must be initialized.")
 
     try {
-      await Serpens.addAction(() =>
-        this._storage.conversation
-          .where("[id+userDid]")
-          .equals([conversationId, Auth.account!.did])
-          .modify((conversation: LocalDBConversation) => {
-            conversation.deletedAt = new Date()
-          })
-      )
+      await new Promise((resolve, reject) => {
+        Serpens.addAction(() =>
+          this._storage.conversation
+            .where("[id+userDid]")
+            .equals([conversationId, Auth.account!.did])
+            .modify((conversation: LocalDBConversation) => {
+              conversation.deletedAt = new Date()
+            })
+            .then(resolve)
+            .catch(reject)
+        )
+      })
     } catch (error) {
       throw error
     }
@@ -8873,14 +8898,18 @@ export class Chat
     if (!Auth.account) throw new Error("Account must be initialized.")
 
     try {
-      await Serpens.addAction(() =>
-        this._storage.conversation
-          .where("[id+userDid]")
-          .equals([conversationId, Auth.account!.did])
-          .modify((conversation: LocalDBConversation) => {
-            conversation.lastMessageRead = new Date()
-          })
-      )
+      await new Promise((resolve, reject) => {
+        Serpens.addAction(() =>
+          this._storage.conversation
+            .where("[id+userDid]")
+            .equals([conversationId, Auth.account!.did])
+            .modify((conversation: LocalDBConversation) => {
+              conversation.lastMessageRead = new Date()
+            })
+            .then(resolve)
+            .catch(reject)
+        )
+      })
     } catch (error) {
       throw error
     }
