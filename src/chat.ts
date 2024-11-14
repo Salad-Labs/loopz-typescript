@@ -2932,7 +2932,7 @@ export class Chat
     args: CreateConversationGroupArgs,
     overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
-    { keypairItem: KeyPairItem | null; conversation: Conversation } | QIError
+    { keypairItem: KeyPairItem; conversation: Conversation } | QIError
   > {
     const keypair = await Crypto.generateKeys("HIGH")
     const response = await this._mutation<
@@ -3015,7 +3015,7 @@ export class Chat
     args: CreateConversationOneToOneArgs,
     overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
-    QIError | { keypairItem: KeyPairItem | null; conversation: Conversation }
+    QIError | { keypairItem: KeyPairItem; conversation: Conversation }
   > {
     const keypair = await Crypto.generateKeys("HIGH")
     const response = await this._mutation<
@@ -3049,7 +3049,7 @@ export class Chat
     }
 
     const conversationItem: {
-      keypairItem: KeyPairItem | null
+      keypairItem: KeyPairItem
       conversation: Conversation
     } = {
       keypairItem: {
@@ -8172,7 +8172,7 @@ export class Chat
     type: "ONE_TO_ONE" | "GROUP",
     args: CreateConversationOneToOneArgs | CreateConversationGroupArgs,
     members: Array<User>
-  ): Promise<QIError | boolean> {
+  ): Promise<QIError | Conversation> {
     if (!Auth.account)
       throw new Error("You must be logged in order to use this method.")
     if (type === "ONE_TO_ONE" && "imageSettings" in args)
@@ -8217,7 +8217,7 @@ export class Chat
     //we create the conversation. Please to take note of the variable this._syncRunning. We use this variable (a boolean) to override the standard behavior of the 401 handling.
     //If the sync() is running, means we need to handle the 401 in a particular way because in case of that we need to reset silently the sync
     //If instead we are not in that scenario, we can not override this behavior, and in fact the this._syncRunning value in that case will be 'false'.
-    const conversation =
+    const newConversation =
       type === "ONE_TO_ONE"
         ? await this.createConversationOneToOne(
             args as CreateConversationOneToOneArgs,
@@ -8229,73 +8229,71 @@ export class Chat
           )
 
     //handling of QIError in case we are running sync()
-    if (this._syncRunning && conversation instanceof QIError) {
-      const error = this._handleUnauthorizedQIError(conversation)
+    if (this._syncRunning && newConversation instanceof QIError) {
+      const error = this._handleUnauthorizedQIError(newConversation)
       if (error) {
         await Auth.fetchAuthToken()
         this.silentReset()
       }
 
-      return conversation
-    }
+      return newConversation
+    } else if (newConversation instanceof QIError) return newConversation
 
     //3)
     //we need to obtain the key/pair of the conversation, convert them to .pem format and encrypt these keys using the public key of every member we want to add
-    if (!(conversation instanceof QIError)) {
-      const conversationKeyPairItem = conversation.keypairItem
 
-      if (!conversationKeyPairItem) return false
+    const conversationKeyPairItem = newConversation.keypairItem
+    const conversation = newConversation.conversation
+    const conversationKeyPair = conversationKeyPairItem.keypair
+    const conversationPublicKeyPem = Crypto.convertRSAPublicKeyToPem(
+      conversationKeyPair.publicKey
+    )
+    const conversationPrivateKeyPem = Crypto.convertRSAPrivateKeyToPem(
+      conversationKeyPair.privateKey
+    )
 
-      const conversationKeyPair = conversationKeyPairItem.keypair
-      const conversationPublicKeyPem = Crypto.convertRSAPublicKeyToPem(
-        conversationKeyPair.publicKey
-      )
-      const conversationPrivateKeyPem = Crypto.convertRSAPrivateKeyToPem(
-        conversationKeyPair.privateKey
-      )
-
-      const membersToAdd = membersPublicKeys.map((member) => {
-        const memberPublicKey = Crypto.convertPublicKeyPemToRSA(
-          member.publicKeyPem!
-        )
-
-        return {
-          memberId: member.memberId,
-          encryptedConversationPrivateKey: Crypto.encryptStringOrFail(
-            memberPublicKey,
-            conversationPrivateKeyPem
-          ),
-          encryptedConversationPublicKey: Crypto.encryptStringOrFail(
-            memberPublicKey,
-            conversationPublicKeyPem
-          ),
-        }
-      })
-
-      //4)
-      //let's add the members to the conversation
-
-      const addMembersToConversation = await this.addMembersToConversation(
-        {
-          id: conversation.conversation.id,
-          members: membersToAdd,
-        },
-        this._syncRunning
+    const membersToAdd = membersPublicKeys.map((member) => {
+      const memberPublicKey = Crypto.convertPublicKeyPemToRSA(
+        member.publicKeyPem!
       )
 
-      //handling of QIError in case we are running sync()
-      if (this._syncRunning && addMembersToConversation instanceof QIError) {
-        const error = this._handleUnauthorizedQIError(addMembersToConversation)
-        if (error) {
-          await Auth.fetchAuthToken()
-          this.silentReset()
-        }
-
-        return addMembersToConversation
+      return {
+        memberId: member.memberId,
+        encryptedConversationPrivateKey: Crypto.encryptStringOrFail(
+          memberPublicKey,
+          conversationPrivateKeyPem
+        ),
+        encryptedConversationPublicKey: Crypto.encryptStringOrFail(
+          memberPublicKey,
+          conversationPublicKeyPem
+        ),
       }
-    }
+    })
 
-    return true
+    //4)
+    //let's add the members to the conversation
+
+    const addMembersToConversation = await this.addMembersToConversation(
+      {
+        id: conversation.id,
+        members: membersToAdd,
+      },
+      this._syncRunning
+    )
+
+    //handling of QIError in case we are running sync()
+    if (this._syncRunning && addMembersToConversation instanceof QIError) {
+      const error = this._handleUnauthorizedQIError(addMembersToConversation)
+      if (error) {
+        await Auth.fetchAuthToken()
+        this.silentReset()
+      }
+
+      return addMembersToConversation
+    } else if (addMembersToConversation instanceof QIError)
+      return addMembersToConversation
+
+    return conversation
   }
 
   /** Chat events methods */
