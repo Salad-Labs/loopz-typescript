@@ -3081,10 +3081,7 @@ export class Chat
             args.bannerImageURL
           ),
           imageURL: Crypto.encrypt(keypair!.publicKey, args.imageURL),
-          imageSettings: Crypto.encrypt(
-            keypair!.publicKey,
-            JSON.stringify(args.imageSettings)
-          ),
+          imageSettings: JSON.stringify(args.imageSettings),
         },
       }
     )
