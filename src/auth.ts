@@ -177,6 +177,7 @@ export class Auth implements AuthInternalEvents {
             .add({
               did: Auth._account.did,
               organizationId: Auth._account.organizationId,
+              dynamoDBUserID: Auth._account.dynamoDBUserID,
               username: Auth._account.username,
               email: Auth._account.email,
               bio: Auth._account.bio,

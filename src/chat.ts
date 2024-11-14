@@ -8447,6 +8447,7 @@ export class Chat
     const conversation = newConversation.conversation
 
     const membersToAdd = membersPublicKeys.map((member) => {
+      console.log(member)
       const memberPublicKey = Crypto.convertPublicKeyPemToRSA(
         member.publicKeyPem!
       )
