@@ -8654,21 +8654,29 @@ export class Chat
    * Unsync the client.
    * @returns none
    */
-  unsync() {
-    if (this._syncTimeout) clearTimeout(this._syncTimeout)
-    this._isSyncing = false
-    this._syncingCounter = 0
-    for (const { conversationId } of this._conversationsMap.filter(
-      (conversation) => conversation.type === "ACTIVE"
-    )) {
-      this._removeSubscriptionsSync(conversationId)
-    }
-    this._unsubscribeSyncSet = [] //subscription mapping array
-    this._conversationsMap = [] //conversations array
-    this._keyPairsMap = [] //conversations public/private keys
-    this._userKeyPair = null //user private/public key
-    this._syncRunning = false
-    Chat._detectiveMessage.clear()
+  unsync(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        if (this._syncTimeout) clearTimeout(this._syncTimeout)
+        this._isSyncing = false
+        this._syncingCounter = 0
+        for (const { conversationId } of this._conversationsMap.filter(
+          (conversation) => conversation.type === "ACTIVE"
+        )) {
+          this._removeSubscriptionsSync(conversationId)
+        }
+        this._unsubscribeSyncSet = [] //subscription mapping array
+        this._conversationsMap = [] //conversations array
+        this._keyPairsMap = [] //conversations public/private keys
+        this._userKeyPair = null //user private/public key
+        this._syncRunning = false
+        Chat._detectiveMessage.clear()
+        resolve()
+      } catch (error) {
+        console.log("unsync() error:", error)
+        reject(error)
+      }
+    })
   }
 
   /**

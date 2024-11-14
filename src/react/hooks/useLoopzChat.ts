@@ -117,6 +117,29 @@ export const useLoopzChat: UseLoopzChat = ({
     instance,
   ])
 
+  const unsync = useCallback(() => {
+    if (!initialized) throw new NotInitializedError()
+    if (!isAuthenticated) throw new UnauthenticatedError()
+    if (isConnecting) throw new LoadingError("unsync()", "Chat")
+    if (!isConnected) throw new NotConnectedError()
+    if (isSyncing) throw new LoadingError("unsync()", "Chat")
+
+    return isSynced
+      ? instance.chat
+          .unsync()
+          .then(() => setIsSynced(false))
+          .catch(() => setIsSynced(true))
+      : Promise.resolve()
+  }, [
+    initialized,
+    isAuthenticated,
+    isConnecting,
+    isConnected,
+    isSyncing,
+    isSynced,
+    instance,
+  ])
+
   useLoopzChatEvent("syncing", onSyncing)
   useLoopzChatEvent("sync", onSync)
   useLoopzChatEvent("syncError", onSyncError)
@@ -175,5 +198,6 @@ export const useLoopzChat: UseLoopzChat = ({
     reconnect,
     disconnect,
     sync,
+    unsync,
   }
 }
