@@ -20,10 +20,16 @@ export class Converter {
       bannerImageURL: new URL(
         conversation.bannerImageURL ? conversation.bannerImageURL : ""
       ).toString(),
+      imageSettings: conversation.imageSettings
+        ? JSON.parse(conversation.imageSettings)
+        : null,
       settings: JSON.stringify(conversation.settings),
       isArchived,
       lastMessageSentAt: conversation.lastMessageSentAt,
+      lastMessageAuthor: null,
+      lastMessageText: null,
       lastMessageRead: null,
+      type: conversation.type as "GROUP" | "ONE_TO_ONE",
       createdAt: conversation.createdAt,
       updatedAt: conversation.updatedAt,
       deletedAt: null,
