@@ -3001,10 +3001,7 @@ export class Chat
             args.bannerImageURL
           ),
           imageURL: Crypto.encrypt(keypair!.publicKey, args.imageURL),
-          imageSettings: Crypto.encrypt(
-            keypair!.publicKey,
-            JSON.stringify(args.imageSettings)
-          ),
+          imageSettings: JSON.stringify(args.imageSettings),
         },
       }
     )
@@ -8398,11 +8395,11 @@ export class Chat
   ): Promise<QIError | Conversation> {
     if (!Auth.account)
       throw new Error("You must be logged in order to use this method.")
-    if (type === "ONE_TO_ONE" && "imageSettings" in args)
+    if (type === "ONE_TO_ONE" && "bannerImageX" in args.imageSettings)
       throw new Error(
         "If you specific a type 'ONE_TO_ONE' the param 'args' can not be a CreateConversationGroupArgs."
       )
-    else if (type === "GROUP" && !("imageSettings" in args))
+    else if (type === "GROUP" && !("bannerImageX" in args.imageSettings))
       throw new Error(
         "If you specific a type 'GROUP' the param 'args' can not be a CreateConversationOneToOneArgs."
       )
