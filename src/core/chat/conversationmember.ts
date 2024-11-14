@@ -31,13 +31,13 @@ export class ConversationMember
    */
   readonly type: "USER" | "ADMINISTRATOR"
   /**
-   * @property {string} encryptedConversationPublicKey - The public key used for encryption in the conversation.
+   * @property {string} encryptedConversationAESKey - The AES key used for encryption in the conversation.
    */
-  readonly encryptedConversationPublicKey: string
+  readonly encryptedConversationAESKey: string
   /**
-   * @property {string} encryptedConversationPrivateKey - The private key used for encryption in the conversation.
+   * @property {string} encryptedConversationIVeKey - The IV key used for encryption in the conversation.
    */
-  readonly encryptedConversationPrivateKey: string
+  readonly encryptedConversationIVKey: string
   /**
    * @property {Date} createdAt - The date and time when the conversation was
    */
@@ -62,9 +62,8 @@ export class ConversationMember
     this.conversationId = config.conversationId
     this.userId = config.userId
     this.type = config.type
-    this.encryptedConversationPrivateKey =
-      config.encryptedConversationPrivateKey
-    this.encryptedConversationPublicKey = config.encryptedConversationPublicKey
+    this.encryptedConversationIVKey = config.encryptedConversationIVKey
+    this.encryptedConversationAESKey = config.encryptedConversationAESKey
     this.createdAt = config.createdAt
     this.updatedAt = config.updatedAt
 

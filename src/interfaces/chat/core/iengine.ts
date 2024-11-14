@@ -17,9 +17,7 @@ export interface IEngine {
   removeKeyPairItem(id: string): Array<KeyPairItem>
   setKeyPairMap(map: Array<KeyPairItem>): void
   getKeyPairMap(): Array<KeyPairItem>
-  findPublicKeyById(id: string): Maybe<forge.pki.rsa.PublicKey>
-  findPrivateKeyById(id: Maybe<string>): Maybe<forge.pki.rsa.PrivateKey>
-  findKeyPairById(id: string): Maybe<forge.pki.rsa.KeyPair>
+  findKeyPairById(id: string): Maybe<{ AES: string; iv: string }>
   setUserKeyPair(userKeyPair: forge.pki.rsa.KeyPair): void
   getUserKeyPair(): Maybe<forge.pki.rsa.KeyPair>
 }

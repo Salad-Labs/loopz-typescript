@@ -283,9 +283,9 @@ export class Message
       {
         input: {
           messageId: this.id,
-          reactionContent: Crypto.encryptStringOrFail(
-            this.findPublicKeyById(args.conversationId),
-            args.reaction
+          reactionContent: Crypto.encryptAESorFail(
+            args.reaction,
+            this.findKeyPairById(args.conversationId)
           ),
           conversationId: args.conversationId,
         },
@@ -448,9 +448,9 @@ export class Message
     >("editMessage", editMessage, "_mutation() -> editMessage()", {
       input: {
         messageId: this.id,
-        content: Crypto.encryptStringOrFail(
-          this.findPublicKeyById(args.conversationId),
-          args.content
+        content: Crypto.encryptAESorFail(
+          args.content,
+          this.findKeyPairById(args.conversationId)
         ),
         conversationId: args.conversationId,
       },
@@ -698,9 +698,9 @@ export class Message
       "_mutation() -> removeReactionFromMessage()",
       {
         input: {
-          reactionContent: Crypto.encryptStringOrFail(
-            this.findPublicKeyById(args.conversationId),
-            args.reaction
+          reactionContent: Crypto.encryptAESorFail(
+            args.reaction,
+            this.findKeyPairById(args.conversationId)
           ),
           messageId: this.id,
           conversationId: args.conversationId,
@@ -1238,9 +1238,9 @@ export class Message
 
   getContentDecrypted(): Maybe<string> {
     if (!this.conversationId) return null
-    return Crypto.decryptStringOrFail(
-      this.findPrivateKeyById(this.conversationId),
-      this.content
+    return Crypto.decryptAESorFail(
+      this.content,
+      this.findKeyPairById(this.conversationId)
     )
   }
 }

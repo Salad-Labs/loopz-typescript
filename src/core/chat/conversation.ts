@@ -379,8 +379,8 @@ export class Conversation
           conversationId: item.conversationId,
           userId: item.userId,
           type: item.type,
-          encryptedConversationPublicKey: item.encryptedConversationPublicKey,
-          encryptedConversationPrivateKey: item.encryptedConversationPrivateKey,
+          encryptedConversationAESKey: item.encryptedConversationAESKey,
+          encryptedConversationIVKey: item.encryptedConversationIVKey,
           createdAt: item.createdAt,
           updatedAt: item.updatedAt,
           client: this._client!,
@@ -907,9 +907,9 @@ export class Conversation
       MessageGraphQL
     >("sendMessage", sendMessage, "_mutation() -> sendMessage()", {
       input: {
-        content: Crypto.encryptStringOrFail(
-          this.findPublicKeyById(this.id),
-          content
+        content: Crypto.encryptAESorFail(
+          content,
+          this.findKeyPairById(this.id)
         ),
         conversationId: this.id,
         type: args.type,
@@ -1189,25 +1189,25 @@ export class Conversation
       {
         input: {
           conversationId: this.id,
-          description: Crypto.encryptStringOrFail(
-            this.findPublicKeyById(this.id),
-            args.description
+          description: Crypto.encryptAESorFail(
+            args.description,
+            this.findKeyPairById(this.id)
           ),
           imageURL: new URL(
-            Crypto.encryptStringOrFail(
-              this.findPublicKeyById(this.id),
-              args.imageURL
+            Crypto.encryptAESorFail(
+              args.imageURL,
+              this.findKeyPairById(this.id)
             )
           ).toString(),
           bannerImageURL: new URL(
-            Crypto.encryptStringOrFail(
-              this.findPublicKeyById(this.id),
-              args.bannerImageURL
+            Crypto.encryptAESorFail(
+              args.bannerImageURL,
+              this.findKeyPairById(this.id)
             )
           ).toString(),
-          name: Crypto.encryptStringOrFail(
-            this.findPublicKeyById(this.id),
-            args.name
+          name: Crypto.encryptAESorFail(
+            args.name,
+            this.findKeyPairById(this.id)
           ),
           settings: JSON.stringify(args.settings),
         },
@@ -1488,9 +1488,8 @@ export class Conversation
           conversationId: item!.conversationId,
           userId: item!.userId,
           type: item!.type,
-          encryptedConversationPublicKey: item!.encryptedConversationPublicKey,
-          encryptedConversationPrivateKey:
-            item!.encryptedConversationPrivateKey,
+          encryptedConversationAESKey: item!.encryptedConversationAESKey,
+          encryptedConversationIVKey: item!.encryptedConversationIVKey,
           createdAt: item!.createdAt,
           updatedAt: item!.updatedAt,
           client: this._client!,
@@ -1618,45 +1617,36 @@ export class Conversation
   getSettingsDecrypted(): Maybe<JSON> {
     if (!this.settings) return null
     return JSON.parse(
-      Crypto.decryptStringOrFail(
-        this.findPrivateKeyById(this.id),
-        this.settings
-      )
+      Crypto.decryptAESorFail(this.settings, this.findKeyPairById(this.id))
     )
   }
 
   getImageURLDecrypted(): Maybe<URL> {
     if (!this.imageURL) return null
     return new URL(
-      Crypto.decryptStringOrFail(
-        this.findPrivateKeyById(this.id),
-        this.imageURL
-      )
+      Crypto.decryptAESorFail(this.imageURL, this.findKeyPairById(this.id))
     )
   }
 
   getBannerImageURLDecrypted(): Maybe<URL> {
     if (!this.bannerImageURL) return null
     return new URL(
-      Crypto.decryptStringOrFail(
-        this.findPrivateKeyById(this.id),
-        this.bannerImageURL
+      Crypto.decryptAESorFail(
+        this.bannerImageURL,
+        this.findKeyPairById(this.id)
       )
     )
   }
 
   getNameDecrypted(): string {
-    return Crypto.decryptStringOrFail(
-      this.findPrivateKeyById(this.id),
-      this.name
-    )
+    return Crypto.decryptAESorFail(this.name, this.findKeyPairById(this.id))
   }
 
   getDescriptionDecrypted(): Maybe<string> {
     if (!this.description) return null
-    return Crypto.decryptStringOrFail(
-      this.findPrivateKeyById(this.id),
-      this.description
+    return Crypto.decryptAESorFail(
+      this.description,
+      this.findKeyPairById(this.id)
     )
   }
 }

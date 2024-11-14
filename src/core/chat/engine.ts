@@ -629,48 +629,12 @@ export class Engine implements IEngine {
   }
 
   /**
-   * Finds a public key by its ID in the key pairs map.
-   * @param {string} id - The ID of the public key to find.
-   * @returns {Maybe<forge.pki.rsa.PublicKey>} The public key associated with the given ID,
-   * or null if the key pairs map is empty or if the key with the specified ID is not found.
-   */
-  findPublicKeyById(id: string): Maybe<forge.pki.rsa.PublicKey> {
-    if (!this._keyPairsMap) return null
-
-    const item = this._keyPairsMap.find((k: KeyPairItem) => {
-      return k.id.toLowerCase() === id.toLowerCase()
-    })
-
-    if (!item) return null
-
-    return item.keypair.publicKey
-  }
-
-  /**
-   * Finds a private key by its ID in the key pairs map.
-   * @param {string} id - The ID of the private key to find.
-   * @returns {Maybe<forge.pki.rsa.PrivateKey>} The private key associated with the given ID,
-   * or null if the key is not found.
-   */
-  findPrivateKeyById(id: string): Maybe<forge.pki.rsa.PrivateKey> {
-    if (!this._keyPairsMap) return null
-
-    const item = this._keyPairsMap.find((k: KeyPairItem) => {
-      return k.id.toLowerCase() === id.toLowerCase()
-    })
-
-    if (!item) return null
-
-    return item.keypair.privateKey
-  }
-
-  /**
    * Finds a key pair in the key pairs map based on the provided ID.
    * @param {string} id - The ID of the key pair to find.
-   * @returns {Maybe<forge.pki.rsa.KeyPair>} The key pair associated with the provided ID, or null if not found.
+   * @returns {Maybe<{AES: string; iv: string}>} The key pair associated with the provided ID, or null if not found.
    */
 
-  findKeyPairById(id: string): Maybe<forge.pki.rsa.KeyPair> {
+  findKeyPairById(id: string): Maybe<{ AES: string; iv: string }> {
     if (!this._keyPairsMap) return null
 
     const item = this._keyPairsMap.find((k: KeyPairItem) => {
@@ -679,7 +643,10 @@ export class Engine implements IEngine {
 
     if (!item) return null
 
-    return item.keypair
+    return {
+      AES: item.AES,
+      iv: item.iv,
+    }
   }
 
   /**

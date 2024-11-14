@@ -448,17 +448,17 @@ export class Chat
     this._hookMessageCreatingFn = (primaryKey, record) => {
       const _message = {
         ...record,
-        content: Crypto.decryptStringOrFail(
-          this.findPrivateKeyById(record.conversationId),
-          record.content
+        content: Crypto.decryptAESorFail(
+          record.content,
+          this.findKeyPairById(record.conversationId)
         ),
         reactions: record.reactions
           ? record.reactions.map((reaction) => {
               return {
                 ...reaction,
-                content: Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(record.conversationId),
-                  reaction.content
+                content: Crypto.decryptAESorFail(
+                  reaction.content,
+                  this.findKeyPairById(record.conversationId)
                 ),
               }
             })
@@ -468,17 +468,17 @@ export class Chat
       _message.messageRoot = record.messageRoot
         ? {
             ...record.messageRoot,
-            content: Crypto.decryptStringOrFail(
-              this.findPrivateKeyById(record.conversationId),
-              record.messageRoot.content
+            content: Crypto.decryptAESorFail(
+              record.messageRoot.content,
+              this.findKeyPairById(record.conversationId)
             ),
             reactions: record.messageRoot.reactions
               ? record.messageRoot.reactions.map((reaction) => {
                   return {
                     ...reaction,
-                    content: Crypto.decryptStringOrFail(
-                      this.findPrivateKeyById(record.conversationId),
-                      reaction.content
+                    content: Crypto.decryptAESorFail(
+                      reaction.content,
+                      this.findKeyPairById(record.conversationId)
                     ),
                   }
                 })
@@ -492,17 +492,17 @@ export class Chat
     this._hookMessageUpdatingFn = (modifications, primaryKey, record) => {
       const _message = {
         ...record,
-        content: Crypto.decryptStringOrFail(
-          this.findPrivateKeyById(record.conversationId),
-          record.content
+        content: Crypto.decryptAESorFail(
+          record.content,
+          this.findKeyPairById(record.conversationId)
         ),
         reactions: record.reactions
           ? record.reactions.map((reaction) => {
               return {
                 ...reaction,
-                content: Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(record.conversationId),
-                  reaction.content
+                content: Crypto.decryptAESorFail(
+                  reaction.content,
+                  this.findKeyPairById(record.conversationId)
                 ),
               }
             })
@@ -512,17 +512,17 @@ export class Chat
       _message.messageRoot = record.messageRoot
         ? {
             ...record.messageRoot,
-            content: Crypto.decryptStringOrFail(
-              this.findPrivateKeyById(record.conversationId),
-              record.messageRoot.content
+            content: Crypto.decryptAESorFail(
+              record.messageRoot.content,
+              this.findKeyPairById(record.conversationId)
             ),
             reactions: record.messageRoot.reactions
               ? record.messageRoot.reactions.map((reaction) => {
                   return {
                     ...reaction,
-                    content: Crypto.decryptStringOrFail(
-                      this.findPrivateKeyById(record.conversationId),
-                      reaction.content
+                    content: Crypto.decryptAESorFail(
+                      reaction.content,
+                      this.findKeyPairById(record.conversationId)
                     ),
                   }
                 })
@@ -536,26 +536,26 @@ export class Chat
     this._hookConversationCreatingFn = (primaryKey, record) => {
       const _conversation = {
         ...record,
-        name: Crypto.decryptStringOrFail(
-          this.findPrivateKeyById(record.id),
-          record.name
+        name: Crypto.decryptAESorFail(
+          record.name,
+          this.findKeyPairById(record.id)
         ),
-        description: Crypto.decryptStringOrFail(
-          this.findPrivateKeyById(record.id),
-          record.description
+        description: Crypto.decryptAESorFail(
+          record.description,
+          this.findKeyPairById(record.id)
         ),
-        imageURL: Crypto.decryptStringOrFail(
-          this.findPrivateKeyById(record.id),
-          record.imageURL
+        imageURL: Crypto.decryptAESorFail(
+          record.imageURL,
+          this.findKeyPairById(record.id)
         ),
-        bannerImageURL: Crypto.decryptStringOrFail(
-          this.findPrivateKeyById(record.id),
-          record.bannerImageURL
+        bannerImageURL: Crypto.decryptAESorFail(
+          record.bannerImageURL,
+          this.findKeyPairById(record.id)
         ),
         settings: JSON.parse(
-          Crypto.decryptStringOrFail(
-            this.findPrivateKeyById(record.id),
-            record.settings
+          Crypto.decryptAESorFail(
+            record.settings,
+            this.findKeyPairById(record.id)
           )
         ),
       }
@@ -566,26 +566,26 @@ export class Chat
     this._hookConversationUpdatingFn = (modifications, primaryKey, record) => {
       const _conversation = {
         ...record,
-        name: Crypto.decryptStringOrFail(
-          this.findPrivateKeyById(record.id),
-          record.name
+        name: Crypto.decryptAESorFail(
+          record.name,
+          this.findKeyPairById(record.id)
         ),
-        description: Crypto.decryptStringOrFail(
-          this.findPrivateKeyById(record.id),
-          record.description
+        description: Crypto.decryptAESorFail(
+          record.description,
+          this.findKeyPairById(record.id)
         ),
-        imageURL: Crypto.decryptStringOrFail(
-          this.findPrivateKeyById(record.id),
-          record.imageURL
+        imageURL: Crypto.decryptAESorFail(
+          record.imageURL,
+          this.findKeyPairById(record.id)
         ),
-        bannerImageURL: Crypto.decryptStringOrFail(
-          this.findPrivateKeyById(record.id),
-          record.bannerImageURL
+        bannerImageURL: Crypto.decryptAESorFail(
+          record.bannerImageURL,
+          this.findKeyPairById(record.id)
         ),
         settings: JSON.parse(
-          Crypto.decryptStringOrFail(
-            this.findPrivateKeyById(record.id),
-            record.settings
+          Crypto.decryptAESorFail(
+            record.settings,
+            this.findKeyPairById(record.id)
           )
         ),
       }
@@ -827,31 +827,21 @@ export class Chat
       let isError: boolean = false
 
       for (const conversationMember of conversationMemberItems) {
-        const {
-          encryptedConversationPrivateKey,
-          encryptedConversationPublicKey,
-        } = conversationMember
-        const privateKeyPem = Crypto.decryptStringOrFail(
+        const { encryptedConversationIVKey, encryptedConversationAESKey } =
+          conversationMember
+        const iv = Crypto.decryptStringOrFail(
           this.getUserKeyPair()!.privateKey,
-          encryptedConversationPrivateKey
+          encryptedConversationIVKey
         )
-        const publicKeyPem = Crypto.decryptStringOrFail(
+        const AES = Crypto.decryptStringOrFail(
           this.getUserKeyPair()!.privateKey,
-          encryptedConversationPublicKey
+          encryptedConversationAESKey
         )
-        const keypair = await Crypto.generateKeyPairFromPem(
-          privateKeyPem,
-          publicKeyPem
-        )
-
-        if (!keypair) {
-          isError = true
-          break
-        }
 
         _keyPairsMap.push({
           id: conversationMember.conversationId,
-          keypair,
+          AES,
+          iv,
         })
       }
 
@@ -1264,28 +1254,23 @@ export class Chat
         const item = items.find(
           (item) => item.userId === Auth.account?.dynamoDBUserID
         )
-        const {
-          encryptedConversationPrivateKey,
-          encryptedConversationPublicKey,
-        } = item!
+        const { encryptedConversationIVKey, encryptedConversationAESKey } =
+          item!
         //these pair is encrypted with the public key of the current user, so we need to decrypt them
-        const conversationPrivateKeyPem = Crypto.decryptStringOrFail(
+        const conversationIVKey = Crypto.decryptStringOrFail(
           this._userKeyPair!.privateKey,
-          encryptedConversationPrivateKey
+          encryptedConversationIVKey
         )
-        const conversationPublicKeyPem = Crypto.decryptStringOrFail(
+        const conversationAESKey = Crypto.decryptStringOrFail(
           this._userKeyPair!.privateKey,
-          encryptedConversationPublicKey
-        )
-        const keypair = await Crypto.generateKeyPairFromPem(
-          conversationPublicKeyPem,
-          conversationPrivateKeyPem
+          encryptedConversationAESKey
         )
 
         //this add a key pair only if it doesn't exist. if it does, then internally skip this operation
         this.addKeyPairItem({
           id: conversationId,
-          keypair: keypair!,
+          AES: conversationAESKey,
+          iv: conversationIVKey,
         })
 
         //we update also the _unsubscribeSyncSet array using the uuid emitted by the subscription
@@ -2270,17 +2255,17 @@ export class Chat
       this._storage.message.hook("deleting", (primaryKey, record) => {
         const _message = {
           ...record,
-          content: Crypto.decryptStringOrFail(
-            this.findPrivateKeyById(record.conversationId),
-            record.content
+          content: Crypto.decryptAESorFail(
+            record.content,
+            this.findKeyPairById(record.conversationId)
           ),
           reactions: record.reactions
             ? record.reactions.map((reaction) => {
                 return {
                   ...reaction,
-                  content: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(record.conversationId),
-                    reaction.content
+                  content: Crypto.decryptAESorFail(
+                    reaction.content,
+                    this.findKeyPairById(record.conversationId)
                   ),
                 }
               })
@@ -2290,17 +2275,17 @@ export class Chat
         _message.messageRoot = record.messageRoot
           ? {
               ...record.messageRoot,
-              content: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(record.conversationId),
-                record.messageRoot.content
+              content: Crypto.decryptAESorFail(
+                record.messageRoot.content,
+                this.findKeyPairById(record.conversationId)
               ),
               reactions: record.messageRoot.reactions
                 ? record.messageRoot.reactions.map((reaction) => {
                     return {
                       ...reaction,
-                      content: Crypto.decryptStringOrFail(
-                        this.findPrivateKeyById(record.conversationId),
-                        reaction.content
+                      content: Crypto.decryptAESorFail(
+                        reaction.content,
+                        this.findKeyPairById(record.conversationId)
                       ),
                     }
                   })
@@ -2488,8 +2473,8 @@ export class Chat
           conversationId: item.conversationId,
           userId: item.userId,
           type: item.type,
-          encryptedConversationPublicKey: item.encryptedConversationPublicKey,
-          encryptedConversationPrivateKey: item.encryptedConversationPrivateKey,
+          encryptedConversationAESKey: item.encryptedConversationAESKey,
+          encryptedConversationIVKey: item.encryptedConversationIVKey,
           createdAt: item.createdAt,
           updatedAt: item.updatedAt,
           client: this._client!,
@@ -2635,9 +2620,9 @@ export class Chat
       {
         input: {
           messageId: args.messageId,
-          reactionContent: Crypto.encryptStringOrFail(
-            this.findPublicKeyById(args.conversationId),
-            args.reaction
+          reactionContent: Crypto.encryptAESorFail(
+            args.reaction,
+            this.findKeyPairById(args.conversationId)
           ),
           conversationId: args.conversationId,
         },
@@ -2983,7 +2968,9 @@ export class Chat
   ): Promise<
     { keypairItem: KeyPairItem; conversation: Conversation } | QIError
   > {
-    const keypair = await Crypto.generateKeys("HIGH")
+    const AES = Crypto.generateRandomString()
+    const iv = Crypto.generateString_128Bit()
+
     const response = await this._mutation<
       MutationCreateConversationGroupArgs,
       { createConversationGroup: ConversationGraphQL },
@@ -2994,13 +2981,10 @@ export class Chat
       "_mutation() -> createConversationGroup()",
       {
         input: {
-          name: Crypto.encrypt(keypair!.publicKey, args.name),
-          description: Crypto.encrypt(keypair!.publicKey, args.description),
-          bannerImageURL: Crypto.encrypt(
-            keypair!.publicKey,
-            args.bannerImageURL
-          ),
-          imageURL: Crypto.encrypt(keypair!.publicKey, args.imageURL),
+          name: Crypto.encryptAES(args.name, AES, iv),
+          description: Crypto.encryptAES(args.description, AES, iv),
+          bannerImageURL: Crypto.encryptAES(args.bannerImageURL, AES, iv),
+          imageURL: Crypto.encryptAES(args.imageURL, AES, iv),
           imageSettings: JSON.stringify(args.imageSettings),
         },
       }
@@ -3017,7 +3001,8 @@ export class Chat
 
     this.addKeyPairItem({
       id: response.id,
-      keypair: keypair!,
+      AES,
+      iv,
     })
 
     const conversationGroup: {
@@ -3026,7 +3011,8 @@ export class Chat
     } = {
       keypairItem: {
         id: response.id,
-        keypair: keypair!,
+        AES,
+        iv,
       },
       conversation: new Conversation({
         ...this._parentConfig!,
@@ -3063,7 +3049,9 @@ export class Chat
   ): Promise<
     QIError | { keypairItem: KeyPairItem; conversation: Conversation }
   > {
-    const keypair = await Crypto.generateKeys("HIGH")
+    const AES = Crypto.generateRandomString()
+    const iv = Crypto.generateString_128Bit()
+
     const response = await this._mutation<
       MutationCreateConversationOneToOneArgs,
       { createConversationOneToOne: ConversationGraphQL },
@@ -3074,13 +3062,10 @@ export class Chat
       "_mutation() -> createConversationOneToOne()",
       {
         input: {
-          name: Crypto.encrypt(keypair!.publicKey, args.name),
-          description: Crypto.encrypt(keypair!.publicKey, args.description),
-          bannerImageURL: Crypto.encrypt(
-            keypair!.publicKey,
-            args.bannerImageURL
-          ),
-          imageURL: Crypto.encrypt(keypair!.publicKey, args.imageURL),
+          name: Crypto.encryptAES(args.name, AES, iv),
+          description: Crypto.encryptAES(args.description, AES, iv),
+          bannerImageURL: Crypto.encryptAES(args.bannerImageURL, AES, iv),
+          imageURL: Crypto.encryptAES(args.imageURL, AES, iv),
           imageSettings: JSON.stringify(args.imageSettings),
         },
       }
@@ -3101,7 +3086,8 @@ export class Chat
     } = {
       keypairItem: {
         id: response.id,
-        keypair: keypair!,
+        AES,
+        iv,
       },
       conversation: new Conversation({
         ...this._parentConfig!,
@@ -3334,9 +3320,9 @@ export class Chat
     >("editMessage", editMessage, "_mutation() -> editMessage()", {
       input: {
         messageId: args.id,
-        content: Crypto.encryptStringOrFail(
-          this.findPublicKeyById(args.conversationId),
-          args.content
+        content: Crypto.encryptAESorFail(
+          args.content,
+          this.findKeyPairById(args.conversationId)
         ),
         conversationId: args.conversationId,
       },
@@ -4052,9 +4038,9 @@ export class Chat
       "_mutation() -> removeReactionFromMessage()",
       {
         input: {
-          reactionContent: Crypto.encryptStringOrFail(
-            this.findPublicKeyById(args.conversationId),
-            args.reaction
+          reactionContent: Crypto.encryptAESorFail(
+            args.reaction,
+            this.findKeyPairById(args.conversationId)
           ),
           messageId: args.messageId,
           conversationId: args.conversationId,
@@ -4261,9 +4247,9 @@ export class Chat
       MessageGraphQL
     >("sendMessage", sendMessage, "_mutation() -> sendMessage()", {
       input: {
-        content: Crypto.encryptStringOrFail(
-          this.findPublicKeyById((args as SendMessageArgs).conversationId),
-          content
+        content: Crypto.encryptAESorFail(
+          content,
+          this.findKeyPairById((args as SendMessageArgs).conversationId)
         ),
         conversationId: (args as SendMessageArgs).conversationId,
         type: (args as SendMessageArgs).type,
@@ -4599,21 +4585,21 @@ export class Chat
       {
         input: {
           conversationId: args.conversationId,
-          description: Crypto.encryptStringOrFail(
-            this.findPublicKeyById(args.conversationId),
-            args.description
+          description: Crypto.encryptAESorFail(
+            args.description,
+            this.findKeyPairById(args.conversationId)
           ),
-          imageURL: Crypto.encryptStringOrFail(
-            this.findPublicKeyById(args.conversationId),
-            new URL(args.imageURL).toString()
+          imageURL: Crypto.encryptAESorFail(
+            new URL(args.imageURL).toString(),
+            this.findKeyPairById(args.conversationId)
           ),
-          bannerImageURL: Crypto.encryptStringOrFail(
-            this.findPublicKeyById(args.conversationId),
-            new URL(args.bannerImageURL).toString()
+          bannerImageURL: Crypto.encryptAESorFail(
+            new URL(args.bannerImageURL).toString(),
+            this.findKeyPairById(args.conversationId)
           ),
-          name: Crypto.encryptStringOrFail(
-            this.findPublicKeyById(args.conversationId),
-            args.name
+          name: Crypto.encryptAESorFail(
+            args.name,
+            this.findKeyPairById(args.conversationId)
           ),
           settings: JSON.stringify(args.settings),
         },
@@ -5196,8 +5182,8 @@ export class Chat
           conversationId: item.conversationId,
           userId: item.userId,
           type: item.type,
-          encryptedConversationPrivateKey: item.encryptedConversationPrivateKey,
-          encryptedConversationPublicKey: item.encryptedConversationPublicKey,
+          encryptedConversationIVKey: item.encryptedConversationIVKey,
+          encryptedConversationAESKey: item.encryptedConversationAESKey,
           createdAt: item.createdAt,
           updatedAt: item.updatedAt,
           client: this._client!,
@@ -8030,10 +8016,8 @@ export class Chat
               conversationId: item.conversationId,
               userId: item.userId,
               type: item.type,
-              encryptedConversationPublicKey:
-                item.encryptedConversationPublicKey,
-              encryptedConversationPrivateKey:
-                item.encryptedConversationPrivateKey,
+              encryptedConversationAESKey: item.encryptedConversationAESKey,
+              encryptedConversationIVKey: item.encryptedConversationIVKey,
               createdAt: item.createdAt,
               updatedAt: item.updatedAt,
               client: this._client!,
@@ -8425,8 +8409,8 @@ export class Chat
       return {
         publicKeyPem: member.e2ePublicKey,
         memberId: member.id,
-        encryptedConversationPublicKey: null,
-        encrypteConversationPrivateKey: null,
+        encryptedConversationAESKey: null,
+        encrypteConversationIVKey: null,
       }
     })
 
@@ -8461,13 +8445,6 @@ export class Chat
 
     const conversationKeyPairItem = newConversation.keypairItem
     const conversation = newConversation.conversation
-    const conversationKeyPair = conversationKeyPairItem.keypair
-    const conversationPublicKeyPem = Crypto.convertRSAPublicKeyToPem(
-      conversationKeyPair.publicKey
-    )
-    const conversationPrivateKeyPem = Crypto.convertRSAPrivateKeyToPem(
-      conversationKeyPair.privateKey
-    )
 
     const membersToAdd = membersPublicKeys.map((member) => {
       const memberPublicKey = Crypto.convertPublicKeyPemToRSA(
@@ -8476,13 +8453,13 @@ export class Chat
 
       return {
         memberId: member.memberId,
-        encryptedConversationPrivateKey: Crypto.encryptStringOrFail(
+        encryptedConversationIVKey: Crypto.encryptStringOrFail(
           memberPublicKey,
-          conversationPrivateKeyPem
+          conversationKeyPairItem.iv
         ),
-        encryptedConversationPublicKey: Crypto.encryptStringOrFail(
+        encryptedConversationAESKey: Crypto.encryptStringOrFail(
           memberPublicKey,
-          conversationPublicKeyPem
+          conversationKeyPairItem.AES
         ),
       }
     })
@@ -8722,17 +8699,17 @@ export class Chat
       return messages.map((message) => {
         const _message = {
           ...message,
-          content: Crypto.decryptStringOrFail(
-            this.findPrivateKeyById(conversationId),
-            message.content
+          content: Crypto.decryptAESorFail(
+            message.content,
+            this.findKeyPairById(conversationId)
           ),
           reactions: message.reactions
             ? message.reactions.map((reaction) => {
                 return {
                   ...reaction,
-                  content: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(conversationId),
-                    reaction.content
+                  content: Crypto.decryptAESorFail(
+                    reaction.content,
+                    this.findKeyPairById(conversationId)
                   ),
                 }
               })
@@ -8742,17 +8719,17 @@ export class Chat
         _message.messageRoot = message.messageRoot
           ? {
               ...message.messageRoot,
-              content: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(conversationId),
-                message.messageRoot.content
+              content: Crypto.decryptAESorFail(
+                message.messageRoot.content,
+                this.findKeyPairById(conversationId)
               ),
               reactions: message.messageRoot.reactions
                 ? message.messageRoot.reactions.map((reaction) => {
                     return {
                       ...reaction,
-                      content: Crypto.decryptStringOrFail(
-                        this.findPrivateKeyById(conversationId),
-                        reaction.content
+                      content: Crypto.decryptAESorFail(
+                        reaction.content,
+                        this.findKeyPairById(conversationId)
                       ),
                     }
                   })
@@ -8801,21 +8778,21 @@ export class Chat
       return conversations.map((conversation) => {
         return {
           ...conversation,
-          name: Crypto.decryptStringOrFail(
-            this.findPrivateKeyById(conversation.id),
-            conversation.name
+          name: Crypto.decryptAESorFail(
+            conversation.name,
+            this.findKeyPairById(conversation.id)
           ),
-          description: Crypto.decryptStringOrFail(
-            this.findPrivateKeyById(conversation.id),
-            conversation.description
+          description: Crypto.decryptAESorFail(
+            conversation.description,
+            this.findKeyPairById(conversation.id)
           ),
-          imageURL: Crypto.decryptStringOrFail(
-            this.findPrivateKeyById(conversation.id),
-            conversation.imageURL
+          imageURL: Crypto.decryptAESorFail(
+            conversation.imageURL,
+            this.findKeyPairById(conversation.id)
           ),
-          bannerImageURL: Crypto.decryptStringOrFail(
-            this.findPrivateKeyById(conversation.id),
-            conversation.bannerImageURL
+          bannerImageURL: Crypto.decryptAESorFail(
+            conversation.bannerImageURL,
+            this.findKeyPairById(conversation.id)
           ),
         }
       })

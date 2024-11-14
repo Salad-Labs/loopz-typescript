@@ -142,7 +142,7 @@ export class Crypto {
   ) {
     if (!publicKey)
       throw new Error(
-        "An exception occured during the decryption of a message. The private key is not setup correctly."
+        "An exception occured during the encryption of a message. The private key is not setup correctly."
       )
 
     return Crypto.encrypt(publicKey, content)
@@ -166,6 +166,66 @@ export class Crypto {
 
   static generateString_128Bit(): string {
     return forge.random.getBytesSync(16) // 16 bytes = 128 bits
+  }
+
+  static encryptAES(
+    message: string,
+    key: forge.util.ByteBuffer | Bytes,
+    iv: string | forge.util.ByteStringBuffer | number[] | undefined
+  ) {
+    const cipher = forge.cipher.createCipher("AES-CBC", key)
+
+    cipher.start({ iv })
+    cipher.update(forge.util.createBuffer(message, "utf8"))
+    cipher.finish()
+
+    return forge.util.encode64(cipher.output.getBytes())
+  }
+
+  static decryptAES(
+    encryptedMessage: forge.Base64,
+    key: forge.util.ByteBuffer | Bytes,
+    iv: string | forge.util.ByteStringBuffer | number[] | undefined
+  ) {
+    const decipher = forge.cipher.createDecipher("AES-CBC", key)
+
+    decipher.start({ iv })
+    decipher.update(
+      forge.util.createBuffer(forge.util.decode64(encryptedMessage), "utf8")
+    )
+    decipher.finish()
+
+    return decipher.output.toString() //toString("utf-8")
+  }
+
+  static encryptAESorFail(
+    message: string,
+    keypairItem: Maybe<{
+      AES: string
+      iv: string
+    }>
+  ) {
+    if (!keypairItem)
+      throw new Error(
+        "An exception occured during the encryption of a message. The key pair item is not setup correctly."
+      )
+
+    return Crypto.encryptAES(message, keypairItem.AES, keypairItem.iv)
+  }
+
+  static decryptAESorFail(
+    message: string,
+    keypairItem: Maybe<{
+      AES: string
+      iv: string
+    }>
+  ) {
+    if (!keypairItem)
+      throw new Error(
+        "An exception occured during the decryption of a message. The key pair item is not setup correctly."
+      )
+
+    return Crypto.decryptAES(message, keypairItem.AES, keypairItem.iv)
   }
 
   static encryptAES_CBC(
