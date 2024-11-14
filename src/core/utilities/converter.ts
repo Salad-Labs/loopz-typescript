@@ -1,3 +1,4 @@
+import { Maybe } from "../../types"
 import { LocalDBConversation, LocalDBMessage } from "../../core/app/database"
 import { Conversation, Message } from "../chat"
 
@@ -6,7 +7,10 @@ export class Converter {
     conversation: Conversation,
     userDid: string,
     organizationId: string,
-    isArchived: boolean
+    isArchived: boolean,
+    lastMessageAuthor: Maybe<string>,
+    lastMessageText: Maybe<string>,
+    lastMessageRead: Maybe<Date>
   ): LocalDBConversation {
     return {
       id: conversation.id,
@@ -26,9 +30,9 @@ export class Converter {
       settings: JSON.stringify(conversation.settings),
       isArchived,
       lastMessageSentAt: conversation.lastMessageSentAt,
-      lastMessageAuthor: null,
-      lastMessageText: null,
-      lastMessageRead: null,
+      lastMessageAuthor,
+      lastMessageText,
+      lastMessageRead,
       type: conversation.type as "GROUP" | "ONE_TO_ONE",
       createdAt: conversation.createdAt,
       updatedAt: conversation.updatedAt,

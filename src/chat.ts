@@ -695,7 +695,6 @@ export class Chat
         throw new Error(JSON.stringify(currentUser))
       }
 
-      //? Serpens
       //stores/update the conversations into the local db
 
       if (this._syncingCounter > 0) {
@@ -732,7 +731,10 @@ export class Chat
               conversation,
               Auth.account!.did,
               Auth.account!.organizationId,
-              isConversationArchived
+              isConversationArchived,
+              null,
+              null,
+              null
             )
           })
         )
@@ -1385,7 +1387,10 @@ export class Chat
             conversation,
             Auth.account!.did,
             Auth.account!.organizationId,
-            isConversationArchived
+            isConversationArchived,
+            null,
+            null,
+            null
           ),
         ])
 
@@ -1669,7 +1674,10 @@ export class Chat
             response,
             Auth.account!.did,
             Auth.account!.organizationId,
-            conversationStored ? conversationStored.isArchived : false
+            conversationStored ? conversationStored.isArchived : false,
+            conversationStored ? conversationStored.lastMessageAuthor : null,
+            conversationStored ? conversationStored.lastMessageText : null,
+            conversationStored ? conversationStored.lastMessageRead : null
           ),
         ])
 
