@@ -10,4 +10,5 @@ export type UseLoopzChat = (eventHandlers?: LoopzChatEventHandlers) => Omit<
   reconnect(): Promise<void>
   disconnect(): void
   sync(): Promise<void>
+  unsync(): Promise<void>
 }
