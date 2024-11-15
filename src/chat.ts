@@ -442,6 +442,17 @@ export class Chat
     })()
   }
 
+  static unsyncBrutal(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!Chat._instance) {
+        reject("instance not setup correctly.")
+        return
+      }
+
+      Chat._instance.unsync().then(resolve).catch(reject)
+    })
+  }
+
   /** private instance methods */
 
   private _defineHookFnLocalDB() {

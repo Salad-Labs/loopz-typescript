@@ -2,7 +2,7 @@ import { ClientOptions, SubscriptionClient } from "subscriptions-transport-ws"
 import { v4 as uuid4 } from "uuid"
 import { RealTimeWebSocketConnectionParams } from "../../types/chat/realtimewebsocketconnectionparams"
 import { Engine } from "../"
-import { Auth } from "../../"
+import { Auth, Chat } from "../../"
 
 /**
  * Represents a custom SubscriptionClient that extends the functionality of the SubscriptionClient class.
@@ -63,10 +63,60 @@ export default class UUIDSubscriptionClient extends SubscriptionClient {
 
           if (error && "errorCode" in error && error.errorCode === 401) {
             ;(async () => {
-              //let's refresh the token and store it into local storage
-              await Auth.fetchAuthToken()
-              //let's call a silent reset that basically reset the realtimeClient, create a new instance of it and restore the subscriptions previously added
-              this._engine.silentReset()
+              if (Auth.prevToken === null) {
+                Auth.fetchTokenAttemptsRealtime++
+                Auth.prevToken = Auth.authToken
+                //let's refresh the token and store it into local storage
+                await Auth.fetchAuthToken()
+
+                //let's call a silent reset that basically reset the realtimeClient, create a new instance of it and restore the subscriptions previously added
+                this._engine.silentReset()
+                console.log("payload websocket is telling we are in 401!!!")
+              } else {
+                console.log("Seems the prev attempt failed")
+                console.log("Prev token was ", Auth.prevToken)
+                console.log("Current token is", Auth.authToken)
+                if (Auth.prevToken !== Auth.authToken) {
+                  if (
+                    Auth.fetchTokenAttemptsRealtime ===
+                    Auth.MAX_ATTEMPTS_REALTIME_FETCH_AUTH_TOKEN
+                  ) {
+                    console.log("MAX ATTEMPTS REACHED... logout required!!!")
+                    //reset prevToken and fetchTokenAttemptsRealtime
+                    //do the logout and unsync if needed
+                    Auth.getInstance()
+                      .logout()
+                      .then(() => {
+                        Auth.prevToken = null
+                        Auth.fetchTokenAttemptsRealtime = 0
+                        Chat.unsyncBrutal()
+                      })
+                  } else {
+                    console.log("Let's try again...")
+                    Auth.fetchTokenAttemptsRealtime++
+                    Auth.prevToken = Auth.authToken
+                    //let's refresh the token and store it into local storage
+                    await Auth.fetchAuthToken()
+
+                    //let's call a silent reset that basically reset the realtimeClient, create a new instance of it and restore the subscriptions previously added
+                    this._engine.silentReset()
+                  }
+                } else {
+                  console.log(
+                    "this is strange, prevToken is equal to authToken. Let's logout the user...",
+                    Auth.prevToken,
+                    Auth.authToken
+                  )
+
+                  Auth.getInstance()
+                    .logout()
+                    .then(() => {
+                      Auth.prevToken = null
+                      Auth.fetchTokenAttemptsRealtime = 0
+                      Chat.unsyncBrutal()
+                    })
+                }
+              }
             })()
           }
         }

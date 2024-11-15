@@ -39,8 +39,8 @@ export class Auth implements AuthInternalEvents {
     callbacks: Function[]
     event: AuthEvents
   }> = []
-  private static _isLoggingOut = false
-  private static _isAuthenticated = false
+  private static _isLoggingOut: boolean = false
+  private static _isAuthenticated: boolean = false
 
   private static set authToken(authToken: Maybe<string>) {
     Auth._authToken = authToken
@@ -68,6 +68,14 @@ export class Auth implements AuthInternalEvents {
 
   static get account() {
     return Auth._account
+  }
+
+  static fetchTokenAttemptsRealtime: number = 0
+
+  static prevToken: Maybe<string> = null
+
+  static get MAX_ATTEMPTS_REALTIME_FETCH_AUTH_TOKEN(): number {
+    return 2
   }
 
   private constructor() {
