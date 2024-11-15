@@ -1614,27 +1614,16 @@ export class Conversation
     return listMessages
   }
 
-  getSettingsDecrypted(): Maybe<JSON> {
-    if (!this.settings) return null
-    return JSON.parse(
-      Crypto.decryptAESorFail(this.settings, this.findKeyPairById(this.id))
-    )
-  }
-
-  getImageURLDecrypted(): Maybe<URL> {
+  getImageURLDecrypted(): Maybe<string> {
     if (!this.imageURL) return null
-    return new URL(
-      Crypto.decryptAESorFail(this.imageURL, this.findKeyPairById(this.id))
-    )
+    return Crypto.decryptAESorFail(this.imageURL, this.findKeyPairById(this.id))
   }
 
-  getBannerImageURLDecrypted(): Maybe<URL> {
+  getBannerImageURLDecrypted(): Maybe<string> {
     if (!this.bannerImageURL) return null
-    return new URL(
-      Crypto.decryptAESorFail(
-        this.bannerImageURL,
-        this.findKeyPairById(this.id)
-      )
+    return Crypto.decryptAESorFail(
+      this.bannerImageURL,
+      this.findKeyPairById(this.id)
     )
   }
 

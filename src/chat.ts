@@ -1166,8 +1166,8 @@ export class Chat
       )
 
       const { added, removed } = findAddedAndRemovedConversation(
-        conversations,
-        flatConversationMap
+        flatConversationMap,
+        conversations
       )
 
       console.log("added and removed are ", added, removed)
