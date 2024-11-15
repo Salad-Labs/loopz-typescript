@@ -116,6 +116,12 @@ export class Account implements AccountSchema, AccountEngine {
     callbacks: Array<Function>
   }> = []
 
+  set setE2EPublicKeyOnce(e2ePublicKey: string) {
+    if (this.e2ePublicKey)
+      throw new Error("You cannot override the e2e public key")
+    ;(this as any).e2ePublicKey = e2ePublicKey
+  }
+
   constructor(
     config: AccountInitConfig & {
       enableDevMode: boolean

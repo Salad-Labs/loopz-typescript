@@ -18,12 +18,10 @@ export class Converter {
       organizationId,
       name: conversation.name,
       description: conversation.description ? conversation.description : "",
-      imageURL: new URL(
-        conversation.imageURL ? conversation.imageURL : ""
-      ).toString(),
-      bannerImageURL: new URL(
-        conversation.bannerImageURL ? conversation.bannerImageURL : ""
-      ).toString(),
+      imageURL: conversation.imageURL ? conversation.imageURL : "",
+      bannerImageURL: conversation.bannerImageURL
+        ? conversation.bannerImageURL
+        : "",
       imageSettings: conversation.imageSettings
         ? JSON.parse(conversation.imageSettings)
         : null,

@@ -469,7 +469,7 @@ export class Auth implements AuthInternalEvents {
       const e2eKey = await Auth._storeUserLocalDB()
 
       //if this condition is true, means the user has done the signup for the first time ever, since e2ePublicKey is supposed to be null in that case
-      if (e2eKey !== e2ePublicKey && !e2ePublicKey) {
+      if (e2eKey !== e2ePublicKey && !e2ePublicKey && e2eKey) {
         const { response } = await Auth._client.fetch<
           ApiResponse<{
             updated: boolean
@@ -486,6 +486,8 @@ export class Auth implements AuthInternalEvents {
         const { updated } = response.data[0]
 
         if (!updated) throw new Error("Update E2E Failed. Access not granted.")
+
+        Auth._account!.setE2EPublicKeyOnce = e2eKey
       }
 
       //clear all the internal callbacks connected to the authentication...

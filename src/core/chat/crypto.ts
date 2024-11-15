@@ -149,7 +149,7 @@ export class Crypto {
   }
 
   static generateRandomString(): string {
-    return forge.random.getBytesSync(32)
+    return forge.random.getBytesSync(32).toString()
   }
 
   static generateBase64Key_AES256(): string {
@@ -165,7 +165,7 @@ export class Crypto {
   }
 
   static generateString_128Bit(): string {
-    return forge.random.getBytesSync(16) // 16 bytes = 128 bits
+    return forge.random.getBytesSync(16).toString() // 16 bytes = 128 bits
   }
 
   static encryptAES(
@@ -225,7 +225,7 @@ export class Crypto {
         "An exception occured during the decryption of a message. The key pair item is not setup correctly."
       )
 
-    return Crypto.decryptAES(message, keypairItem.AES, keypairItem.iv)
+    return Crypto.decryptAES_CBC(message, keypairItem.AES, keypairItem.iv)
   }
 
   static encryptAES_CBC(

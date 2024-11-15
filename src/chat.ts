@@ -801,35 +801,6 @@ export class Chat
         else break
       }
 
-      //let's take all the information related to our keys into _userKeyPair object. These are the public and private key of the current user.
-      //To do that, let's do a query on the local user table. If the _userKeyPair is already set, we skip this operation.
-      if (!this._userKeyPair) {
-        let user = (await this._storage.get("user", "[did+organizationId]", [
-          Auth.account!.did,
-          Auth.account!.organizationId,
-        ])) as LocalDBUser
-
-        const { e2eEncryptedPrivateKey, e2ePublicKey: e2ePublicKeyPem } = user!
-        const { e2eSecret } = Auth.account!
-        const { e2eSecretIV } = Auth.account!
-
-        const e2ePrivateKeyPem = Crypto.decryptAES_CBC(
-          e2eEncryptedPrivateKey,
-          Buffer.from(e2eSecret, "hex").toString("base64"),
-          Buffer.from(e2eSecretIV, "hex").toString("base64")
-        )
-
-        const userKeyPair = await Crypto.generateKeyPairFromPem(
-          e2ePublicKeyPem,
-          e2ePrivateKeyPem
-        )
-
-        if (!userKeyPair)
-          throw new Error("Impossible to recover the user key pair.")
-
-        this.setUserKeyPair(userKeyPair)
-      }
-
       console.log("user key pair ", this.getUserKeyPair())
 
       //now, from the private key of the user, we will decrypt all the information about the conversation member.
@@ -2979,8 +2950,8 @@ export class Chat
   ): Promise<
     { keypairItem: KeyPairItem; conversation: Conversation } | QIError
   > {
-    const AES = Crypto.generateRandomString()
-    const iv = Crypto.generateString_128Bit()
+    const AES = Crypto.generateBase64Key_AES256()
+    const iv = Crypto.generateBase64IV_128Bit()
 
     const response = await this._mutation<
       MutationCreateConversationGroupArgs,
@@ -2992,10 +2963,10 @@ export class Chat
       "_mutation() -> createConversationGroup()",
       {
         input: {
-          name: Crypto.encryptAES(args.name, AES, iv),
-          description: Crypto.encryptAES(args.description, AES, iv),
-          bannerImageURL: Crypto.encryptAES(args.bannerImageURL, AES, iv),
-          imageURL: Crypto.encryptAES(args.imageURL, AES, iv),
+          name: Crypto.encryptAES_CBC(args.name, AES, iv),
+          description: Crypto.encryptAES_CBC(args.description, AES, iv),
+          bannerImageURL: Crypto.encryptAES_CBC(args.bannerImageURL, AES, iv),
+          imageURL: Crypto.encryptAES_CBC(args.imageURL, AES, iv),
           imageSettings: JSON.stringify(args.imageSettings),
         },
       }
@@ -3060,8 +3031,11 @@ export class Chat
   ): Promise<
     QIError | { keypairItem: KeyPairItem; conversation: Conversation }
   > {
-    const AES = Crypto.generateRandomString()
-    const iv = Crypto.generateString_128Bit()
+    const AES = Crypto.generateBase64Key_AES256()
+    const iv = Crypto.generateBase64IV_128Bit()
+
+    console.log("AES:", AES)
+    console.log("iv:", iv)
 
     const response = await this._mutation<
       MutationCreateConversationOneToOneArgs,
@@ -3073,10 +3047,10 @@ export class Chat
       "_mutation() -> createConversationOneToOne()",
       {
         input: {
-          name: Crypto.encryptAES(args.name, AES, iv),
-          description: Crypto.encryptAES(args.description, AES, iv),
-          bannerImageURL: Crypto.encryptAES(args.bannerImageURL, AES, iv),
-          imageURL: Crypto.encryptAES(args.imageURL, AES, iv),
+          name: Crypto.encryptAES_CBC(args.name, AES, iv),
+          description: Crypto.encryptAES_CBC(args.description, AES, iv),
+          bannerImageURL: Crypto.encryptAES_CBC(args.bannerImageURL, AES, iv),
+          imageURL: Crypto.encryptAES_CBC(args.imageURL, AES, iv),
           imageSettings: JSON.stringify(args.imageSettings),
         },
       }
@@ -8458,7 +8432,6 @@ export class Chat
     const conversation = newConversation.conversation
 
     const membersToAdd = membersPublicKeys.map((member) => {
-      console.log(member, member.publicKeyPem)
       const memberPublicKey = Crypto.convertPublicKeyPemToRSA(
         member.publicKeyPem!
       )
@@ -8543,6 +8516,41 @@ export class Chat
     this._eventsCallbacks[index].callbacks = callback
       ? this._eventsCallbacks[index].callbacks.filter((cb) => cb !== callback)
       : []
+  }
+
+  /** Override connect() */
+
+  async connect(force = false): Promise<void> {
+    //let's take all the information related to our keys into _userKeyPair object. These are the public and private key of the current user.
+    //To do that, let's do a query on the local user table. If the _userKeyPair is already set, we skip this operation.
+    if (!this._userKeyPair) {
+      let user = (await this._storage.get("user", "[did+organizationId]", [
+        Auth.account!.did,
+        Auth.account!.organizationId,
+      ])) as LocalDBUser
+
+      const { e2eEncryptedPrivateKey, e2ePublicKey: e2ePublicKeyPem } = user!
+      const { e2eSecret } = Auth.account!
+      const { e2eSecretIV } = Auth.account!
+
+      const e2ePrivateKeyPem = Crypto.decryptAES_CBC(
+        e2eEncryptedPrivateKey,
+        Buffer.from(e2eSecret, "hex").toString("base64"),
+        Buffer.from(e2eSecretIV, "hex").toString("base64")
+      )
+
+      const userKeyPair = await Crypto.generateKeyPairFromPem(
+        e2ePublicKeyPem,
+        e2ePrivateKeyPem
+      )
+
+      if (!userKeyPair)
+        throw new Error("Impossible to recover the user key pair.")
+
+      this.setUserKeyPair(userKeyPair)
+    }
+
+    super.connect(force)
   }
 
   /** Syncing methods */
@@ -8778,7 +8786,7 @@ export class Chat
                 (element) =>
                   element.userDid === Auth.account!.did &&
                   typeof element.deletedAt !== "undefined" &&
-                  !!element.deletedAt
+                  !element.deletedAt
               )
               .toArray()
               .then(resolve)
@@ -8809,7 +8817,7 @@ export class Chat
         }
       })
     } catch (error) {
-      console.log("[ERROR]: fetchLocalDBMessages() -> ", error)
+      console.log("[ERROR]: fetchLocalDBConversations() -> ", error)
       return []
     }
   }
