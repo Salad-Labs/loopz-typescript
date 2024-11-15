@@ -136,7 +136,7 @@ export class Auth implements AuthInternalEvents {
     })
   }
 
-  private static async _handleDexie() {
+  private static async _storeUserLocalDB(): Promise<Maybe<string>> {
     try {
       if (!Auth._account) throw new Error("Account is not set")
       const keys = await Auth._generateKeys()
@@ -165,7 +165,7 @@ export class Auth implements AuthInternalEvents {
         }
       )
 
-      if (existingUser) return
+      if (existingUser) return null
 
       //save all the data related to this user into the db
 
@@ -310,6 +310,8 @@ export class Auth implements AuthInternalEvents {
             .catch(reject)
         })
       })
+
+      return publicKey
     } catch (error) {
       console.error(error)
       throw new Error(
@@ -369,7 +371,27 @@ export class Auth implements AuthInternalEvents {
       Auth._account!.storeLastUserLoggedKey()
 
       //generation of the table and local keys for e2e encryption
-      await Auth._handleDexie()
+      const e2eKey = await Auth._storeUserLocalDB()
+
+      //if this condition is true, means the user has done the signup for the first time ever, since e2ePublicKey is supposed to be null in that case
+      if (e2eKey !== e2ePublicKey && !e2ePublicKey) {
+        const { response } = await Auth._client.fetch<
+          ApiResponse<{
+            updated: boolean
+          }>
+        >(Auth._client.backendUrl("/auth/update/e2e"), {
+          method: "POST",
+          body: {
+            e2ePublicKey: e2eKey,
+          },
+        })
+
+        if (!response || !response.data) throw new Error("Invalid response.")
+
+        const { updated } = response.data[0]
+
+        if (!updated) throw new Error("Update E2E Failed. Access not granted.")
+      }
 
       //clear all the internal callbacks connected to the authentication...
       Auth._clearEventsCallbacks([
@@ -436,7 +458,27 @@ export class Auth implements AuthInternalEvents {
       Auth._account!.storeLastUserLoggedKey()
 
       //generation of the table and local keys for e2e encryption
-      await Auth._handleDexie()
+      const e2eKey = await Auth._storeUserLocalDB()
+
+      //if this condition is true, means the user has done the signup for the first time ever, since e2ePublicKey is supposed to be null in that case
+      if (e2eKey !== e2ePublicKey && !e2ePublicKey) {
+        const { response } = await Auth._client.fetch<
+          ApiResponse<{
+            updated: boolean
+          }>
+        >(Auth._client.backendUrl("/auth/update/e2e"), {
+          method: "POST",
+          body: {
+            e2ePublicKey: e2eKey,
+          },
+        })
+
+        if (!response || !response.data) throw new Error("Invalid response.")
+
+        const { updated } = response.data[0]
+
+        if (!updated) throw new Error("Update E2E Failed. Access not granted.")
+      }
 
       //clear all the internal callbacks connected to the authentication...
       Auth._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
