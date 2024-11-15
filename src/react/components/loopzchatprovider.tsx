@@ -74,6 +74,16 @@ export const LoopzChatProvider: FC<
           isSynced: false,
         })
       })
+
+    instance.chat.on("disconnect", () => {
+      hasStartedConnection.current = false
+      setChatStatus({
+        isConnecting: false,
+        isConnected: false,
+        isSyncing: false,
+        isSynced: false,
+      })
+    })
   }, [
     initialized,
     isAuthenticated,
@@ -104,20 +114,24 @@ export const LoopzChatProvider: FC<
     instance.chat
       .sync()
       .then(() =>
-        setChatStatus({
-          isConnecting: false,
-          isConnected: true,
-          isSyncing: false,
-          isSynced: true,
+        setChatStatus((prev) => {
+          return {
+            isConnecting: prev.isConnecting,
+            isConnected: prev.isConnected,
+            isSyncing: false,
+            isSynced: true,
+          }
         })
       )
       .catch(() => {
         hasStartedSynchronization.current = false
-        setChatStatus({
-          isConnecting: false,
-          isConnected: true,
-          isSyncing: false,
-          isSynced: false,
+        setChatStatus((prev) => {
+          return {
+            isConnecting: prev.isConnecting,
+            isConnected: prev.isConnected,
+            isSyncing: false,
+            isSynced: false,
+          }
         })
       })
   }, [initialized, chatStatus, autoSync, instance])

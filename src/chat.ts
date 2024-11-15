@@ -8553,6 +8553,11 @@ export class Chat
     super.connect(force)
   }
 
+  disconnect() {
+    super.disconnect()
+    this._emit("disconnect")
+  }
+
   /** Syncing methods */
 
   /**

@@ -486,9 +486,9 @@ export class Account implements AccountSchema, AccountEngine {
       })
     } catch (error: any) {
       console.error(error)
-      if ("statusCode" in error && error.statusCode === 401) {
+      if ("statusCode" in error && error.statusCode === 401)
         await Auth.getInstance().logout()
-      }
+
       throw error
     }
   }

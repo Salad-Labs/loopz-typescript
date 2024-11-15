@@ -35,3 +35,4 @@ export type ChatEvents =
   | "conversationMutedError"
   | "conversationUnmutedError"
   | "conversationNewMembersError"
+  | "disconnect"

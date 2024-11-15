@@ -548,7 +548,9 @@ export class Engine implements IEngine {
   }
 
   disconnect() {
-    return this._reset()
+    this._reset()
+    this._isConnecting = false
+    this._isConnected = false
   }
 
   silentReset() {
