@@ -8778,8 +8778,10 @@ export class Chat
     if (page < 0 || numberElements <= 0) return []
 
     const offset = (page - 1) * numberElements
+    const conversations: LocalDBConversation[] = []
+
     try {
-      const conversations = await new Promise<LocalDBConversation[]>(
+      const allConversations = await new Promise<LocalDBConversation[]>(
         (resolve, reject) => {
           Serpens.addAction(() =>
             this._storage.conversation
@@ -8800,31 +8802,42 @@ export class Chat
         }
       )
 
-      return conversations.map((conversation) => {
-        return {
-          ...conversation,
-          name: Crypto.decryptAESorFail(
-            conversation.name,
-            this.findKeyPairById(conversation.id)
-          ),
-          description: Crypto.decryptAESorFail(
-            conversation.description,
-            this.findKeyPairById(conversation.id)
-          ),
-          imageURL: Crypto.decryptAESorFail(
-            conversation.imageURL,
-            this.findKeyPairById(conversation.id)
-          ),
-          bannerImageURL: Crypto.decryptAESorFail(
-            conversation.bannerImageURL,
-            this.findKeyPairById(conversation.id)
-          ),
+      for (let conversation of allConversations) {
+        try {
+          conversations.push({
+            ...conversation,
+            name: Crypto.decryptAESorFail(
+              conversation.name,
+              this.findKeyPairById(conversation.id)
+            ),
+            description: Crypto.decryptAESorFail(
+              conversation.description,
+              this.findKeyPairById(conversation.id)
+            ),
+            imageURL: Crypto.decryptAESorFail(
+              conversation.imageURL,
+              this.findKeyPairById(conversation.id)
+            ),
+            bannerImageURL: Crypto.decryptAESorFail(
+              conversation.bannerImageURL,
+              this.findKeyPairById(conversation.id)
+            ),
+          })
+        } catch (error) {
+          console.log(
+            "[ERROR]: fetchLocalDBConversations() item -> ",
+            conversation,
+            error
+          )
+          continue
         }
-      })
+      }
     } catch (error) {
       console.log("[ERROR]: fetchLocalDBConversations() -> ", error)
       return []
     }
+
+    return conversations
   }
 
   async searchTermsOnLocalDB(
