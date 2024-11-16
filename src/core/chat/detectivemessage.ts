@@ -332,10 +332,9 @@ export class DetectiveMessage {
     if (this._detectiveMessageTimeout)
       clearTimeout(this._detectiveMessageTimeout)
 
-    this._detectiveMessageTimeout = setTimeout(
-      this.scan,
-      DetectiveMessage.DETECTIVE_MESSAGE_SCAN_TIME
-    )
+    this._detectiveMessageTimeout = setTimeout(async () => {
+      await this.scan()
+    }, DetectiveMessage.DETECTIVE_MESSAGE_SCAN_TIME)
   }
 
   stopScan() {

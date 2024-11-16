@@ -210,7 +210,7 @@ export class Crypto {
         "An exception occured during the encryption of a message. The key pair item is not setup correctly."
       )
 
-    return Crypto.encryptAES(message, keypairItem.AES, keypairItem.iv)
+    return Crypto.encryptAES_CBC(message, keypairItem.AES, keypairItem.iv)
   }
 
   static decryptAESorFail(

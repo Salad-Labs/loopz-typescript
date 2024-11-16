@@ -1002,7 +1002,7 @@ export class Chat
               this._hookMessageCreated = false
               this._hookMessageUpdated = false
             }
-
+            console.log(messages)
             //it's possible this array is empty when the chat history settings has value 'false'
             this._storage.insertBulkSafe(
               "message",
@@ -1011,7 +1011,6 @@ export class Chat
                   messagesImportant.findIndex((important) => {
                     return important.messageId === message.id
                   }) > -1
-
                 return Converter.fromMessageToLocalDBMessage(
                   message,
                   Auth.account!.did,

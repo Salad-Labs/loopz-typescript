@@ -64,14 +64,17 @@ export class Converter {
       isImportant,
       type: message.type!,
       origin,
-      messageRoot: Converter.fromMessageToLocalDBMessage(
-        "messageRoot" in message ? message : message,
-        userDid,
-        organizationId,
-        false,
-        "USER"
-      ),
-      messageRootId: message.messageRootId,
+      messageRoot:
+        "messageRoot" in message && message.messageRoot
+          ? Converter.fromMessageToLocalDBMessage(
+              message.messageRoot,
+              userDid,
+              organizationId,
+              false,
+              "USER"
+            )
+          : null,
+      messageRootId: "messageRootId" in message ? message.messageRootId : null,
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
       deletedAt: message.deletedAt,
