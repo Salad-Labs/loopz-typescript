@@ -394,7 +394,31 @@ export class Chat
     //someone wants to add him into a conversation.
     const onAddMembersToConversation =
       Chat._instance.onAddMembersToConversation(
-        Chat._instance._onAddMembersToConversationSync
+        (
+          response:
+            | QIError
+            | {
+                conversationId: string
+                membersIds: Array<string>
+                items: Array<ConversationMember>
+              },
+          source: OperationResult<
+            {
+              onAddMembersToConversation: ListConversationMembersGraphQL
+            },
+            {
+              jwt: string
+            }
+          >,
+          uuid: string
+        ) => {
+          Chat._instance!._onAddMembersToConversationSync(
+            response,
+            source,
+            uuid
+          )
+        },
+        true
       )
 
     if (!(onAddMembersToConversation instanceof QIError)) {
@@ -563,12 +587,6 @@ export class Chat
           record.bannerImageURL,
           this.findKeyPairById(record.id)
         ),
-        settings: JSON.parse(
-          Crypto.decryptAESorFail(
-            record.settings,
-            this.findKeyPairById(record.id)
-          )
-        ),
       }
 
       this._emit("conversationCreatedLDB", _conversation)
@@ -592,12 +610,6 @@ export class Chat
         bannerImageURL: Crypto.decryptAESorFail(
           record.bannerImageURL,
           this.findKeyPairById(record.id)
-        ),
-        settings: JSON.parse(
-          Crypto.decryptAESorFail(
-            record.settings,
-            this.findKeyPairById(record.id)
-          )
         ),
       }
 
@@ -1173,12 +1185,26 @@ export class Chat
       console.log("added and removed are ", added, removed)
 
       if (added.length > 0)
-        for (const conversation of added)
+        for (const conversation of added) {
+          this._conversationsMap.push({
+            type: "ACTIVE",
+            conversationId: conversation.id,
+            conversation,
+          })
           this._addSubscriptionsSync(conversation.id)
+          this._emit("conversationNewMembers", {
+            conversation,
+            conversationId: conversation.id,
+          })
+        }
 
       if (removed.length > 0)
-        for (const conversation of removed)
+        for (const conversation of removed) {
+          this._conversationsMap = this._conversationsMap.filter((item) => {
+            return item.conversationId !== conversation.id
+          })
           this._removeSubscriptionsSync(conversation.id)
+        }
     }
 
     //we add the internal events for the local database
@@ -1247,7 +1273,6 @@ export class Chat
           this._userKeyPair!.privateKey,
           encryptedConversationAESKey
         )
-
         //this add a key pair only if it doesn't exist. if it does, then internally skip this operation
         this.addKeyPairItem({
           id: conversationId,
@@ -1349,7 +1374,7 @@ export class Chat
           if (index > -1) isConversationArchived = true
         }
 
-        this._storage.insertBulkSafe("conversation", [
+        await this._storage.insertBulkSafe("conversation", [
           Converter.fromConversationToLocalDBConversation(
             conversation,
             Auth.account!.did,
@@ -1814,7 +1839,16 @@ export class Chat
     //add reaction(conversationId)
     const onAddReaction = this.onAddReaction(
       conversationId,
-      this._onAddReactionSync,
+      (
+        response: QIError | Message,
+        source: OperationResult<
+          { onAddReaction: MessageGraphQL },
+          SubscriptionOnAddReactionArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onAddReactionSync(response, source, uuid)
+      },
       true
     )
 
@@ -1848,7 +1882,16 @@ export class Chat
     //remove reaction(conversationId)
     const onRemoveReaction = this.onRemoveReaction(
       conversationId,
-      this._onRemoveReactionSync,
+      (
+        response: QIError | Message,
+        source: OperationResult<
+          { onRemoveReaction: MessageGraphQL },
+          SubscriptionOnRemoveReactionArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onRemoveReactionSync(response, source, uuid)
+      },
       true
     )
 
@@ -1882,7 +1925,16 @@ export class Chat
     //send message(conversationId)
     const onSendMessage = this.onSendMessage(
       conversationId,
-      this._onSendMessageSync,
+      (
+        response: Message | QIError,
+        source: OperationResult<
+          { onSendMessage: MessageGraphQL },
+          SubscriptionOnSendMessageArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onSendMessageSync(response, source, uuid)
+      },
       true
     )
 
@@ -1916,7 +1968,16 @@ export class Chat
     //edit message(conversationId)
     const onEditMessage = this.onEditMessage(
       conversationId,
-      this._onEditMessageSync,
+      (
+        response: QIError | Message,
+        source: OperationResult<
+          { onEditMessage: MessageGraphQL },
+          SubscriptionOnEditMessageArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onEditMessageSync(response, source, uuid)
+      },
       true
     )
 
@@ -1950,7 +2011,17 @@ export class Chat
     //delete message(conversationId)
     const onDeleteMessage = this.onDeleteMessage(
       conversationId,
-      this._onDeleteMessageSync,
+      (
+        response: QIError | Message,
+        source: OperationResult<
+          { onDeleteMessage: MessageGraphQL },
+          SubscriptionOnDeleteMessageArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onDeleteMessageSync(response, source, uuid)
+      },
+
       true
     )
 
@@ -1984,7 +2055,16 @@ export class Chat
     //delete batch messages(conversationId)
     const onBatchDeleteMessages = this.onBatchDeleteMessages(
       conversationId,
-      this._onBatchDeleteMessagesSync,
+      (
+        response: QIError | { conversationId: string; messagesIds: string[] },
+        source: OperationResult<
+          { onBatchDeleteMessages: BatchDeleteMessagesResultGraphQL },
+          SubscriptionOnBatchDeleteMessagesArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onBatchDeleteMessagesSync(response, source, uuid)
+      },
       true
     )
 
@@ -2018,7 +2098,16 @@ export class Chat
     //update settings group(conversationId)
     const onUpdateConversationGroup = this.onUpdateConversationGroup(
       conversationId,
-      this._onUpdateConversationGroupSync,
+      (
+        response: QIError | Conversation,
+        source: OperationResult<
+          { onUpdateConversationGroup: ConversationGraphQL },
+          SubscriptionOnUpdateConversationGroupArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onUpdateConversationGroupSync(response, source, uuid)
+      },
       true
     )
 
@@ -2052,7 +2141,22 @@ export class Chat
     //eject member(conversationId)
     const onEjectMember = this.onEjectMember(
       conversationId,
-      this._onEjectMemberSync,
+      (
+        response:
+          | QIError
+          | {
+              conversationId: string
+              conversation: Conversation
+              memberOut: User
+            },
+        source: OperationResult<
+          { onEjectMember: MemberOutResultGraphQL },
+          SubscriptionOnEjectMemberArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onEjectMemberSync(response, source, uuid)
+      },
       true
     )
 
@@ -2086,7 +2190,22 @@ export class Chat
     //leave group/conversation(conversationId)
     const onLeaveConversation = this.onLeaveConversation(
       conversationId,
-      this._onLeaveConversationSync,
+      (
+        response:
+          | QIError
+          | {
+              conversationId: string
+              conversation: Conversation
+              memberOut: User
+            },
+        source: OperationResult<
+          { onLeaveConversation: MemberOutResultGraphQL },
+          SubscriptionOnLeaveConversationArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onLeaveConversationSync(response, source, uuid)
+      },
       true
     )
 
@@ -2120,7 +2239,16 @@ export class Chat
     //mute conversation(conversationId)
     const onMuteConversation = this.onMuteConversation(
       conversationId,
-      this._onMuteConversationSync,
+      (
+        response: QIError | Conversation,
+        source: OperationResult<
+          { onMuteConversation: ConversationGraphQL },
+          SubscriptionOnMuteConversationArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onMuteConversationSync(response, source, uuid)
+      },
       true
     )
 
@@ -2154,7 +2282,20 @@ export class Chat
     //unmute conversation(conversationId)
     const onUnmuteConversation = this.onUnmuteConversation(
       conversationId,
-      this._onUnmuteConversationSync,
+      (
+        response: QIError | Conversation,
+        source: OperationResult<
+          {
+            onUnmuteConversation: ConversationGraphQL
+          },
+          SubscriptionOnUnmuteConversationArgs & {
+            jwt: string
+          }
+        >,
+        uuid: string
+      ) => {
+        this._onUnmuteConversationSync(response, source, uuid)
+      },
       true
     )
 
@@ -2564,6 +2705,7 @@ export class Chat
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -2584,6 +2726,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
@@ -2682,6 +2825,7 @@ export class Chat
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -2702,6 +2846,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
@@ -3019,6 +3164,7 @@ export class Chat
         deletedAt: response.deletedAt ? response.deletedAt : null,
         client: this._client!,
         realtimeClient: this._realtimeClient!,
+        chatParent: this,
       }),
     }
 
@@ -3033,9 +3179,6 @@ export class Chat
   > {
     const AES = Crypto.generateBase64Key_AES256()
     const iv = Crypto.generateBase64IV_128Bit()
-
-    console.log("AES:", AES)
-    console.log("iv:", iv)
 
     const response = await this._mutation<
       MutationCreateConversationOneToOneArgs,
@@ -3097,6 +3240,7 @@ export class Chat
         deletedAt: response.deletedAt ? response.deletedAt : null,
         client: this._client!,
         realtimeClient: this._realtimeClient!,
+        chatParent: this,
       }),
     }
 
@@ -3228,6 +3372,7 @@ export class Chat
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -3248,6 +3393,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
@@ -3384,6 +3530,7 @@ export class Chat
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -3404,6 +3551,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
@@ -3477,6 +3625,7 @@ export class Chat
           : null,
         client: this._client!,
         realtimeClient: this._realtimeClient!,
+        chatParent: this,
       }),
       memberOut: new User({
         ...this._parentConfig!,
@@ -3679,6 +3828,7 @@ export class Chat
           : null,
         client: this._client!,
         realtimeClient: this._realtimeClient!,
+        chatParent: this,
       }),
       memberOut: new User({
         ...this._parentConfig!,
@@ -3802,6 +3952,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
@@ -3986,6 +4137,7 @@ export class Chat
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -4006,6 +4158,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
@@ -4104,6 +4257,7 @@ export class Chat
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -4124,6 +4278,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
@@ -4312,6 +4467,7 @@ export class Chat
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -4332,6 +4488,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
@@ -4552,6 +4709,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
@@ -4621,6 +4779,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
@@ -4803,6 +4962,7 @@ export class Chat
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -4823,6 +4983,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
 
     //let's update the local db
@@ -4940,6 +5101,7 @@ export class Chat
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -4960,6 +5122,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
 
     //let's update the local db
@@ -5036,6 +5199,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
@@ -5321,6 +5485,7 @@ export class Chat
               deletedAt: item.deletedAt ? item.deletedAt : null,
               client: this._client!,
               realtimeClient: this._realtimeClient!,
+              chatParent: this,
             })
           })
         : [],
@@ -5430,6 +5595,7 @@ export class Chat
                   : null,
                 client: this._client!,
                 realtimeClient: this._realtimeClient!,
+                chatParent: this,
               })
             : null,
           messageRootId: item.messageRootId ? item.messageRootId : null,
@@ -5450,6 +5616,7 @@ export class Chat
           deletedAt: item.deletedAt ? item.deletedAt : null,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
+          chatParent: this,
         })
       }),
     }
@@ -5558,6 +5725,7 @@ export class Chat
                   : null,
                 client: this._client!,
                 realtimeClient: this._realtimeClient!,
+                chatParent: this,
               })
             : null,
           messageRootId: item.messageRootId ? item.messageRootId : null,
@@ -5578,6 +5746,7 @@ export class Chat
           deletedAt: item.deletedAt ? item.deletedAt : null,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
+          chatParent: this,
         })
       }),
     }
@@ -5695,6 +5864,7 @@ export class Chat
                     : null,
                   client: this._client!,
                   realtimeClient: this._realtimeClient!,
+                  chatParent: this,
                 })
               : null,
             messageRootId: item.message!.messageRootId
@@ -5717,6 +5887,7 @@ export class Chat
             deletedAt: item.message!.deletedAt ? item.message!.deletedAt : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this,
           }),
           conversationId: item.conversationId,
           createdAt: item.createdAt,
@@ -5813,6 +5984,7 @@ export class Chat
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this,
           }),
           createdAt: item.createdAt,
           updatedAt: item.updatedAt,
@@ -6025,6 +6197,7 @@ export class Chat
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
@@ -6259,6 +6432,7 @@ export class Chat
                   : null,
                 client: this._client!,
                 realtimeClient: this._realtimeClient!,
+                chatParent: this,
               })
             : null,
           messageRootId: r.messageRootId ? r.messageRootId : null,
@@ -6275,6 +6449,7 @@ export class Chat
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -6400,6 +6575,7 @@ export class Chat
                   : null,
                 client: this._client!,
                 realtimeClient: this._realtimeClient!,
+                chatParent: this,
               })
             : null,
           messageRootId: r.messageRootId ? r.messageRootId : null,
@@ -6416,6 +6592,7 @@ export class Chat
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -6609,6 +6786,7 @@ export class Chat
                   : null,
                 client: this._client!,
                 realtimeClient: this._realtimeClient!,
+                chatParent: this,
               })
             : null,
           type: r.type
@@ -6624,6 +6802,7 @@ export class Chat
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -6750,6 +6929,7 @@ export class Chat
                   : null,
                 client: this._client!,
                 realtimeClient: this._realtimeClient!,
+                chatParent: this,
               })
             : null,
           type: r.type
@@ -6765,6 +6945,7 @@ export class Chat
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -6891,6 +7072,7 @@ export class Chat
                   : null,
                 client: this._client!,
                 realtimeClient: this._realtimeClient!,
+                chatParent: this,
               })
             : null,
           type: r.type
@@ -6906,6 +7088,7 @@ export class Chat
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -7032,6 +7215,7 @@ export class Chat
                   : null,
                 client: this._client!,
                 realtimeClient: this._realtimeClient!,
+                chatParent: this,
               })
             : null,
           type: r.type
@@ -7047,6 +7231,7 @@ export class Chat
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -7172,6 +7357,7 @@ export class Chat
                   : null,
                 client: this._client!,
                 realtimeClient: this._realtimeClient!,
+                chatParent: this,
               })
             : null,
           messageRootId: r.messageRootId ? r.messageRootId : null,
@@ -7188,6 +7374,7 @@ export class Chat
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -7270,6 +7457,7 @@ export class Chat
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -7374,6 +7562,7 @@ export class Chat
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this,
           }),
           memberOut: new User({
             ...this._parentConfig!,
@@ -7537,6 +7726,7 @@ export class Chat
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this,
           }),
           memberOut: new User({
             ...this._parentConfig!,
@@ -7678,6 +7868,7 @@ export class Chat
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -7760,6 +7951,7 @@ export class Chat
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -7842,6 +8034,7 @@ export class Chat
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -7924,6 +8117,7 @@ export class Chat
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
           realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -8585,13 +8779,30 @@ export class Chat
     //let's call the detective message scan method
     Chat._detectiveMessage.scan()
 
-    //let's call all the logics
-    await this._sync(this._syncingCounter)
-
     //add member to conversation. This event is global, basically the user is always listening if
     //someone wants to add him into a conversation.
     const onAddMembersToConversation = this.onAddMembersToConversation(
-      this._onAddMembersToConversationSync,
+      (
+        response:
+          | QIError
+          | {
+              conversationId: string
+              membersIds: Array<string>
+              items: Array<ConversationMember>
+            },
+        source: OperationResult<
+          {
+            onAddMembersToConversation: ListConversationMembersGraphQL
+          },
+          {
+            jwt: string
+          }
+        >,
+        uuid: string
+      ) => {
+        this._onAddMembersToConversationSync(response, source, uuid)
+      },
+
       true
     )
 
@@ -8619,6 +8830,9 @@ export class Chat
 
       return
     }
+
+    //let's call all the logics
+    await this._sync(this._syncingCounter)
 
     //now that we have a _conversationsMap array filled, we can add subscription for every conversation that is currently active
     for (const { conversationId } of this._conversationsMap.filter(

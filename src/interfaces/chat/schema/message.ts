@@ -1,6 +1,7 @@
 import { Reaction } from "../../../core/chat/reaction"
 import { Maybe } from "../../../types/base"
 import { Message } from "../../../core"
+import { Chat } from "../../../"
 
 /**
  * Represents the schema for a message in a conversation.
@@ -62,4 +63,8 @@ export interface MessageSchema {
    * @property {Date} deletedAt - Represents a timestamp for when an entity was deleted.
    */
   deletedAt: Maybe<Date>
+  /**
+   * @property {Chat} chatParent -The chat parent object that has generated this object.
+   */
+  readonly chatParent: Chat
 }

@@ -62,7 +62,7 @@ import {
 } from "../../constants/chat/queries"
 import { EngineInitConfig } from "../../types"
 import { Reaction } from "./reaction"
-import { Auth } from "../.."
+import { Auth, Chat } from "../.."
 
 /**
  * Represents a conversation in a chat application.
@@ -138,6 +138,10 @@ export class Conversation
    * @property {Maybe<Date>} deletedAt -The date when the chat group was last deleted.
    */
   readonly deletedAt: Maybe<Date>
+  /**
+   * @property {Chat} chatParent -The chat parent object that has generated this object.
+   */
+  readonly chatParent: Chat
 
   /**
    * Constructor for creating a Conversation object with the provided configuration.
@@ -168,6 +172,7 @@ export class Conversation
 
     this._client = config.client
     this._realtimeClient = config.realtimeClient
+    this.chatParent = config.chatParent
   }
 
   /**
@@ -253,6 +258,7 @@ export class Conversation
           : null,
         client: this._client!,
         realtimeClient: this._realtimeClient!,
+        chatParent: this.chatParent,
       }),
       memberOut: new User({
         ...this._parentConfig!,
@@ -627,6 +633,7 @@ export class Conversation
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this.chatParent,
           })
         : null,
       type: response.type
@@ -646,6 +653,7 @@ export class Conversation
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
   }
 
@@ -760,6 +768,7 @@ export class Conversation
           : null,
         client: this._client!,
         realtimeClient: this._realtimeClient!,
+        chatParent: this.chatParent,
       }),
       memberOut: new User({
         ...this._parentConfig!,
@@ -884,6 +893,7 @@ export class Conversation
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
   }
 
@@ -909,7 +919,7 @@ export class Conversation
       input: {
         content: Crypto.encryptAESorFail(
           content,
-          this.findKeyPairById(this.id)
+          this.chatParent.findKeyPairById(this.id)
         ),
         conversationId: this.id,
         type: args.type,
@@ -988,6 +998,7 @@ export class Conversation
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this.chatParent,
           })
         : null,
       type: response.type
@@ -1007,6 +1018,7 @@ export class Conversation
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
   }
 
@@ -1163,6 +1175,7 @@ export class Conversation
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
   }
 
@@ -1191,23 +1204,23 @@ export class Conversation
           conversationId: this.id,
           description: Crypto.encryptAESorFail(
             args.description,
-            this.findKeyPairById(this.id)
+            this.chatParent.findKeyPairById(this.id)
           ),
           imageURL: new URL(
             Crypto.encryptAESorFail(
               args.imageURL,
-              this.findKeyPairById(this.id)
+              this.chatParent.findKeyPairById(this.id)
             )
           ).toString(),
           bannerImageURL: new URL(
             Crypto.encryptAESorFail(
               args.bannerImageURL,
-              this.findKeyPairById(this.id)
+              this.chatParent.findKeyPairById(this.id)
             )
           ).toString(),
           name: Crypto.encryptAESorFail(
             args.name,
-            this.findKeyPairById(this.id)
+            this.chatParent.findKeyPairById(this.id)
           ),
           settings: JSON.stringify(args.settings),
         },
@@ -1244,6 +1257,7 @@ export class Conversation
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
   }
 
@@ -1311,6 +1325,7 @@ export class Conversation
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
   }
 
@@ -1592,6 +1607,7 @@ export class Conversation
                 : null,
               client: this._client!,
               realtimeClient: this._realtimeClient!,
+              chatParent: this.chatParent,
             })
           : null,
         messageRootId: item!.messageRootId ? item!.messageRootId : null,
@@ -1608,6 +1624,7 @@ export class Conversation
         deletedAt: item!.deletedAt ? item!.deletedAt : null,
         client: this._client!,
         realtimeClient: this._realtimeClient!,
+        chatParent: this.chatParent,
       })
     })
 
@@ -1616,26 +1633,32 @@ export class Conversation
 
   getImageURLDecrypted(): Maybe<string> {
     if (!this.imageURL) return null
-    return Crypto.decryptAESorFail(this.imageURL, this.findKeyPairById(this.id))
+    return Crypto.decryptAESorFail(
+      this.imageURL,
+      this.chatParent.findKeyPairById(this.id)
+    )
   }
 
   getBannerImageURLDecrypted(): Maybe<string> {
     if (!this.bannerImageURL) return null
     return Crypto.decryptAESorFail(
       this.bannerImageURL,
-      this.findKeyPairById(this.id)
+      this.chatParent.findKeyPairById(this.id)
     )
   }
 
   getNameDecrypted(): string {
-    return Crypto.decryptAESorFail(this.name, this.findKeyPairById(this.id))
+    return Crypto.decryptAESorFail(
+      this.name,
+      this.chatParent.findKeyPairById(this.id)
+    )
   }
 
   getDescriptionDecrypted(): Maybe<string> {
     if (!this.description) return null
     return Crypto.decryptAESorFail(
       this.description,
-      this.findKeyPairById(this.id)
+      this.chatParent.findKeyPairById(this.id)
     )
   }
 }

@@ -42,7 +42,7 @@ import { Reaction } from "./reaction"
 import { User } from "./user"
 import { Crypto } from "./crypto"
 import { Converter } from "../utilities"
-import { Auth } from "../.."
+import { Auth, Chat } from "../.."
 
 /**
  * Represents a Message object that can be used to interact with messages in a chat application.
@@ -110,6 +110,10 @@ export class Message
    * @property {Date} createdAt - The deletion's date of the message
    */
   readonly deletedAt: Maybe<Date>
+  /**
+   * @property {Chat} chatParent -The chat parent object that has generated this object.
+   */
+  readonly chatParent: Chat
 
   /**
    * Constructor for creating a new message instance with the provided configuration.
@@ -138,6 +142,7 @@ export class Message
 
     this._client = config.client
     this._realtimeClient = config.realtimeClient
+    this.chatParent = config.chatParent
   }
 
   /**
@@ -240,6 +245,7 @@ export class Message
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this.chatParent,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -260,6 +266,7 @@ export class Message
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
   }
 
@@ -285,7 +292,7 @@ export class Message
           messageId: this.id,
           reactionContent: Crypto.encryptAESorFail(
             args.reaction,
-            this.findKeyPairById(args.conversationId)
+            this.chatParent.findKeyPairById(args.conversationId)
           ),
           conversationId: args.conversationId,
         },
@@ -363,6 +370,7 @@ export class Message
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this.chatParent,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -383,6 +391,7 @@ export class Message
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
   }
 
@@ -450,7 +459,7 @@ export class Message
         messageId: this.id,
         content: Crypto.encryptAESorFail(
           args.content,
-          this.findKeyPairById(args.conversationId)
+          this.chatParent.findKeyPairById(args.conversationId)
         ),
         conversationId: args.conversationId,
       },
@@ -527,6 +536,7 @@ export class Message
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this.chatParent,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -547,6 +557,7 @@ export class Message
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
   }
 
@@ -645,7 +656,6 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
-
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
@@ -656,6 +666,7 @@ export class Message
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this.chatParent,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -676,6 +687,7 @@ export class Message
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
   }
 
@@ -700,7 +712,7 @@ export class Message
         input: {
           reactionContent: Crypto.encryptAESorFail(
             args.reaction,
-            this.findKeyPairById(args.conversationId)
+            this.chatParent.findKeyPairById(args.conversationId)
           ),
           messageId: this.id,
           conversationId: args.conversationId,
@@ -779,6 +791,7 @@ export class Message
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this.chatParent,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -799,6 +812,7 @@ export class Message
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
   }
 
@@ -907,6 +921,7 @@ export class Message
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this.chatParent,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -927,6 +942,7 @@ export class Message
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
 
     this._storage.insertBulkSafe("message", [
@@ -1048,6 +1064,7 @@ export class Message
               : null,
             client: this._client!,
             realtimeClient: this._realtimeClient!,
+            chatParent: this.chatParent,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -1068,6 +1085,7 @@ export class Message
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
 
     this._storage.insertBulkSafe("message", [
@@ -1149,6 +1167,7 @@ export class Message
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
       realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
   }
 
@@ -1240,7 +1259,7 @@ export class Message
     if (!this.conversationId) return null
     return Crypto.decryptAESorFail(
       this.content,
-      this.findKeyPairById(this.conversationId)
+      this.chatParent.findKeyPairById(this.conversationId)
     )
   }
 }

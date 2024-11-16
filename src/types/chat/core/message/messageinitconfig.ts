@@ -3,6 +3,7 @@ import { Maybe } from "../../../../types/base"
 import { Reaction } from "../../../../core/chat/reaction"
 import { Message } from "../../../../core"
 import UUIDSubscriptionClient from "../../../../core/chat/uuidsubscriptionclient"
+import { Chat } from "../../../../"
 
 /**
  * Represents the configuration for initializing a message.
@@ -72,4 +73,8 @@ export type MessageInitConfig = {
    * @property {UUIDSubscriptionClient} realtimeClient - The real time client associated with the entry.
    */
   realtimeClient: UUIDSubscriptionClient
+  /**
+   * @property {Chat} chatParent -The chat parent object that has generated this object.
+   */
+  readonly chatParent: Chat
 }
