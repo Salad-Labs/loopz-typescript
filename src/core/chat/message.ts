@@ -88,11 +88,13 @@ export class Message
    */
   readonly type: Maybe<"TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT">
   /**
-   * @property {id: string; username: string} user - The user, author of the message
+   * @property {id: string; username: string; avatarURL: string; imageSettings: Maybe<string>} user - The user, author of the message
    */
   readonly user: {
     id: string
     username: string
+    avatarURL: string
+    imageSettings: Maybe<string>
   }
   /**
    * @property {Maybe<number>} order - The order of the message.
@@ -234,6 +236,12 @@ export class Message
               username: response.messageRoot.user!.username
                 ? response.messageRoot.user!.username
                 : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
             },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
@@ -259,6 +267,10 @@ export class Message
       user: {
         id: response.user!.id,
         username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
       },
       order: response.order,
       createdAt: response.createdAt,
@@ -359,6 +371,12 @@ export class Message
               username: response.messageRoot.user!.username
                 ? response.messageRoot.user!.username
                 : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
             },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
@@ -384,6 +402,10 @@ export class Message
       user: {
         id: response.user!.id,
         username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
       },
       order: response.order,
       createdAt: response.createdAt,
@@ -525,6 +547,12 @@ export class Message
               username: response.messageRoot.user!.username
                 ? response.messageRoot.user!.username
                 : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
             },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
@@ -550,6 +578,10 @@ export class Message
       user: {
         id: response.user!.id,
         username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
       },
       order: response.order,
       createdAt: response.createdAt,
@@ -646,6 +678,12 @@ export class Message
               username: response.messageRoot.user!.username
                 ? response.messageRoot.user!.username
                 : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.user!.imageSettings
+                ? JSON.parse(response.user!.imageSettings)
+                : null,
             },
             messageRoot: null,
             messageRootId: null,
@@ -680,6 +718,10 @@ export class Message
       user: {
         id: response.user!.id,
         username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
       },
       order: response.order,
       createdAt: response.createdAt,
@@ -780,6 +822,12 @@ export class Message
               username: response.messageRoot.user!.username
                 ? response.messageRoot.user!.username
                 : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
             },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
@@ -805,6 +853,10 @@ export class Message
       user: {
         id: response.user!.id,
         username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
       },
       order: response.order,
       createdAt: response.createdAt,
@@ -910,6 +962,12 @@ export class Message
               username: response.messageRoot.user!.username
                 ? response.messageRoot.user!.username
                 : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
             },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
@@ -935,6 +993,10 @@ export class Message
       user: {
         id: response.user!.id,
         username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
       },
       order: response.order,
       createdAt: response.createdAt,
@@ -1053,6 +1115,12 @@ export class Message
               username: response.messageRoot.user!.username
                 ? response.messageRoot.user!.username
                 : "",
+              avatarURL: response.user!.avatarUrl
+                ? response.user!.avatarUrl
+                : "",
+              imageSettings: response.user!.imageSettings
+                ? JSON.parse(response.user!.imageSettings)
+                : null,
             },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
@@ -1078,6 +1146,10 @@ export class Message
       user: {
         id: response.user!.id,
         username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
       },
       order: response.order,
       createdAt: response.createdAt,

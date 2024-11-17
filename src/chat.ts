@@ -2693,6 +2693,12 @@ export class Chat
               username: response.messageRoot.user!.username
                 ? response.messageRoot.user!.username
                 : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
             },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
@@ -2718,6 +2724,10 @@ export class Chat
       user: {
         id: response.user!.id,
         username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
       },
       order: response.order,
       createdAt: response.createdAt,
@@ -2813,6 +2823,12 @@ export class Chat
               username: response.messageRoot.user!.username
                 ? response.messageRoot.user!.username
                 : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
             },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
@@ -2838,6 +2854,10 @@ export class Chat
       user: {
         id: response.user!.id,
         username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
       },
       order: response.order,
       createdAt: response.createdAt,
@@ -3360,6 +3380,12 @@ export class Chat
               username: response.messageRoot.user!.username
                 ? response.messageRoot.user!.username
                 : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
             },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
@@ -3385,6 +3411,10 @@ export class Chat
       user: {
         id: response.user!.id,
         username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
       },
       order: response.order,
       createdAt: response.createdAt,
@@ -3518,6 +3548,12 @@ export class Chat
               username: response.messageRoot.user!.username
                 ? response.messageRoot.user!.username
                 : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
             },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
@@ -3543,6 +3579,10 @@ export class Chat
       user: {
         id: response.user!.id,
         username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
       },
       order: response.order,
       createdAt: response.createdAt,
@@ -4125,6 +4165,12 @@ export class Chat
               username: response.messageRoot.user!.username
                 ? response.messageRoot.user!.username
                 : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
             },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
@@ -4150,6 +4196,10 @@ export class Chat
       user: {
         id: response.user!.id,
         username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
       },
       order: response.order,
       createdAt: response.createdAt,
@@ -4245,6 +4295,12 @@ export class Chat
               username: response.messageRoot.user!.username
                 ? response.messageRoot.user!.username
                 : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
             },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
@@ -4270,6 +4326,10 @@ export class Chat
       user: {
         id: response.user!.id,
         username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
       },
       order: response.order,
       createdAt: response.createdAt,
@@ -4455,6 +4515,12 @@ export class Chat
               username: response.messageRoot.user!.username
                 ? response.messageRoot.user!.username
                 : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
             },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
@@ -4480,6 +4546,10 @@ export class Chat
       user: {
         id: response.user!.id,
         username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
       },
       order: response.order,
       createdAt: response.createdAt,
@@ -4950,6 +5020,12 @@ export class Chat
               username: response.messageRoot.user!.username
                 ? response.messageRoot.user!.username
                 : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
             },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
@@ -4975,6 +5051,10 @@ export class Chat
       user: {
         id: response.user!.id,
         username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
       },
       order: response.order,
       createdAt: response.createdAt,
@@ -5089,6 +5169,12 @@ export class Chat
               username: response.messageRoot.user!.username
                 ? response.messageRoot.user!.username
                 : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
             },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
@@ -5114,6 +5200,10 @@ export class Chat
       user: {
         id: response.user!.id,
         username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
       },
       order: response.order,
       createdAt: response.createdAt,
@@ -5583,6 +5673,12 @@ export class Chat
                   username: item.messageRoot.user!.username
                     ? item.messageRoot.user!.username
                     : "",
+                  avatarURL: item.messageRoot.user!.avatarUrl
+                    ? item.messageRoot.user!.avatarUrl
+                    : "",
+                  imageSettings: item.messageRoot.user!.imageSettings
+                    ? JSON.parse(item.messageRoot.user!.imageSettings)
+                    : null,
                 },
                 order: item.messageRoot.order,
                 createdAt: item.messageRoot.createdAt,
@@ -5608,6 +5704,10 @@ export class Chat
           user: {
             id: item.user!.id,
             username: item.user!.username ? item.user!.username : "",
+            avatarURL: item.user!.avatarUrl ? item.user!.avatarUrl : "",
+            imageSettings: item.user!.imageSettings
+              ? JSON.parse(item.user!.imageSettings)
+              : null,
           },
           order: item.order,
           createdAt: item.createdAt,
@@ -5713,6 +5813,12 @@ export class Chat
                   username: item.messageRoot.user!.username
                     ? item.messageRoot.user!.username
                     : "",
+                  avatarURL: item.messageRoot.user!.avatarUrl
+                    ? item.messageRoot.user!.avatarUrl
+                    : "",
+                  imageSettings: item.messageRoot.user!.imageSettings
+                    ? JSON.parse(item.messageRoot.user!.imageSettings)
+                    : null,
                 },
                 order: item.messageRoot.order,
                 createdAt: item.messageRoot.createdAt,
@@ -5738,6 +5844,10 @@ export class Chat
           user: {
             id: item.user!.id,
             username: item.user!.username ? item.user!.username : "",
+            avatarURL: item.user!.avatarUrl ? item.user!.avatarUrl : "",
+            imageSettings: item.user!.imageSettings
+              ? JSON.parse(item.user!.imageSettings)
+              : null,
           },
           order: item.order,
           createdAt: item.createdAt,
@@ -5852,6 +5962,14 @@ export class Chat
                     username: item.message!.messageRoot.user!.username
                       ? item.message!.messageRoot.user!.username
                       : "",
+                    avatarURL: item.message!.messageRoot.user!.avatarUrl
+                      ? item.message!.messageRoot.user!.avatarUrl
+                      : "",
+                    imageSettings: item.message!.messageRoot.user!.imageSettings
+                      ? JSON.parse(
+                          item.message!.messageRoot.user!.imageSettings
+                        )
+                      : null,
                   },
                   order: item.message!.messageRoot.order,
                   createdAt: item.message!.messageRoot.createdAt,
@@ -5879,6 +5997,10 @@ export class Chat
             user: {
               id: item.user!.id,
               username: item.user!.username ? item.user!.username : "",
+              avatarURL: item.user!.avatarUrl ? item.user!.avatarUrl : "",
+              imageSettings: item.user!.imageSettings
+                ? JSON.parse(item.user!.imageSettings)
+                : null,
             },
             order: item.message!.order,
             createdAt: item.message!.createdAt,
@@ -6420,6 +6542,12 @@ export class Chat
                   username: r.messageRoot.user!.username
                     ? r.messageRoot.user!.username
                     : "",
+                  avatarURL: r.messageRoot.user!.avatarUrl
+                    ? r.messageRoot.user!.avatarUrl
+                    : "",
+                  imageSettings: r.messageRoot.user!.imageSettings
+                    ? JSON.parse(r.messageRoot.user!.imageSettings)
+                    : null,
                 },
                 order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
@@ -6441,6 +6569,10 @@ export class Chat
           user: {
             id: r.user!.id,
             username: r.user!.username ? r.user!.username : "",
+            avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+            imageSettings: r.user!.imageSettings
+              ? JSON.parse(r.user!.imageSettings)
+              : null,
           },
           order: r.order,
           createdAt: r.createdAt,
@@ -6563,6 +6695,10 @@ export class Chat
                   username: r.messageRoot.user!.username
                     ? r.messageRoot.user!.username
                     : "",
+                  avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+                  imageSettings: r.user!.imageSettings
+                    ? JSON.parse(r.user!.imageSettings)
+                    : null,
                 },
                 order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
@@ -6584,6 +6720,10 @@ export class Chat
           user: {
             id: r.user!.id,
             username: r.user!.username ? r.user!.username : "",
+            avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+            imageSettings: r.user!.imageSettings
+              ? JSON.parse(r.user!.imageSettings)
+              : null,
           },
           order: r.order,
           createdAt: r.createdAt,
@@ -6774,6 +6914,10 @@ export class Chat
                   username: r.messageRoot.user!.username
                     ? r.messageRoot.user!.username
                     : "",
+                  avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+                  imageSettings: r.user!.imageSettings
+                    ? JSON.parse(r.user!.imageSettings)
+                    : null,
                 },
                 order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
@@ -6794,6 +6938,10 @@ export class Chat
           user: {
             id: r.user!.id,
             username: r.user!.username ? r.user!.username : "",
+            avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+            imageSettings: r.user!.imageSettings
+              ? JSON.parse(r.user!.imageSettings)
+              : null,
           },
           order: r.order,
           createdAt: r.createdAt,
@@ -6917,6 +7065,10 @@ export class Chat
                   username: r.messageRoot.user!.username
                     ? r.messageRoot.user!.username
                     : "",
+                  avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+                  imageSettings: r.user!.imageSettings
+                    ? JSON.parse(r.user!.imageSettings)
+                    : null,
                 },
                 order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
@@ -6937,6 +7089,10 @@ export class Chat
           user: {
             id: r.user!.id,
             username: r.user!.username ? r.user!.username : "",
+            avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+            imageSettings: r.user!.imageSettings
+              ? JSON.parse(r.user!.imageSettings)
+              : null,
           },
           order: r.order,
           createdAt: r.createdAt,
@@ -7060,6 +7216,10 @@ export class Chat
                   username: r.messageRoot.user!.username
                     ? r.messageRoot.user!.username
                     : "",
+                  avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+                  imageSettings: r.user!.imageSettings
+                    ? JSON.parse(r.user!.imageSettings)
+                    : null,
                 },
                 order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
@@ -7080,6 +7240,10 @@ export class Chat
           user: {
             id: r.user!.id,
             username: r.user!.username ? r.user!.username : "",
+            avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+            imageSettings: r.user!.imageSettings
+              ? JSON.parse(r.user!.imageSettings)
+              : null,
           },
           order: r.order,
           createdAt: r.createdAt,
@@ -7203,6 +7367,12 @@ export class Chat
                   username: r.messageRoot.user!.username
                     ? r.messageRoot.user!.username
                     : "",
+                  avatarURL: r.messageRoot.user!.avatarUrl
+                    ? r.messageRoot.user!.avatarUrl
+                    : "",
+                  imageSettings: r.messageRoot.user!.imageSettings
+                    ? JSON.parse(r.messageRoot.user!.imageSettings)
+                    : null,
                 },
                 order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
@@ -7223,6 +7393,10 @@ export class Chat
           user: {
             id: r.user!.id,
             username: r.user!.username ? r.user!.username : "",
+            avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+            imageSettings: r.user!.imageSettings
+              ? JSON.parse(r.user!.imageSettings)
+              : null,
           },
           order: r.order,
           createdAt: r.createdAt,
@@ -7345,6 +7519,10 @@ export class Chat
                   username: r.messageRoot.user!.username
                     ? r.messageRoot.user!.username
                     : "",
+                  avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+                  imageSettings: r.user!.imageSettings
+                    ? JSON.parse(r.user!.imageSettings)
+                    : null,
                 },
                 order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
@@ -7366,6 +7544,10 @@ export class Chat
           user: {
             id: r.user!.id,
             username: r.user!.username ? r.user!.username : "",
+            avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+            imageSettings: r.user!.imageSettings
+              ? JSON.parse(r.user!.imageSettings)
+              : null,
           },
           order: r.order,
           createdAt: r.createdAt,

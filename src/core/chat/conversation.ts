@@ -622,6 +622,12 @@ export class Conversation
               username: response.messageRoot.user!.username
                 ? response.messageRoot.user!.username
                 : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
             },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
@@ -646,6 +652,10 @@ export class Conversation
       user: {
         id: response.user!.id,
         username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
       },
       order: response.order,
       createdAt: response.createdAt,
@@ -987,6 +997,12 @@ export class Conversation
               username: response.messageRoot.user!.username
                 ? response.messageRoot.user!.username
                 : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
             },
             order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
@@ -1011,6 +1027,10 @@ export class Conversation
       user: {
         id: response.user!.id,
         username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
       },
       order: response.order,
       createdAt: response.createdAt,
@@ -1596,6 +1616,12 @@ export class Conversation
                 username: item!.messageRoot.user!.username
                   ? item!.messageRoot.user!.username
                   : "",
+                avatarURL: item!.messageRoot.user!.avatarUrl
+                  ? item!.messageRoot.user!.avatarUrl
+                  : "",
+                imageSettings: item?.messageRoot.user!.imageSettings
+                  ? JSON.parse(item.messageRoot.user!.imageSettings)
+                  : null,
               },
               order: item!.messageRoot.order,
               createdAt: item!.messageRoot.createdAt,
@@ -1617,6 +1643,10 @@ export class Conversation
         user: {
           id: item!.user!.id,
           username: item!.user!.username ? item!.user!.username : "",
+          avatarURL: item!.user!.avatarUrl ? item!.user!.avatarUrl : "",
+          imageSettings: item!.user!.imageSettings
+            ? JSON.parse(item!.user!.imageSettings)
+            : null,
         },
         order: item!.order,
         createdAt: item!.createdAt,

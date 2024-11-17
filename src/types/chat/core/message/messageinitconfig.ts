@@ -48,6 +48,8 @@ export type MessageInitConfig = {
   user: {
     id: string
     username: string
+    avatarURL: string
+    imageSettings: Maybe<string>
   }
   /**
    * @property {number} order - The order of the message.
@@ -76,5 +78,5 @@ export type MessageInitConfig = {
   /**
    * @property {Chat} chatParent -The chat parent object that has generated this object.
    */
-  readonly chatParent: Chat
+  chatParent: Chat
 }

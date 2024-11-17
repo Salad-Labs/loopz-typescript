@@ -46,6 +46,8 @@ export interface MessageSchema {
   user: {
     id: string
     username: string
+    avatarURL: string
+    imageSettings: Maybe<string>
   }
   /**
    * @property {number} order - The order of the message.
