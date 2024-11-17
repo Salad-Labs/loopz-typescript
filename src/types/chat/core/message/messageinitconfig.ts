@@ -49,7 +49,11 @@ export type MessageInitConfig = {
     id: string
     username: string
     avatarURL: string
-    imageSettings: Maybe<string>
+    imageSettings: Maybe<{
+      imageX: number
+      imageY: number
+      imageZoom: number
+    }>
   }
   /**
    * @property {number} order - The order of the message.

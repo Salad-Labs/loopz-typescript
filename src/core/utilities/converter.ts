@@ -49,6 +49,14 @@ export class Converter {
       id: message.id,
       userId: message.userId,
       userDid,
+      user: {
+        id: message.user.id,
+        username: message.user.username,
+        avatarURL: message.user.avatarURL,
+        imageSettings: message.user.imageSettings
+          ? message.user.imageSettings
+          : null,
+      },
       organizationId,
       conversationId: message.conversationId,
       content: message.content,

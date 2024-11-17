@@ -94,7 +94,11 @@ export class Message
     id: string
     username: string
     avatarURL: string
-    imageSettings: Maybe<string>
+    imageSettings: Maybe<{
+      imageX: number
+      imageY: number
+      imageZoom: number
+    }>
   }
   /**
    * @property {Maybe<number>} order - The order of the message.
