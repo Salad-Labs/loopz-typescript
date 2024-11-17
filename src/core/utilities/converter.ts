@@ -15,6 +15,7 @@ export class Converter {
     return {
       id: conversation.id,
       userDid,
+      indexDid: userDid, //used to query more efficently this table into recoverUserConversations()
       organizationId,
       name: conversation.name,
       description: conversation.description ? conversation.description : "",
@@ -27,10 +28,13 @@ export class Converter {
         : null,
       settings: JSON.stringify(conversation.settings),
       isArchived,
-      lastMessageSentAt: conversation.lastMessageSentAt,
+      lastMessageSentAt: conversation.lastMessageSentAt
+        ? conversation.lastMessageSentAt
+        : new Date("1970-01-01T00:00:00Z"),
       lastMessageAuthor,
       lastMessageText,
       lastMessageRead,
+      hasLastMessageSentAt: conversation.lastMessageSentAt ? true : false,
       type: conversation.type as "GROUP" | "ONE_TO_ONE",
       createdAt: conversation.createdAt,
       updatedAt: conversation.updatedAt,

@@ -34,8 +34,10 @@ export class DexieStorage extends Dexie implements BaseStorage {
 
     this.version(this._dbVersion).stores({
       user: "[did+organizationId]",
-      conversation: "[id+userDid], name, description, createdAt",
-      message: "[id+userDid], content, origin, userDid, type, createdAt",
+      conversation:
+        "[id+userDid], indexDid, name, description, lastMessageSentAt, createdAt",
+      message:
+        "[id+userDid], conversationId, content, origin, userDid, type, createdAt",
       detectivemessagecollector:
         "++id, did, organizationId, conversationId, messageId, order, createdAt",
       detectivemessagequeue:

@@ -3,6 +3,7 @@ import { Maybe } from "../../../../types"
 export interface LocalDBConversation {
   id: string //primary key
   userDid: string //primary key
+  indexDid: string
   organizationId: string
   name: string
   description: string
@@ -20,6 +21,7 @@ export interface LocalDBConversation {
   lastMessageRead: Maybe<Date>
   lastMessageAuthor: Maybe<string>
   lastMessageText: Maybe<string>
+  hasLastMessageSentAt: boolean
   createdAt: Date
   updatedAt: Maybe<Date>
   deletedAt: Maybe<Date>

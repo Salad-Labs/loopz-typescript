@@ -735,9 +735,26 @@ export class Chat
       }
 
       if (conversationsItems.length > 0) {
+        const conversationsStored = await new Promise<LocalDBConversation[]>(
+          (resolve, reject) => {
+            Serpens.addAction(() => {
+              this._storage.conversation
+                .where("indexDid")
+                .equals(Auth.account!.did)
+                .toArray()
+                .then(resolve)
+                .catch(reject)
+            })
+          }
+        )
+
         await this._storage.insertBulkSafe(
           "conversation",
           conversationsItems.map((conversation: Conversation) => {
+            let conversationStored = conversationsStored.find((item) => {
+              return item.id === conversation.id
+            })
+
             let isConversationArchived = false
 
             if (currentUser.archivedConversations) {
@@ -755,9 +772,9 @@ export class Chat
               Auth.account!.did,
               Auth.account!.organizationId,
               isConversationArchived,
-              null,
-              null,
-              null
+              conversationStored ? conversationStored.lastMessageAuthor : null,
+              conversationStored ? conversationStored.lastMessageText : null,
+              conversationStored ? conversationStored.lastMessageRead : null
             )
           })
         )
@@ -922,16 +939,25 @@ export class Chat
           (resolve, reject) => {
             Serpens.addAction(() => {
               this._storage.message
-                .orderBy("createdAt")
+                .where("conversationId")
+                .equals(id)
                 .filter(
                   (element) =>
                     element.origin === "USER" &&
                     element.userDid === Auth.account!.did
                 )
-                .reverse()
-                .first()
-                .then((value) => {
-                  resolve(value)
+                .toArray()
+                .then((array) => {
+                  resolve(
+                    array.length > 0
+                      ? array.sort((a, b) => {
+                          return (
+                            new Date(b.createdAt).getTime() -
+                            new Date(a.createdAt).getTime()
+                          )
+                        })[0]
+                      : undefined
+                  )
                 })
                 .catch(reject)
             })
@@ -941,7 +967,8 @@ export class Chat
         const canDownloadMessages =
           !lastMessageStored ||
           (lastMessageStored &&
-            lastMessageStored.createdAt! < lastMessageSentAt)
+            new Date(lastMessageStored.createdAt!).getTime() <
+              new Date(lastMessageSentAt).getTime())
 
         //the check of history message is already done on backend side
 
@@ -1002,7 +1029,7 @@ export class Chat
               this._hookMessageCreated = false
               this._hookMessageUpdated = false
             }
-            console.log(messages)
+
             //it's possible this array is empty when the chat history settings has value 'false'
             this._storage.insertBulkSafe(
               "message",
@@ -1024,15 +1051,12 @@ export class Chat
               Serpens.addAction(() =>
                 this._storage.conversation
                   .where("[id+userDid]")
-                  .equals([
-                    messages[messages.length - 1].conversationId,
-                    Auth.account!.did,
-                  ])
+                  .equals([messages[0].conversationId, Auth.account!.did])
                   .modify((conversation: LocalDBConversation) => {
-                    const lastMessage = messages[messages.length - 1]
-
+                    const lastMessage = messages[0] //messages are ordered from the most recent to the less recent message, so the first item is the last message sent
                     conversation.lastMessageAuthor = lastMessage.user.username
                     conversation.lastMessageText = lastMessage.content
+                    conversation.lastMessageSentAt = lastMessage.createdAt
                   })
                   .then(resolve)
                   .catch(reject)
@@ -9099,7 +9123,6 @@ export class Chat
           Serpens.addAction(() =>
             this._storage.message
               .orderBy("createdAt")
-              .reverse()
               .offset(offset)
               .limit(numberElements)
               .filter(
@@ -9107,7 +9130,7 @@ export class Chat
                   element.conversationId === conversationId &&
                   element.userDid === Auth.account!.did &&
                   typeof element.deletedAt !== "undefined" &&
-                  !!element.deletedAt
+                  !element.deletedAt
               )
               .toArray()
               .then(resolve)
@@ -9180,7 +9203,7 @@ export class Chat
         (resolve, reject) => {
           Serpens.addAction(() =>
             this._storage.conversation
-              .orderBy("createdAt")
+              .orderBy("lastMessageSentAt")
               .reverse()
               .offset(offset)
               .limit(numberElements)
@@ -9198,6 +9221,7 @@ export class Chat
       )
 
       for (let conversation of allConversations) {
+        console.log(conversation.lastMessageText)
         try {
           conversations.push({
             ...conversation,
@@ -9217,6 +9241,12 @@ export class Chat
               conversation.bannerImageURL,
               this.findKeyPairById(conversation.id)
             ),
+            lastMessageText: conversation.lastMessageText
+              ? Crypto.decryptAESorFail(
+                  conversation.lastMessageText,
+                  this.findKeyPairById(conversation.id)
+                )
+              : null,
           })
         } catch (error) {
           console.log(
