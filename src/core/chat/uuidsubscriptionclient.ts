@@ -66,12 +66,20 @@ export default class UUIDSubscriptionClient extends SubscriptionClient {
               if (Auth.prevToken === null) {
                 Auth.fetchTokenAttemptsRealtime++
                 Auth.prevToken = Auth.authToken
-                //let's refresh the token and store it into local storage
-                await Auth.fetchAuthToken()
 
-                //let's call a silent reset that basically reset the realtimeClient, create a new instance of it and restore the subscriptions previously added
-                this._engine.silentReset()
-                console.log("payload websocket is telling we are in 401!!!")
+                try {
+                  //let's refresh the token and store it into local storage
+                  await Auth.fetchAuthToken()
+
+                  //let's call a silent reset that basically reset the realtimeClient, create a new instance of it and restore the subscriptions previously added
+                  this._engine.silentReset()
+                  console.log("payload websocket is telling we are in 401!!!")
+                } catch (error) {
+                  console.log(
+                    "something wrong with fetchAuthToken(), user should be logged out"
+                  )
+                  console.log(error)
+                }
               } else {
                 console.log("Seems the prev attempt failed")
                 console.log("Prev token was ", Auth.prevToken)

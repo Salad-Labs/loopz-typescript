@@ -1167,6 +1167,7 @@ export class Auth implements AuthInternalEvents {
       console.log("[fetchAuthToken error]:", error)
       console.log("logging out...")
       Auth._instance?.logout()
+      Chat.getInstance().isConnected() ?? Chat.getInstance().disconnect()
 
       throw error
     }
