@@ -1,3 +1,4 @@
+import { Chat } from "../../.."
 import { Maybe } from "../../../types/base"
 
 /**
@@ -65,4 +66,8 @@ export interface ConversationSchema {
    * @property {Maybe<Date>} deletedAt - The date when the message was deleted, if available.
    */
   deletedAt: Maybe<Date>
+  /**
+   * @property {Chat} chatParent -The chat parent object that has generated this object.
+   */
+  chatParent: Chat
 }

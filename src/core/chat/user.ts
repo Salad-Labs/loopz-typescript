@@ -19,6 +19,7 @@ import {
 import { getCurrentUserWithBlacklist } from "../../constants/chat/queries"
 import { UserInitConfig } from "../../types/chat/core/user"
 import { EngineInitConfig } from "../../types"
+import { Auth } from "../.."
 
 /**
  * Represents a User class that extends Engine and implements UserSchema, UserQueryEngine, and UserMutationEngine interfaces.
@@ -184,9 +185,17 @@ export class User
    * If id is provided, it throws an error.
    * @returns {Promise<User | QIError>} A promise that resolves to the blocked user or an error.
    */
-  async blockUser(): Promise<User | QIError>
-  async blockUser(id: string): Promise<User | QIError>
-  async blockUser(id?: unknown): Promise<User | QIError> {
+  async blockUser(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
+  async blockUser(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
+  async blockUser(
+    id?: unknown,
+    overrideHandlingUnauthorizedQIError?: unknown
+  ): Promise<User | QIError> {
     if (id)
       throw new Error(
         "id argument can not be defined. Consider to use blockUser() instead."
@@ -200,7 +209,14 @@ export class User
       blockId: this.id,
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -253,9 +269,17 @@ export class User
    * If id is provided, it throws an error indicating that the id argument cannot be defined.
    * @returns {Promise<User | QIError>} A promise that resolves to a User object if successful, or a QIError object if there was an error.
    */
-  async unlockUser(): Promise<User | QIError>
-  async unlockUser(id: string): Promise<User | QIError>
-  async unlockUser(id?: unknown): Promise<User | QIError> {
+  async unlockUser(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
+  async unlockUser(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
+  async unlockUser(
+    id?: unknown,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError> {
     if (id)
       throw new Error(
         "id argument can not be defined. Consider to use blockUser() instead."
@@ -269,7 +293,14 @@ export class User
       blockId: this.id,
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -321,7 +352,9 @@ export class User
    * Retrieves the blacklist of the current user, including details of blocked users.
    * @returns {Promise<BlacklistUserEntry[] | QIError>} - A promise that resolves to an array of BlacklistUserEntry objects if successful, or a QIError object if there was an error.
    */
-  async blacklist(): Promise<BlacklistUserEntry[] | QIError> {
+  async blacklist(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<BlacklistUserEntry[] | QIError> {
     const response = await this._query<
       null,
       {
@@ -335,7 +368,14 @@ export class User
       null
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const blacklist: Array<BlacklistUserEntry> = []
 

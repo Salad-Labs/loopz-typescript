@@ -16,12 +16,11 @@ import { FetchBody } from "@urql/core/dist/urql-core-chunk"
 import UUIDSubscriptionClient from "./uuidsubscriptionclient"
 import { Observable } from "subscriptions-transport-ws"
 import { v4 as uuid4 } from "uuid"
-import { SubscriptionGarbage } from "../../types/chat/subscriptiongarbage"
 import forge from "node-forge"
 import { KeyPairItem } from "../../types/chat/keypairitem"
 import { EngineInitConfig } from "../../types"
 import { DexieStorage } from "../app"
-import { Auth } from "../.."
+import { Auth, Chat } from "../.."
 
 /**
  * Represents an Engine class that extends Client and implements IEngine interface.
@@ -78,10 +77,6 @@ export class Engine implements IEngine {
    */
   private _offEventsFnsCollector: Maybe<Array<Function>> = null
   /**
-   * @property {Maybe<Array<SubscriptionGarbage>>} _unsubscribeGarbageCollector - an array of unsubscribe functions callback to remove the listeners from the subscription object
-   */
-  private _unsubscribeGarbageCollector: Maybe<Array<SubscriptionGarbage>> = null
-  /**
    * @property {number} WS_TIMEOUT - a static property representing the timeout before to close to the websocket connection
    */
   static readonly WS_TIMEOUT = 300000 //five minutes
@@ -101,7 +96,6 @@ export class Engine implements IEngine {
       host: null,
     }
     this._offEventsFnsCollector = []
-    this._unsubscribeGarbageCollector = []
   }
 
   /**
@@ -134,25 +128,6 @@ export class Engine implements IEngine {
       "QIError: no data in the response is available.",
       false
     )
-  }
-
-  /**
-   * Removes duplicated objects from the SubscriptionGarbage array based on the 'uuid' property.
-   * @param {SubscriptionGarbage[]} objects - An array of SubscriptionGarbage objects.
-   * @returns {SubscriptionGarbage[]} - An array of unique SubscriptionGarbage objects.
-   */
-  private _removeDuplicatedFromGarbageCollector(
-    objects: SubscriptionGarbage[]
-  ): SubscriptionGarbage[] {
-    const seen = new Map<string, SubscriptionGarbage>()
-
-    for (const object of objects) {
-      if (!seen.has(object.uuid)) {
-        seen.set(object.uuid, object)
-      }
-    }
-
-    return Array.from(seen.values())
   }
 
   /**
@@ -229,7 +204,8 @@ export class Engine implements IEngine {
           reconnect: true,
           timeout: Engine.WS_TIMEOUT,
         },
-        this._connectionParams!
+        this._connectionParams!,
+        this
       )
 
       this._connectCallback = callback
@@ -312,11 +288,9 @@ export class Engine implements IEngine {
   private _reset(): void {
     if (!this._realtimeClient) return
 
-    this._unsubscribeGarbage() //clear all the subscription generated with _subscription()
     this._realtimeClient.unsubscribeAll() //clear all the subscriptions of UUIDSubscriptionClient
     this._offUUIDSubscriptionEvents() //clear all the events of UUIDSubscriptionClient
     this._realtimeClient.close() //close the websocket connection
-    this._unsubscribeGarbageCollector = [] //reset the unsubscribe garbage collector array
     this._offEventsFnsCollector = [] //reset the UUIDSubscriptionClient off events collector array
 
     console.warn("connection closed.")
@@ -342,27 +316,28 @@ export class Engine implements IEngine {
     }
   }
 
-  /**
-   * Private method to unsubscribe from garbage collector subscriptions.
-   * If there are subscriptions in the garbage collector, it unsubscribes from each one.
-   * If an error occurs during the unsubscribe process, a warning is logged.
-   * @returns void
-   */
-  private _unsubscribeGarbage(): void {
-    if (this._unsubscribeGarbageCollector) {
-      this._unsubscribeGarbageCollector.forEach(
-        (garbage: SubscriptionGarbage) => {
-          try {
-            garbage.unsubscribe()
-          } catch (error) {
-            console.warn(
-              `[warning]: an exception occured while the client was clearing the subscription [${garbage.uuid}] garbage. More info -> `,
-              error
-            )
-          }
-        }
-      )
+  protected _handleUnauthorizedQIError(error: QIError): Maybe<"_401_"> {
+    console.log(error, typeof error)
+    if (error.graphQLErrors && Array.isArray(error.graphQLErrors)) {
+      const _error = error.graphQLErrors[0]
+      console.log(_error)
+      if (
+        _error &&
+        "originalError" in _error &&
+        _error.originalError &&
+        "errorType" in _error.originalError
+      ) {
+        console.log(
+          "the qi error is ",
+          _error.originalError,
+          _error.originalError.errorType
+        )
+        if (_error.originalError.errorType === "UnauthorizedException")
+          return "_401_"
+      }
     }
+
+    return null
   }
 
   /**
@@ -421,7 +396,7 @@ export class Engine implements IEngine {
     try {
       const client = this._makeClient()
       if (!client) return this._returnQIErrorInternalClientNotDefined()
-      if (!Auth.authToken) throw new Error("authToken is not set")
+      if (!Auth.authToken) throw new Error("authToken is not setup properly.")
 
       const subscription = client.subscription<
         TSubscriptionResult,
@@ -573,64 +548,20 @@ export class Engine implements IEngine {
   }
 
   disconnect() {
-    return this._reset()
+    this._reset()
+    this._isConnecting = false
+    this._isConnected = false
   }
 
-  /**
-   * Collects subscription garbage to be unsubscribed later.
-   * @param garbage - The subscription garbage or array of garbage to collect.
-   * @returns None
-   */
-  collect(garbage: SubscriptionGarbage | SubscriptionGarbage[]) {
-    if (!this._unsubscribeGarbageCollector) {
-      if (garbage instanceof Array) this._unsubscribeGarbageCollector = garbage
-      else this._unsubscribeGarbageCollector = [garbage]
-    } else {
-      if (garbage instanceof Array) {
-        garbage.forEach((g: SubscriptionGarbage) => {
-          if (
-            this._unsubscribeGarbageCollector?.findIndex(
-              (el: SubscriptionGarbage) => {
-                return el.uuid.toLowerCase() === g.uuid.toLowerCase()
-              }
-            ) === -1
-          )
-            this._unsubscribeGarbageCollector.push(g)
-        })
-      } else {
-        if (
-          this._unsubscribeGarbageCollector?.findIndex(
-            (el: SubscriptionGarbage) => {
-              return el.uuid.toLowerCase() === garbage.uuid.toLowerCase()
-            }
-          ) === -1
-        )
-          this._unsubscribeGarbageCollector.push(garbage)
-      }
-    }
+  silentReset() {
+    if (!this._realtimeClient) return
 
-    this._removeDuplicatedFromGarbageCollector(
-      this._unsubscribeGarbageCollector
-    )
+    console.log("silent reset! shhhh...")
+
+    this._reset()
+    this._makeWSClient(() => {}) //silent creation of a new realtimeClient instance
+    Chat.silentRestoreSubscriptionSync() //silent restore of the subscriptions from chat
   }
-
-  // TODO why the need of this function?
-  /**
-   * Get the JWT token stored in the class instance.
-   * @returns The JWT token as a string, or null if it is not set.
-   */
-  // getJWTToken(): Maybe<string> {
-  //   return this._authToken
-  // }
-
-  // TODO why the need of this function?
-  /**
-   * Get the API key.
-   * @returns {Maybe<string>} The API key, or null if it is not set.
-   */
-  // getApiKey(): Maybe<string> {
-  //   return this._apiKey
-  // }
 
   /**
    * Returns the API URL as a string or null if it is not set.
@@ -700,48 +631,12 @@ export class Engine implements IEngine {
   }
 
   /**
-   * Finds a public key by its ID in the key pairs map.
-   * @param {string} id - The ID of the public key to find.
-   * @returns {Maybe<forge.pki.rsa.PublicKey>} The public key associated with the given ID,
-   * or null if the key pairs map is empty or if the key with the specified ID is not found.
-   */
-  findPublicKeyById(id: string): Maybe<forge.pki.rsa.PublicKey> {
-    if (!this._keyPairsMap) return null
-
-    const item = this._keyPairsMap.find((k: KeyPairItem) => {
-      return k.id.toLowerCase() === id.toLowerCase()
-    })
-
-    if (!item) return null
-
-    return item.keypair.publicKey
-  }
-
-  /**
-   * Finds a private key by its ID in the key pairs map.
-   * @param {string} id - The ID of the private key to find.
-   * @returns {Maybe<forge.pki.rsa.PrivateKey>} The private key associated with the given ID,
-   * or null if the key is not found.
-   */
-  findPrivateKeyById(id: string): Maybe<forge.pki.rsa.PrivateKey> {
-    if (!this._keyPairsMap) return null
-
-    const item = this._keyPairsMap.find((k: KeyPairItem) => {
-      return k.id.toLowerCase() === id.toLowerCase()
-    })
-
-    if (!item) return null
-
-    return item.keypair.privateKey
-  }
-
-  /**
    * Finds a key pair in the key pairs map based on the provided ID.
    * @param {string} id - The ID of the key pair to find.
-   * @returns {Maybe<forge.pki.rsa.KeyPair>} The key pair associated with the provided ID, or null if not found.
+   * @returns {Maybe<{AES: string; iv: string}>} The key pair associated with the provided ID, or null if not found.
    */
 
-  findKeyPairById(id: string): Maybe<forge.pki.rsa.KeyPair> {
+  findKeyPairById(id: string): Maybe<{ AES: string; iv: string }> {
     if (!this._keyPairsMap) return null
 
     const item = this._keyPairsMap.find((k: KeyPairItem) => {
@@ -750,7 +645,10 @@ export class Engine implements IEngine {
 
     if (!item) return null
 
-    return item.keypair
+    return {
+      AES: item.AES,
+      iv: item.iv,
+    }
   }
 
   /**

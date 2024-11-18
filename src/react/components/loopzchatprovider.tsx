@@ -23,8 +23,8 @@ export const LoopzChatProvider: FC<
   const [chatStatus, setChatStatus] = useState({
     isConnecting: false,
     isConnected: false,
-    isSynching: false,
-    isSynched: false,
+    isSyncing: false,
+    isSynced: false,
   })
 
   const setIsConnected = useCallback(
@@ -32,7 +32,7 @@ export const LoopzChatProvider: FC<
     []
   )
 
-  const setIsSynched = useCallback(
+  const setIsSynced = useCallback(
     (isSynched: boolean) => setChatStatus((cs) => ({ ...cs, isSynched })),
     []
   )
@@ -51,8 +51,8 @@ export const LoopzChatProvider: FC<
     setChatStatus({
       isConnecting: true,
       isConnected: false,
-      isSynching: false,
-      isSynched: false,
+      isSyncing: false,
+      isSynced: false,
     })
 
     instance.chat
@@ -61,8 +61,8 @@ export const LoopzChatProvider: FC<
         setChatStatus({
           isConnecting: false,
           isConnected: true,
-          isSynching: autoSync ?? false,
-          isSynched: false,
+          isSyncing: autoSync ?? false,
+          isSynced: false,
         })
       )
       .catch(() => {
@@ -70,10 +70,20 @@ export const LoopzChatProvider: FC<
         setChatStatus({
           isConnecting: false,
           isConnected: false,
-          isSynching: false,
-          isSynched: false,
+          isSyncing: false,
+          isSynced: false,
         })
       })
+
+    instance.chat.on("disconnect", () => {
+      hasStartedConnection.current = false
+      setChatStatus({
+        isConnecting: false,
+        isConnected: false,
+        isSyncing: false,
+        isSynced: false,
+      })
+    })
   }, [
     initialized,
     isAuthenticated,
@@ -87,7 +97,7 @@ export const LoopzChatProvider: FC<
     if (
       !initialized ||
       !chatStatus.isConnected ||
-      chatStatus.isSynched ||
+      chatStatus.isSynced ||
       hasStartedSynchronization.current
     )
       return
@@ -97,32 +107,34 @@ export const LoopzChatProvider: FC<
       return setChatStatus({
         isConnecting: false,
         isConnected: true,
-        isSynching: false,
-        isSynched: false,
+        isSyncing: false,
+        isSynced: false,
       })
 
     instance.chat
       .sync()
       .then(() =>
-        setChatStatus({
-          isConnecting: false,
-          isConnected: true,
-          isSynching: false,
-          isSynched: true,
+        setChatStatus((prev) => {
+          return {
+            isConnecting: prev.isConnecting,
+            isConnected: prev.isConnected,
+            isSyncing: false,
+            isSynced: true,
+          }
         })
       )
       .catch(() => {
         hasStartedSynchronization.current = false
-        setChatStatus({
-          isConnecting: false,
-          isConnected: true,
-          isSynching: false,
-          isSynched: false,
+        setChatStatus((prev) => {
+          return {
+            isConnecting: prev.isConnecting,
+            isConnected: prev.isConnected,
+            isSyncing: false,
+            isSynced: false,
+          }
         })
       })
   }, [initialized, chatStatus, autoSync, instance])
-
-  // TODO here useEffect for events
 
   useEffect(() => {
     if (autoConnect || !autoSync) return
@@ -135,7 +147,7 @@ export const LoopzChatProvider: FC<
   return (
     <LoopzChatContext.Provider
       value={
-        { ...chatStatus, setIsConnected, setIsSynched } as LoopzChatContextValue
+        { ...chatStatus, setIsConnected, setIsSynced } as LoopzChatContextValue
       }
     >
       {children}

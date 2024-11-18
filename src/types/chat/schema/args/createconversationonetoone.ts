@@ -19,4 +19,9 @@ export type CreateConversationOneToOneArgs = {
    * @property {string} bannerImageURL - The URL of the banner image associated with the conversation.
    */
   bannerImageURL: string
+  imageSettings: {
+    imageX: number
+    imageY: number
+    imageZoom: number
+  }
 }

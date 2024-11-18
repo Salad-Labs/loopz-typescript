@@ -126,11 +126,14 @@ export class DetectiveMessage {
         //for a queue not processed, we ask for the server the missing messages, and after we marked them as processed, in this way in the next iteration
         //these queues will be removed from the database
         try {
-          const listMessagesFirsSet = await chat.listMessagesByRangeOrder({
-            id: conversationId,
-            minOrder: queueItem.queue[0], //this element contains the min order value
-            maxOrder: queueItem.queue[queueItem.queue.length - 1], //this element contains the max order value
-          })
+          const listMessagesFirsSet = await chat.listMessagesByRangeOrder(
+            {
+              id: conversationId,
+              minOrder: queueItem.queue[0], //this element contains the min order value
+              maxOrder: queueItem.queue[queueItem.queue.length - 1], //this element contains the max order value
+            },
+            true
+          )
 
           if (listMessagesFirsSet instanceof QIError)
             throw new Error(JSON.stringify(listMessagesFirsSet))
@@ -140,12 +143,15 @@ export class DetectiveMessage {
           let isError = false
 
           while (nextToken) {
-            const set = await chat.listMessagesByRangeOrder({
-              id: conversationId,
-              minOrder: queueItem.queue[0], //this element contains the min order value
-              maxOrder: queueItem.queue[queueItem.queue.length - 1], //this element contains the max order value
-              nextToken,
-            })
+            const set = await chat.listMessagesByRangeOrder(
+              {
+                id: conversationId,
+                minOrder: queueItem.queue[0], //this element contains the min order value
+                maxOrder: queueItem.queue[queueItem.queue.length - 1], //this element contains the max order value
+                nextToken,
+              },
+              true
+            )
 
             if (set instanceof QIError) {
               isError = true
@@ -326,10 +332,9 @@ export class DetectiveMessage {
     if (this._detectiveMessageTimeout)
       clearTimeout(this._detectiveMessageTimeout)
 
-    this._detectiveMessageTimeout = setTimeout(
-      this.scan,
-      DetectiveMessage.DETECTIVE_MESSAGE_SCAN_TIME
-    )
+    this._detectiveMessageTimeout = setTimeout(async () => {
+      await this.scan()
+    }, DetectiveMessage.DETECTIVE_MESSAGE_SCAN_TIME)
   }
 
   stopScan() {

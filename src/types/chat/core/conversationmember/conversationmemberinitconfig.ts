@@ -23,13 +23,13 @@ export type ConversationMemberInitConfig = {
    */
   type: "USER" | "ADMINISTRATOR"
   /**
-   * @property {string} encryptedConversationPublicKey - The public key used for encryption in the conversation.
+   * @property {string} encryptedConversationAESKey - The AES key used for encryption in the conversation.
    */
-  encryptedConversationPublicKey: string
+  encryptedConversationAESKey: string
   /**
-   * @property {string} encryptedConversationPrivateKey - The private key used for encryption in the conversation.
+   * @property {string} encryptedConversationIVKey - The IV key used for encryption in the conversation.
    */
-  encryptedConversationPrivateKey: string
+  encryptedConversationIVKey: string
   /**
    * @property {Date} createdAt - The optional creation date of the client.
    */

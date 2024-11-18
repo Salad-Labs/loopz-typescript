@@ -21,7 +21,8 @@ import {
  */
 export interface UAQueryEngine {
   listAllActiveUserConversationIds(
-    args: ListAllActiveUserConversationIdsArgs
+    args: ListAllActiveUserConversationIdsArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     | {
         items: Array<string>
@@ -30,34 +31,46 @@ export interface UAQueryEngine {
     | QIError
   >
   listConversationsByIds(
-    ids: Array<string>
+    ids: Array<string>,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     { items: Array<Conversation>; unprocessedKeys?: Maybe<string[]> } | QIError
   >
   listMessagesByConversationId(
-    args: ListMessagesByConversationIdArgs
+    args: ListMessagesByConversationIdArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<{ items: Array<Message>; nextToken?: Maybe<string> } | QIError>
   listMessagesImportantByUserConversationId(
-    args: ListMessagesImportantByUserConversationIdArgs
+    args: ListMessagesImportantByUserConversationIdArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     { items: Array<MessageImportant>; nextToken?: Maybe<string> } | QIError
   >
   listMessagesByRangeOrder(
-    args: ListMessagesByRangeOrderArgs
+    args: ListMessagesByRangeOrderArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<{ items: Array<Message>; nextToken?: Maybe<string> } | QIError>
   listConversationsPinnedByCurrentUser(
-    nextToken?: string
+    nextToken?: string,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     { items: Array<ConversationPin>; nextToken?: Maybe<string> } | QIError
   >
   listUsersByIds(
-    ids: Array<string>
+    ids: Array<string>,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     { items: Array<User>; unprocessedKeys?: Maybe<string[]> } | QIError
   >
-  getConversationById(id: string): Promise<Conversation | QIError>
+  getConversationById(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Conversation | QIError>
   findUsersByUsernameOrAddress(
-    args: FindUsersByUsernameOrAddressArgs
+    args: FindUsersByUsernameOrAddressArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<{ items: Array<User>; nextToken?: String } | QIError>
-  getCurrentUser(): Promise<User | QIError>
+  getCurrentUser(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
 }

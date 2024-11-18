@@ -2,34 +2,34 @@ export type LoopzChatContextValue = (
   | {
       isConnecting: true
       isConnected: false
-      isSynching: false
-      isSynched: false
+      isSyncing: false
+      isSynced: false
     }
   | {
       isConnecting: false
       isConnected: false
-      isSynching: false
-      isSynched: false
+      isSyncing: false
+      isSynced: false
     }
   | {
       isConnecting: false
       isConnected: true
-      isSynching: true
-      isSynched: false
+      isSyncing: true
+      isSynced: false
     }
   | {
       isConnecting: false
       isConnected: true
-      isSynching: false
-      isSynched: true
+      isSyncing: false
+      isSynced: true
     }
   | {
       isConnecting: false
       isConnected: true
-      isSynching: false
-      isSynched: false
+      isSyncing: false
+      isSynced: false
     }
 ) & {
   setIsConnected: (isConnected: boolean) => void
-  setIsSynched: (isSynched: boolean) => void
+  setIsSynced: (isSynched: boolean) => void
 }

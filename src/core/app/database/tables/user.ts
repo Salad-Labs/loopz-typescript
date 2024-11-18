@@ -3,6 +3,7 @@ import { Maybe, Network } from "../../../../types"
 export interface LocalDBUser {
   did: string //primary key
   organizationId: string //primary key
+  dynamoDBUserID: string
   username: string
   email: string
   bio: string

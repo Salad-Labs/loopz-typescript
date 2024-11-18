@@ -5,5 +5,5 @@ import { QIError, User } from "../../../../core/chat"
  * @interface ConversationQueryEngine
  */
 export interface ConversationQueryEngine {
-  owner(): Promise<User | QIError>
+  owner(overrideHandlingUnauthorizedQIError?: boolean): Promise<User | QIError>
 }

@@ -9,7 +9,11 @@ export type KeyPairItem = {
    */
   id: string
   /**
-   * @property {forge.pki.rsa.KeyPair} keypair - the key pair associated.
+   * @property {string} AES - the AES key associated.
    */
-  keypair: forge.pki.rsa.KeyPair
+  AES: string
+  /**
+   * @property {string} iv - the iv key associated.
+   */
+  iv: string
 }

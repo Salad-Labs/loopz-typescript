@@ -6,8 +6,18 @@ import { User } from "../../../../core/chat/user"
  * @interface UserMutationEngine
  */
 export interface UserMutationEngine {
-  blockUser(): Promise<User | QIError>
-  blockUser(id: string): Promise<User | QIError>
-  unlockUser(): Promise<User | QIError>
-  unlockUser(id: string): Promise<User | QIError>
+  blockUser(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
+  blockUser(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
+  unlockUser(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
+  unlockUser(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
 }

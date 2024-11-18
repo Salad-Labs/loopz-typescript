@@ -1,12 +1,14 @@
 import { LoopzChatContextValue } from "./loopzchatcontextvalue"
+import { LoopzChatEventHandlers } from "./loopzchateventhandlers"
 
-export type UseLoopzChat = () => Omit<
+export type UseLoopzChat = (eventHandlers?: LoopzChatEventHandlers) => Omit<
   LoopzChatContextValue,
-  "setIsConnected" | "setIsSynched"
+  "setIsConnected" | "setIsSynced"
 > & {
   // TODO add remaining functions signatures
   connect(): Promise<void>
   reconnect(): Promise<void>
   disconnect(): void
   sync(): Promise<void>
+  unsync(): Promise<void>
 }

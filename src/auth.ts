@@ -39,8 +39,8 @@ export class Auth implements AuthInternalEvents {
     callbacks: Function[]
     event: AuthEvents
   }> = []
-  private static _isLoggingOut = false
-  private static _isAuthenticated = false
+  private static _isLoggingOut: boolean = false
+  private static _isAuthenticated: boolean = false
 
   private static set authToken(authToken: Maybe<string>) {
     Auth._authToken = authToken
@@ -68,6 +68,14 @@ export class Auth implements AuthInternalEvents {
 
   static get account() {
     return Auth._account
+  }
+
+  static fetchTokenAttemptsRealtime: number = 0
+
+  static prevToken: Maybe<string> = null
+
+  static get MAX_ATTEMPTS_REALTIME_FETCH_AUTH_TOKEN(): number {
+    return 2
   }
 
   private constructor() {
@@ -136,7 +144,7 @@ export class Auth implements AuthInternalEvents {
     })
   }
 
-  private static async _handleDexie() {
+  private static async _storeUserLocalDB(): Promise<Maybe<string>> {
     try {
       if (!Auth._account) throw new Error("Account is not set")
       const keys = await Auth._generateKeys()
@@ -165,7 +173,7 @@ export class Auth implements AuthInternalEvents {
         }
       )
 
-      if (existingUser) return
+      if (existingUser) return null
 
       //save all the data related to this user into the db
 
@@ -177,6 +185,7 @@ export class Auth implements AuthInternalEvents {
             .add({
               did: Auth._account.did,
               organizationId: Auth._account.organizationId,
+              dynamoDBUserID: Auth._account.dynamoDBUserID,
               username: Auth._account.username,
               email: Auth._account.email,
               bio: Auth._account.bio,
@@ -309,6 +318,8 @@ export class Auth implements AuthInternalEvents {
             .catch(reject)
         })
       })
+
+      return publicKey
     } catch (error) {
       console.error(error)
       throw new Error(
@@ -368,7 +379,27 @@ export class Auth implements AuthInternalEvents {
       Auth._account!.storeLastUserLoggedKey()
 
       //generation of the table and local keys for e2e encryption
-      await Auth._handleDexie()
+      const e2eKey = await Auth._storeUserLocalDB()
+
+      //if this condition is true, means the user has done the signup for the first time ever, since e2ePublicKey is supposed to be null in that case
+      if (e2eKey !== e2ePublicKey && !e2ePublicKey) {
+        const { response } = await Auth._client.fetch<
+          ApiResponse<{
+            updated: boolean
+          }>
+        >(Auth._client.backendUrl("/auth/update/e2e"), {
+          method: "POST",
+          body: {
+            e2ePublicKey: e2eKey,
+          },
+        })
+
+        if (!response || !response.data) throw new Error("Invalid response.")
+
+        const { updated } = response.data[0]
+
+        if (!updated) throw new Error("Update E2E Failed. Access not granted.")
+      }
 
       //clear all the internal callbacks connected to the authentication...
       Auth._clearEventsCallbacks([
@@ -435,7 +466,29 @@ export class Auth implements AuthInternalEvents {
       Auth._account!.storeLastUserLoggedKey()
 
       //generation of the table and local keys for e2e encryption
-      await Auth._handleDexie()
+      const e2eKey = await Auth._storeUserLocalDB()
+
+      //if this condition is true, means the user has done the signup for the first time ever, since e2ePublicKey is supposed to be null in that case
+      if (e2eKey !== e2ePublicKey && !e2ePublicKey && e2eKey) {
+        const { response } = await Auth._client.fetch<
+          ApiResponse<{
+            updated: boolean
+          }>
+        >(Auth._client.backendUrl("/auth/update/e2e"), {
+          method: "POST",
+          body: {
+            e2ePublicKey: e2eKey,
+          },
+        })
+
+        if (!response || !response.data) throw new Error("Invalid response.")
+
+        const { updated } = response.data[0]
+
+        if (!updated) throw new Error("Update E2E Failed. Access not granted.")
+
+        Auth._account!.setE2EPublicKeyOnce = e2eKey
+      }
 
       //clear all the internal callbacks connected to the authentication...
       Auth._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
@@ -954,13 +1007,13 @@ export class Auth implements AuthInternalEvents {
       const { e2eSecret, e2eSecretIV } = secrets
 
       Auth._isAuthenticated = true
-      Auth.authToken = token
+
       Auth.account = new Account({
         enableDevMode: Auth._config.devMode,
         storage: Auth._config.storage,
         did: user.did,
         organizationId: user.organizationId,
-        token: token,
+        token: Auth.authToken!, //we use Auth.authToken and not token because in case we have a 401 error, variable 'token' has the value of the previous token. Instead Auth.authToken has the updated value.
         walletAddress: user.wallet.address,
         walletConnectorType: user.wallet.connectorType,
         walletImported: user.wallet.imported,
@@ -1060,30 +1113,63 @@ export class Auth implements AuthInternalEvents {
   }
 
   public static async fetchAuthToken() {
-    const token = await getAccessToken()
+    try {
+      console.log("fetch new token")
+      const token = await getAccessToken()
 
-    Auth.authToken = token
+      console.log(
+        "old real time auth token is",
+        Auth._realtimeAuthorizationToken
+      )
+      console.log("old token is ", Auth.authToken)
+      console.log("new token is ", token)
 
-    let lastUserLoggedKey = window.localStorage.getItem(
-      CLIENT_DB_KEY_LAST_USER_LOGGED
-    )
+      Auth.authToken = token
 
-    if (!token) throw new Error("Impossible to refresh the token.")
+      console.log("confirmation for new token ", Auth.authToken)
+      console.log(
+        "confirmation for new real time auth token ",
+        Auth._realtimeAuthorizationToken
+      )
 
-    if (!lastUserLoggedKey)
-      throw new Error("Impossible to detect a logged user key.")
+      let lastUserLoggedKey = window.localStorage.getItem(
+        CLIENT_DB_KEY_LAST_USER_LOGGED
+      )
 
-    lastUserLoggedKey = JSON.parse(lastUserLoggedKey)
-    ;(
-      lastUserLoggedKey as unknown as {
-        did: string
-        token: string
-        organizationId: string
-      }
-    ).token = token
-    window.localStorage.setItem(
-      CLIENT_DB_KEY_LAST_USER_LOGGED,
-      JSON.stringify(lastUserLoggedKey)
-    )
+      if (!token) throw new Error("Impossible to refresh the token.")
+
+      if (!lastUserLoggedKey)
+        throw new Error("Impossible to detect a logged user key.")
+
+      console.log(
+        "lastuserlogged key from local storage is ",
+        JSON.parse(lastUserLoggedKey)
+      )
+
+      lastUserLoggedKey = JSON.parse(lastUserLoggedKey)
+      ;(
+        lastUserLoggedKey as unknown as {
+          did: string
+          token: string
+          organizationId: string
+        }
+      ).token = token
+      window.localStorage.setItem(
+        CLIENT_DB_KEY_LAST_USER_LOGGED,
+        JSON.stringify(lastUserLoggedKey)
+      )
+
+      console.log(
+        "setItem performed on local storage with value",
+        lastUserLoggedKey
+      )
+    } catch (error) {
+      console.log("[fetchAuthToken error]:", error)
+      console.log("logging out...")
+      Auth._instance?.logout()
+      Chat.getInstance().isConnected() ?? Chat.getInstance().disconnect()
+
+      throw error
+    }
   }
 }
