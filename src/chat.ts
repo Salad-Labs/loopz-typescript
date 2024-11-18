@@ -1455,7 +1455,21 @@ export class Chat
         ])
 
         this._emit("reactionAdded", {
-          message: response,
+          message: {
+            ...response,
+            reactions: response.reactions
+              ? response.reactions.map((r) => {
+                  return {
+                    userId: r.userId,
+                    createdAt: r.createdAt,
+                    content: Crypto.decryptAESorFail(
+                      r.content,
+                      this.findKeyPairById(response.conversationId)
+                    ),
+                  }
+                })
+              : null,
+          },
           conversationId: response.conversationId,
         })
       }
@@ -1490,7 +1504,21 @@ export class Chat
         ])
 
         this._emit("reactionRemoved", {
-          message: response,
+          message: {
+            ...response,
+            reactions: response.reactions
+              ? response.reactions.map((r) => {
+                  return {
+                    userId: r.userId,
+                    createdAt: r.createdAt,
+                    content: Crypto.decryptAESorFail(
+                      r.content,
+                      this.findKeyPairById(response.conversationId)
+                    ),
+                  }
+                })
+              : null,
+          },
           conversationId: response.conversationId,
         })
       }
