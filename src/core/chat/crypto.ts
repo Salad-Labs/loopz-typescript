@@ -1,5 +1,6 @@
 import forge, { Bytes } from "node-forge"
 import { Maybe } from "../../types/base"
+import { escapeHTML, unescapeHTML } from ".."
 
 /**
  * A class that provides cryptographic functions using the node-forge library.
@@ -238,7 +239,7 @@ export class Crypto {
     const cipher = forge.cipher.createCipher("AES-CBC", key)
 
     cipher.start({ iv })
-    cipher.update(forge.util.createBuffer(encodeURIComponent(text)))
+    cipher.update(forge.util.createBuffer(encodeURIComponent(escapeHTML(text))))
     cipher.finish()
 
     const encryptedHex = forge.util.bytesToHex(cipher.output.getBytes())
@@ -261,7 +262,7 @@ export class Crypto {
     )
     decipher.finish()
 
-    return decodeURIComponent(decipher.output.toString())
+    return unescapeHTML(decodeURIComponent(decipher.output.toString()))
   }
 
   static encryptSHA256_IV(
