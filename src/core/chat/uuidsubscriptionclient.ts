@@ -31,7 +31,7 @@ export default class UUIDSubscriptionClient extends SubscriptionClient {
       )}`,
       args
     )
-
+    console.log("i'm creating an instance of uuidsubscription client.")
     this._engine = engine
   }
 
@@ -79,6 +79,7 @@ export default class UUIDSubscriptionClient extends SubscriptionClient {
                     "something wrong with fetchAuthToken(), user should be logged out"
                   )
                   console.log(error)
+                  this.close()
                 }
               } else {
                 console.log("Seems the prev attempt failed")
@@ -116,6 +117,7 @@ export default class UUIDSubscriptionClient extends SubscriptionClient {
                     Auth.authToken
                   )
 
+                  this.close()
                   Auth.getInstance()
                     .logout()
                     .then(() => {
