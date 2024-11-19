@@ -8977,7 +8977,7 @@ export class Chat
       this.setUserKeyPair(userKeyPair)
     }
 
-    super.connect(force)
+    return super.connect(force)
   }
 
   disconnect() {

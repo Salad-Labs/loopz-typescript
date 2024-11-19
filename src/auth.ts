@@ -913,24 +913,26 @@ export class Auth implements AuthInternalEvents {
   }
 
   logout(): Promise<boolean> {
+    Auth._isLoggingOut = true
+    Auth._isAuthenticated = false
+    // ? should Auth._account = null? auth.on("_logout", () => auth.getCurrentAccount() // exists)
+    Auth._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
+
+    Auth._emit("__logout")
+
     return new Promise((resolve) => {
       this.on("__onLogoutComplete", (status: boolean) => {
         Auth._isLoggingOut = false
+
+        Auth.authToken = null
+        // TODO exists?
+        Auth._account?.emptyActiveWallets()
+        Chat.getInstance().disconnect()
+
         Auth._clearEventsCallbacks(["__onLogoutComplete"])
+        Auth._emit("logout")
         resolve(status)
       })
-
-      Auth._isLoggingOut = true
-      Auth._isAuthenticated = false
-      Auth.authToken = null
-      // ? should Auth._account = null? auth.on("_logout", () => auth.getCurrentAccount() // exists)
-      Auth._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
-
-      // TODO exists?
-      Auth._account?.emptyActiveWallets()
-      Chat.getInstance().disconnect()
-
-      Auth._emit("__logout")
     })
   }
 

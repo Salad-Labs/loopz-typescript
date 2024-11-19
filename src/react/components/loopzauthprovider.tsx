@@ -123,12 +123,12 @@ export const LoopzAuthProvider: FC<
 
     instance.auth.on("auth", handleAuth)
     instance.auth.on("onAuthError", handleAuth)
-    instance.auth.on("__logout", handleAuth)
+    instance.auth.on("logout", handleAuth)
 
     return () => {
       instance.auth.off("auth", handleAuth)
       instance.auth.off("onAuthError", handleAuth)
-      instance.auth.off("__logout", handleAuth)
+      instance.auth.off("logout", handleAuth)
     }
   }, [initialized, instance, handleAuth])
 
