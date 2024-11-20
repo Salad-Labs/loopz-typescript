@@ -136,53 +136,60 @@ export class Engine implements IEngine {
    * If the WebSocket client or event listener collector is not available, the function returns early.
    * @returns None
    */
-  private _handleWSClient(): void {
-    if (!this._realtimeClient) return
-    if (!this._offEventsFnsCollector) return
+  private async _handleWSClient(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this._realtimeClient)
+        return reject(new Error("realtime client unavailable"))
+      if (!this._offEventsFnsCollector)
+        return reject(new Error("offEvents collector unavailable"))
 
-    const offConnecting = this._realtimeClient.on("connecting", () => {
-      this._isConnecting = true
-      console.log("connecting...")
+      const offConnecting = this._realtimeClient.on("connecting", () => {
+        this._isConnecting = true
+        console.log("connecting...")
+      })
+
+      const offReconnecting = this._realtimeClient.on("reconnecting", () => {
+        this._isConnecting = true
+        console.log("reconnecting...")
+      })
+
+      const offDisconnected = this._realtimeClient.on("disconnected", () => {
+        this._isConnecting = false
+        this._isConnected = false
+        console.log("disconnected.")
+      })
+
+      const offReconnected = this._realtimeClient.on(
+        "reconnected",
+        (payload) => {
+          console.log("reconnected", "[payload]:", payload)
+          //reset?
+          resolve()
+        }
+      )
+
+      const offError = this._realtimeClient.on("error", () => {
+        console.log("websocket error.")
+      })
+
+      const offConnected = this._realtimeClient.on(
+        "connected",
+        (payload: { connectionTimeoutMs: number }) => {
+          console.log("connected", "[payload]:", payload)
+
+          resolve()
+        }
+      )
+
+      this._offEventsFnsCollector = [
+        offConnecting,
+        offReconnecting,
+        offDisconnected,
+        offReconnected,
+        offError,
+        offConnected,
+      ]
     })
-
-    const offReconnecting = this._realtimeClient.on("reconnecting", () => {
-      this._isConnecting = true
-      console.log("reconnecting...")
-    })
-
-    const offDisconnected = this._realtimeClient.on("disconnected", () => {
-      this._isConnecting = false
-      this._isConnected = false
-      console.log("disconnected.")
-    })
-
-    const offReconnected = this._realtimeClient.on("reconnected", (payload) => {
-      console.log("reconnected", "[payload]:", payload)
-      //reset?
-      if (this._connectCallback) this._connectCallback()
-    })
-
-    const offError = this._realtimeClient.on("error", () => {
-      console.log("websocket error.")
-    })
-
-    const offConnected = this._realtimeClient.on(
-      "connected",
-      (payload: { connectionTimeoutMs: number }) => {
-        console.log("connected", "[payload]:", payload)
-
-        if (this._connectCallback) this._connectCallback()
-      }
-    )
-
-    this._offEventsFnsCollector = [
-      offConnecting,
-      offReconnecting,
-      offDisconnected,
-      offReconnected,
-      offError,
-      offConnected,
-    ]
   }
 
   /**
@@ -190,7 +197,7 @@ export class Engine implements IEngine {
    * @param {Function} callback - The callback function to be executed.
    * @returns None
    */
-  private _makeWSClient(callback: Function): void {
+  private async _makeWSClient(): Promise<void> {
     try {
       this._connectionParams!.Authorization = Auth.realtimeAuthorizationToken
       this._connectionParams!.host = this._clientEngine
@@ -208,8 +215,7 @@ export class Engine implements IEngine {
         this
       )
 
-      this._connectCallback = callback
-      this._handleWSClient()
+      return this._handleWSClient()
     } catch (error) {
       console.log(error)
       throw new Error(
@@ -291,6 +297,7 @@ export class Engine implements IEngine {
     this._realtimeClient.unsubscribeAll() //clear all the subscriptions of UUIDSubscriptionClient
     this._offUUIDSubscriptionEvents() //clear all the events of UUIDSubscriptionClient
     this._realtimeClient.close() //close the websocket connection
+    this._realtimeClient = null
     this._offEventsFnsCollector = [] //reset the UUIDSubscriptionClient off events collector array
 
     console.warn("connection closed.")
@@ -525,26 +532,13 @@ export class Engine implements IEngine {
   /**
    * Connects to a WebSocket server and executes the provided callback function.
    */
-  connect(force = false): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (!this._isConnecting) {
-        //we try to establish a connection only if the client hasn't current connections attempts
-        const callback = () => {
-          this._isConnected = true
-          this._isConnecting = false
-          resolve()
-        }
+  async connect(force = false): Promise<void> {
+    if (this._isConnecting) throw new Error("Chat is already connecting")
+    if (!force && this._realtimeClient) return
 
-        if (!force) {
-          if (!this._realtimeClient) this._makeWSClient(callback)
-        } else {
-          this._makeWSClient(callback)
-        }
-      } else {
-        //nothing happens
-        reject()
-      }
-    })
+    await this._makeWSClient()
+    this._isConnected = true
+    this._isConnecting = false
   }
 
   disconnect() {
@@ -559,7 +553,7 @@ export class Engine implements IEngine {
     console.log("silent reset! shhhh...")
 
     this._reset()
-    this._makeWSClient(() => {}) //silent creation of a new realtimeClient instance
+    this._makeWSClient() //silent creation of a new realtimeClient instance
     Chat.silentRestoreSubscriptionSync() //silent restore of the subscriptions from chat
   }
 

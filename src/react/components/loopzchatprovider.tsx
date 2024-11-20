@@ -74,16 +74,6 @@ export const LoopzChatProvider: FC<
           isSynced: false,
         })
       })
-
-    instance.chat.on("disconnect", () => {
-      hasStartedConnection.current = false
-      setChatStatus({
-        isConnecting: false,
-        isConnected: false,
-        isSyncing: false,
-        isSynced: false,
-      })
-    })
   }, [
     initialized,
     isAuthenticated,
@@ -114,27 +104,41 @@ export const LoopzChatProvider: FC<
     instance.chat
       .sync()
       .then(() =>
-        setChatStatus((prev) => {
-          return {
-            isConnecting: prev.isConnecting,
-            isConnected: prev.isConnected,
-            isSyncing: false,
-            isSynced: true,
-          }
-        })
+        setChatStatus((prev) => ({
+          isConnecting: prev.isConnecting,
+          isConnected: prev.isConnected,
+          isSyncing: false,
+          isSynced: true,
+        }))
       )
       .catch(() => {
         hasStartedSynchronization.current = false
-        setChatStatus((prev) => {
-          return {
-            isConnecting: prev.isConnecting,
-            isConnected: prev.isConnected,
-            isSyncing: false,
-            isSynced: false,
-          }
-        })
+        setChatStatus((prev) => ({
+          isConnecting: prev.isConnecting,
+          isConnected: prev.isConnected,
+          isSyncing: false,
+          isSynced: false,
+        }))
       })
   }, [initialized, chatStatus, autoSync, instance])
+
+  useEffect(() => {
+    if (!initialized) return
+
+    const handleDisconnect = () => {
+      hasStartedConnection.current = false
+      hasStartedSynchronization.current = false
+      setChatStatus({
+        isConnecting: false,
+        isConnected: false,
+        isSyncing: false,
+        isSynced: false,
+      })
+    }
+
+    instance.chat.on("disconnect", handleDisconnect)
+    return () => instance.chat.off("disconnect", handleDisconnect)
+  }, [initialized, instance])
 
   useEffect(() => {
     if (autoConnect || !autoSync) return
