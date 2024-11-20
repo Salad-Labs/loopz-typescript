@@ -1,3 +1,4 @@
+import { ListMessagesUpdatedArgs } from "src/types/chat/schema/args/listmessagesupdated"
 import {
   Conversation,
   ConversationPin,
@@ -48,6 +49,10 @@ export interface UAQueryEngine {
   >
   listMessagesByRangeOrder(
     args: ListMessagesByRangeOrderArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<{ items: Array<Message>; nextToken?: Maybe<string> } | QIError>
+  listMessagesUpdated(
+    args: ListMessagesUpdatedArgs,
     overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<{ items: Array<Message>; nextToken?: Maybe<string> } | QIError>
   listConversationsPinnedByCurrentUser(

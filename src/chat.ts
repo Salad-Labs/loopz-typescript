@@ -114,6 +114,8 @@ import {
   QueryGetConversationTradingPoolByIdArgs,
   QueryListMessagesByRangeOrderArgs,
   ListMessagesByRangeOrderResult as ListMessagesByRangeOrderGraphQL,
+  ListMessagesUpdatedResult as ListMessagesUpdatedGraphQL,
+  QueryListMessagesUpdatedArgs,
 } from "./graphql/generated/graphql"
 import {
   addBlockedUser,
@@ -164,6 +166,7 @@ import {
   listTradesByConversationId,
   getConversationTradingPoolById,
   listMessagesByRangeOrder,
+  listMessagesUpdated,
 } from "./constants/chat/queries"
 import { ConversationMember } from "./core/chat/conversationmember"
 import {
@@ -237,6 +240,7 @@ import { md, mgf, pki } from "node-forge"
 import { Order } from "./order"
 import { Auth, ChatEvents, EngineInitConfig } from "."
 import { DetectiveMessage } from "./core/chat/detectivemessage"
+import { ListMessagesUpdatedArgs } from "./types/chat/schema/args/listmessagesupdated"
 
 export class Chat
   extends Engine
@@ -1074,6 +1078,99 @@ export class Chat
               })
           }
         }
+
+        //now we check if we have some messages that were edited (adding/removing a reaction or editing the text)
+        //first, we get the last sync date from the current user
+
+        let user = (await this._storage.get("user", "[did+organizationId]", [
+          Auth.account!.did,
+          Auth.account!.organizationId,
+        ])) as LocalDBUser
+
+        //we do a check only if lastSyncAt is !== null
+        if (user.lastSyncAt) {
+          const { lastSyncAt } = user
+
+          const messagesUpdatedFirstSet = await this.listMessagesUpdated(
+            {
+              conversationId: id,
+              greaterThanDate: lastSyncAt,
+            },
+            true
+          )
+
+          if (messagesUpdatedFirstSet instanceof QIError) {
+            const error = this._handleUnauthorizedQIError(
+              messagesUpdatedFirstSet
+            )
+            if (error) throw "_401_"
+
+            throw new Error(JSON.stringify(messagesUpdatedFirstSet))
+          }
+
+          let { nextToken, items } = messagesUpdatedFirstSet
+          let messagesUpdated = [...items]
+
+          while (nextToken) {
+            const set = await this.listMessagesUpdated(
+              {
+                conversationId: id,
+                greaterThanDate: lastSyncAt,
+                nextToken,
+              },
+              true
+            )
+
+            if (set instanceof QIError) {
+              const error = this._handleUnauthorizedQIError(set)
+              if (error) throw "_401_"
+
+              break
+            }
+
+            const { nextToken: token, items } = set
+
+            messagesUpdated = [...messagesUpdated, ...items]
+
+            if (token) nextToken = token
+            else break
+          }
+
+          //let's update the messages in the local table
+          if (messagesUpdated.length > 0) {
+            //if this sync is not the first one, we disable the hook for the creation and update of the messages
+            //because potentially could be detrimental for the performance
+            if (this._syncingCounter > 0) {
+              this._storage.message
+                .hook("creating")
+                .unsubscribe(this._hookMessageCreatingFn!)
+              this._storage.message
+                .hook("updating")
+                .unsubscribe(this._hookMessageUpdatingFn!)
+
+              this._hookMessageCreated = false
+              this._hookMessageUpdated = false
+            }
+
+            //it's possible this array is empty when the chat history settings has value 'false'
+            this._storage.insertBulkSafe(
+              "message",
+              messagesUpdated.map((message) => {
+                const isMessageImportant =
+                  messagesImportant.findIndex((important) => {
+                    return important.messageId === message.id
+                  }) > -1
+                return Converter.fromMessageToLocalDBMessage(
+                  message,
+                  Auth.account!.did,
+                  Auth.account!.organizationId,
+                  isMessageImportant,
+                  "USER"
+                )
+              })
+            )
+          }
+        }
       }
 
       return true
@@ -1249,6 +1346,24 @@ export class Chat
       : this._emit("syncUpdate", this._syncingCounter)
 
     this._syncingCounter++
+
+    console.log("let's update the last sync date...")
+
+    let user = (await this._storage.get("user", "[did+organizationId]", [
+      Auth.account!.did,
+      Auth.account!.organizationId,
+    ])) as LocalDBUser
+
+    await new Promise((resolve, reject) => {
+      Serpens.addAction(() => {
+        this._storage.user
+          .update(user, {
+            lastSyncAt: new Date(),
+          })
+          .then(resolve)
+          .catch(reject)
+      })
+    })
 
     console.log("calling another _sync()")
 
@@ -5794,6 +5909,145 @@ export class Chat
           conversationId: args.id,
           minOrder: args.minOrder,
           maxOrder: args.maxOrder,
+          nextToken: args.nextToken,
+        },
+      }
+    )
+
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
+
+    const listMessages: {
+      nextToken?: string
+      items: Array<Message>
+    } = {
+      nextToken: response.nextToken ? response.nextToken : undefined,
+      items: response.items.map((item) => {
+        return new Message({
+          ...this._parentConfig!,
+          id: item.id,
+          content: item.content,
+          conversationId: item.conversationId,
+          reactions: item.reactions
+            ? item.reactions.map((reaction) => {
+                return new Reaction({
+                  ...this._parentConfig!,
+                  userId: reaction.userId,
+                  content: reaction.content,
+                  createdAt: reaction.createdAt,
+                  client: this._client!,
+                  realtimeClient: this._realtimeClient!,
+                })
+              })
+            : null,
+          userId: item.userId,
+          messageRoot: item.messageRoot
+            ? new Message({
+                ...this._parentConfig!,
+                id: item.messageRoot.id,
+                content: item.messageRoot.content,
+                conversationId: item.messageRoot.conversationId,
+                reactions: item.messageRoot.reactions
+                  ? item.messageRoot.reactions.map((reaction) => {
+                      return new Reaction({
+                        ...this._parentConfig!,
+                        userId: reaction.userId,
+                        content: reaction.content,
+                        createdAt: reaction.createdAt,
+                        client: this._client!,
+                        realtimeClient: this._realtimeClient!,
+                      })
+                    })
+                  : null,
+                userId: item.messageRoot.userId,
+                messageRoot: null,
+                messageRootId: null,
+                type: item.messageRoot.type
+                  ? (item.messageRoot.type as
+                      | "TEXTUAL"
+                      | "ATTACHMENT"
+                      | "TRADE_PROPOSAL"
+                      | "RENT")
+                  : null,
+                user: {
+                  id: item.messageRoot.user!.id,
+                  username: item.messageRoot.user!.username
+                    ? item.messageRoot.user!.username
+                    : "",
+                  avatarURL: item.messageRoot.user!.avatarUrl
+                    ? item.messageRoot.user!.avatarUrl
+                    : "",
+                  imageSettings: item.messageRoot.user!.imageSettings
+                    ? JSON.parse(item.messageRoot.user!.imageSettings)
+                    : null,
+                },
+                order: item.messageRoot.order,
+                createdAt: item.messageRoot.createdAt,
+                updatedAt: item.messageRoot.updatedAt
+                  ? item.messageRoot.updatedAt
+                  : null,
+                deletedAt: item.messageRoot.deletedAt
+                  ? item.messageRoot.deletedAt
+                  : null,
+                client: this._client!,
+                realtimeClient: this._realtimeClient!,
+                chatParent: this,
+              })
+            : null,
+          messageRootId: item.messageRootId ? item.messageRootId : null,
+          type: item.type
+            ? (item.type as
+                | "TEXTUAL"
+                | "ATTACHMENT"
+                | "TRADE_PROPOSAL"
+                | "RENT")
+            : null,
+          user: {
+            id: item.user!.id,
+            username: item.user!.username ? item.user!.username : "",
+            avatarURL: item.user!.avatarUrl ? item.user!.avatarUrl : "",
+            imageSettings: item.user!.imageSettings
+              ? JSON.parse(item.user!.imageSettings)
+              : null,
+          },
+          order: item.order,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt ? item.updatedAt : null,
+          deletedAt: item.deletedAt ? item.deletedAt : null,
+          client: this._client!,
+          realtimeClient: this._realtimeClient!,
+          chatParent: this,
+        })
+      }),
+    }
+
+    return listMessages
+  }
+
+  async listMessagesUpdated(
+    args: ListMessagesUpdatedArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<
+    QIError | { items: Message[]; nextToken?: Maybe<string> | undefined }
+  > {
+    const response = await this._query<
+      QueryListMessagesUpdatedArgs,
+      { listMessagesByRangeOrder: ListMessagesUpdatedGraphQL },
+      ListMessagesUpdatedGraphQL
+    >(
+      "listMessagesUpdated",
+      listMessagesUpdated,
+      "_query() -> listMessagesUpdated()",
+      {
+        input: {
+          conversationId: args.conversationId,
+          greaterThanDate: args.greaterThanDate,
           nextToken: args.nextToken,
         },
       }

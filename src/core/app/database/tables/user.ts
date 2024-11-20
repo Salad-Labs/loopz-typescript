@@ -111,4 +111,5 @@ export interface LocalDBUser {
   e2eEncryptedPrivateKey: string
   createdAt: Date
   updatedAt: Maybe<Date>
+  lastSyncAt: Maybe<Date>
 }

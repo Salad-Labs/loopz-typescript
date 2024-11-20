@@ -313,6 +313,7 @@ export class Auth implements AuthInternalEvents {
               e2eEncryptedPrivateKey: encryptedPrivateKey,
               createdAt: Auth._account.createdAt,
               updatedAt: Auth._account.updatedAt,
+              lastSyncAt: null,
             })
             .then(resolve)
             .catch(reject)
