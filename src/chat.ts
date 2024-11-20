@@ -8982,6 +8982,33 @@ export class Chat
 
   disconnect() {
     super.disconnect()
+
+    //disabling all the hooks of Dexie - IndexedDB
+    if (this._hookMessageCreatingFn)
+      this._storage.message
+        .hook("creating")
+        .unsubscribe(this._hookMessageCreatingFn)
+
+    if (this._hookMessageUpdatingFn)
+      this._storage.message
+        .hook("updating")
+        .unsubscribe(this._hookMessageUpdatingFn)
+
+    if (this._hookConversationCreatingFn)
+      this._storage.conversation
+        .hook("creating")
+        .unsubscribe(this._hookConversationCreatingFn)
+
+    if (this._hookConversationUpdatingFn)
+      this._storage.conversation
+        .hook("updating")
+        .unsubscribe(this._hookConversationUpdatingFn)
+
+    this._hookMessageCreated = false
+    this._hookMessageUpdated = false
+    this._hookConversationCreated = false
+    this._hookConversationUpdated = false
+
     this._emit("disconnect")
   }
 
@@ -9145,8 +9172,10 @@ export class Chat
     if (page < 0 || numberElements <= 0) return []
 
     const offset = (page - 1) * numberElements
+
     try {
-      const messages = await new Promise<LocalDBMessage[]>(
+      const messages: LocalDBMessage[] = []
+      const allMessages = await new Promise<LocalDBMessage[]>(
         (resolve, reject) => {
           Serpens.addAction(() =>
             this._storage.message
@@ -9167,49 +9196,60 @@ export class Chat
         }
       )
 
-      return messages.map((message) => {
-        const _message = {
-          ...message,
-          content: Crypto.decryptAESorFail(
-            message.content,
-            this.findKeyPairById(conversationId)
-          ),
-          reactions: message.reactions
-            ? message.reactions.map((reaction) => {
-                return {
-                  ...reaction,
-                  content: Crypto.decryptAESorFail(
-                    reaction.content,
-                    this.findKeyPairById(conversationId)
-                  ),
-                }
-              })
-            : null,
+      for (let message of allMessages) {
+        try {
+          const _message = {
+            ...message,
+            content: Crypto.decryptAESorFail(
+              message.content,
+              this.findKeyPairById(conversationId)
+            ),
+            reactions: message.reactions
+              ? message.reactions.map((reaction) => {
+                  return {
+                    ...reaction,
+                    content: Crypto.decryptAESorFail(
+                      reaction.content,
+                      this.findKeyPairById(conversationId)
+                    ),
+                  }
+                })
+              : null,
+          }
+
+          _message.messageRoot = message.messageRoot
+            ? {
+                ...message.messageRoot,
+                content: Crypto.decryptAESorFail(
+                  message.messageRoot.content,
+                  this.findKeyPairById(conversationId)
+                ),
+                reactions: message.messageRoot.reactions
+                  ? message.messageRoot.reactions.map((reaction) => {
+                      return {
+                        ...reaction,
+                        content: Crypto.decryptAESorFail(
+                          reaction.content,
+                          this.findKeyPairById(conversationId)
+                        ),
+                      }
+                    })
+                  : null,
+              }
+            : null
+
+          messages.push(_message)
+        } catch (error) {
+          console.log(
+            "[ERROR]: fetchLocalDBMessages() item -> ",
+            message,
+            error
+          )
+          continue
         }
+      }
 
-        _message.messageRoot = message.messageRoot
-          ? {
-              ...message.messageRoot,
-              content: Crypto.decryptAESorFail(
-                message.messageRoot.content,
-                this.findKeyPairById(conversationId)
-              ),
-              reactions: message.messageRoot.reactions
-                ? message.messageRoot.reactions.map((reaction) => {
-                    return {
-                      ...reaction,
-                      content: Crypto.decryptAESorFail(
-                        reaction.content,
-                        this.findKeyPairById(conversationId)
-                      ),
-                    }
-                  })
-                : null,
-            }
-          : null
-
-        return _message
-      })
+      return messages
     } catch (error) {
       console.log("[ERROR]: fetchLocalDBMessages() -> ", error)
       return []
@@ -9249,7 +9289,6 @@ export class Chat
       )
 
       for (let conversation of allConversations) {
-        console.log(conversation.lastMessageText)
         try {
           conversations.push({
             ...conversation,
