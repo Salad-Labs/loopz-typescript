@@ -324,10 +324,8 @@ export class Engine implements IEngine {
   }
 
   protected _handleUnauthorizedQIError(error: QIError): Maybe<"_401_"> {
-    console.log(error, typeof error)
     if (error.graphQLErrors && Array.isArray(error.graphQLErrors)) {
       const _error = error.graphQLErrors[0]
-      console.log(_error)
       if (
         _error &&
         "originalError" in _error &&
@@ -357,13 +355,19 @@ export class Engine implements IEngine {
     queryName: K,
     response: OperationResult<T>
   ): R | QIError {
-    if (response.error && (!("data" in response) || !response.data))
+    if (
+      response.error &&
+      (!("data" in response) ||
+        ("data" in response && !response.data![queryName]))
+    )
       return new QIError(response.error, "", true)
+    if ("errors" in response)
+      return new QIError({}, JSON.stringify(response.errors), false)
 
     if (
       !("data" in response) ||
       typeof response.data === "undefined" ||
-      response.data === null
+      response.data[queryName] === null
     )
       return this._returnQIErrorNoDataAvailable()
 
