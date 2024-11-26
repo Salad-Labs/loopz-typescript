@@ -12,6 +12,7 @@ import {
   OrderConfig,
   PartialOrder,
   OrderListResponse,
+  OrderEvents,
 } from "./types/order"
 import { ApiResponse } from "./types/base/apiresponse"
 import { ethers } from "ethers"
@@ -48,17 +49,7 @@ export class Order {
   private _MIN_BLOCKS_REQUIRED: number = 3
 
   private _eventsCallbacks: Array<{
-    eventName:
-      | "__onAccountReady"
-      | "ready"
-      | "onFinalizeError"
-      | "onFulfillOrder"
-      | "onExecuteAllActions"
-      | "onExecuteAllActionsError"
-      | "onFulfillOrderError"
-      | "onCancelOrders"
-      | "onCancelOrdersMined"
-      | "onCancelOrdersError"
+    eventName: OrderEvents
     callbacks: Array<Function>
   }> = []
 
@@ -344,20 +335,7 @@ export class Order {
    * @param {any} [params] - The parameters to pass to the event callbacks.
    * @returns None
    */
-  _emit(
-    event:
-      | "__onAccountReady"
-      | "ready"
-      | "onFinalizeError"
-      | "onFulfillOrder"
-      | "onExecuteAllActions"
-      | "onExecuteAllActionsError"
-      | "onFulfillOrderError"
-      | "onCancelOrders"
-      | "onCancelOrdersMined"
-      | "onCancelOrdersError",
-    params?: any
-  ) {
+  _emit(event: OrderEvents, params?: any) {
     const item = this._eventsCallbacks.find((item) => {
       return item.eventName === event
     })
@@ -365,21 +343,7 @@ export class Order {
     if (item) for (const cb of item.callbacks) cb(params as any)
   }
 
-  on(
-    eventName:
-      | "__onAccountReady"
-      | "ready"
-      | "onFinalizeError"
-      | "onFulfillOrder"
-      | "onExecuteAllActions"
-      | "onExecuteAllActionsError"
-      | "onFulfillOrderError"
-      | "onCancelOrders"
-      | "onCancelOrdersMined"
-      | "onCancelOrdersError",
-    callback: Function,
-    onlyOnce?: boolean
-  ) {
+  on(eventName: OrderEvents, callback: Function, onlyOnce?: boolean) {
     const index = this._eventsCallbacks.findIndex((item) => {
       return item.eventName === eventName
     })
@@ -397,11 +361,11 @@ export class Order {
 
   /**
    * Unsubscribes a callback function from a specific event.
-   * @param {"__onAccountReady" | "onFinalizeError"} eventName - The name of the event to unsubscribe from.
+   * @param {"onFinalizeError"} eventName - The name of the event to unsubscribe from.
    * @returns None
    * @throws {Error} If the event is not supported or the callback is not a function.
    */
-  off(eventName: "__onAccountReady" | "onFinalizeError") {
+  off(eventName: OrderEvents) {
     const item = this._eventsCallbacks.find((eventItem) => {
       return eventItem.eventName === eventName
     })

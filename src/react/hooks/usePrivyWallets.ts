@@ -1,14 +1,14 @@
 import { useWallets, getEmbeddedConnectedWallet } from "@privy-io/react-auth"
-import { Auth, Order } from "../../"
+import { Auth } from "../../"
 import { useEffect } from "react"
 
 export const usePrivyWallets = () => {
-  const order = Order.getInstance()
+  const auth = Auth.getInstance()
   const { ready, wallets } = useWallets()
 
   useEffect(() => {
     if (ready && wallets) {
-      order.on("__onAccountReady", () => {
+      auth.on("__onAccountReady", () => {
         if (wallets.length <= 0 || !Auth.account) return
 
         Auth.account.setActiveWallets(wallets)
