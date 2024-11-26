@@ -115,7 +115,13 @@ export interface Collectible {
   /**
    * @property {string | null} [tokenUri=null] - The URI of the token, if available.
    */
-  tokenUri: Maybe<string>
+  tokenUri: Maybe<
+    | string
+    | {
+        gateway: string
+        raw: string
+      }
+  >
   /**
    * @property {object} image - Represents an image object with various properties.
    */
