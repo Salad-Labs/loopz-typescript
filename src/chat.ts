@@ -167,6 +167,7 @@ import {
   getConversationTradingPoolById,
   listMessagesByRangeOrder,
   listMessagesUpdated,
+  getMembersFromConversationById,
 } from "./constants/chat/queries"
 import { ConversationMember } from "./core/chat/conversationmember"
 import {
@@ -5585,6 +5586,59 @@ export class Chat
     }
 
     return activeUserConversationIds
+  }
+
+  /**
+   * Retrieves the conversation members from the conversation by its ID.
+   * @returns A Promise that resolves to an array of ConversationMember objects or a QIError object.
+   */
+  async listConversationMembersByConversationId(
+    conversationId: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<ConversationMember[] | QIError> {
+    const response = await this._query<
+      QueryGetConversationByIdArgs,
+      {
+        getConversationById: ConversationGraphQL
+      },
+      ConversationGraphQL
+    >(
+      "getConversationById",
+      getMembersFromConversationById,
+      "_query() -> listConversationMembersByConversationId()",
+      {
+        conversationId,
+      }
+    )
+
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
+
+    const listConversationMembers: Array<ConversationMember> =
+      // TODO why response.members is of type array and not { items: Array }?
+      (response.members as any).items.map((item) => {
+        return new ConversationMember({
+          ...this._parentConfig!,
+          id: item!.id,
+          conversationId: item!.conversationId,
+          userId: item!.userId,
+          type: item!.type,
+          encryptedConversationAESKey: item!.encryptedConversationAESKey,
+          encryptedConversationIVKey: item!.encryptedConversationIVKey,
+          createdAt: item!.createdAt,
+          updatedAt: item!.updatedAt,
+          client: this._client!,
+          realtimeClient: this._realtimeClient!,
+        })
+      })
+
+    return listConversationMembers
   }
 
   async listConversationMemberByUserId(

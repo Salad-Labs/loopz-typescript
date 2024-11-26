@@ -33,6 +33,7 @@ import {
   MutationRemovePinFromConversationArgs,
   User as UserGraphQL,
   MemberOutResult as MemberOutResultGraphQL,
+  QueryGetConversationByIdArgs,
 } from "../../graphql/generated/graphql"
 import {
   ConversationMutationEngine,
@@ -1495,7 +1496,7 @@ export class Conversation
     overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<ConversationMember[] | QIError> {
     const response = await this._query<
-      null,
+      QueryGetConversationByIdArgs,
       {
         getConversationById: ConversationGraphQL
       },
@@ -1504,7 +1505,9 @@ export class Conversation
       "getConversationById",
       getMembersFromConversationById,
       "_query() -> members()",
-      null
+      {
+        conversationId: this.id,
+      }
     )
 
     if (response instanceof QIError) {
@@ -1517,7 +1520,8 @@ export class Conversation
     }
 
     const listConversationMembers: Array<ConversationMember> =
-      response.members!.map((item) => {
+      // TODO why response.members is of type array and not { items: Array }?
+      (response.members as any).items.map((item) => {
         return new ConversationMember({
           ...this._parentConfig!,
           id: item!.id,
