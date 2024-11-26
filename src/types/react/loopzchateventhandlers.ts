@@ -1,5 +1,5 @@
-import { Conversation, Message } from "src"
-import { LocalDBConversation, LocalDBMessage } from "src/core/app"
+import { Conversation, Message } from "../../"
+import { LocalDBConversation, LocalDBMessage } from "../../core/app"
 
 type STDErrorListener = (error: Error) => any
 
