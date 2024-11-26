@@ -32,6 +32,8 @@ export const useLoopzChat: UseLoopzChat = ({
   onConversationCreatedLDBError,
   onConversationUpdatedLDB,
   onConversationUpdatedLDBError,
+  onConversationCreated,
+  onConversationCreatedError,
   onConversationGroupUpdated,
   onConversationGroupUpdatedError,
   onConversationMuted,
@@ -177,6 +179,8 @@ export const useLoopzChat: UseLoopzChat = ({
   useLoopzChatEvent("conversationMutedError", onConversationMutedError)
   useLoopzChatEvent("conversationUnmuted", onConversationUnmuted)
   useLoopzChatEvent("conversationUnmutedError", onConversationUnmutedError)
+  useLoopzChatEvent("conversationCreated", onConversationCreated)
+  useLoopzChatEvent("conversationCreatedError", onConversationCreatedError)
   useLoopzChatEvent("conversationNewMembers", onConversationNewMembers)
   useLoopzChatEvent(
     "conversationNewMembersError",

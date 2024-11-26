@@ -1,4 +1,4 @@
-import { Conversation, Message } from "../../"
+import { Conversation, ConversationMember, Message } from "../../"
 import { LocalDBConversation, LocalDBMessage } from "../../core/app"
 
 type STDErrorListener = (error: Error) => any
@@ -44,7 +44,13 @@ export type LoopzChatEventHandlers = Partial<{
   onConversationMutedError: STDErrorListener
   onConversationUnmuted: (params: { conversation: Conversation }) => any
   onConversationUnmutedError: STDErrorListener
+  onConversationCreated: (params: {
+    conversation: Conversation
+    conversationId: string
+  }) => any
+  onConversationCreatedError: STDErrorListener
   onConversationNewMembers: (params: {
+    items: Array<ConversationMember>
     conversation: Conversation
     conversationId: string
   }) => any
