@@ -3958,7 +3958,7 @@ export class Chat
   ): Promise<
     { conversationId: string; items: Array<{ id: string }> } | QIError
   > {
-    const response = await this._query<
+    const response = await this._mutation<
       MutationEraseConversationByAdminArgs,
       { eraseConversationByAdmin: EraseConversationByAdminBatchResultGraphQL },
       EraseConversationByAdminBatchResultGraphQL
@@ -9593,29 +9593,23 @@ export class Chat
 
       for (let conversation of allConversations) {
         try {
+          const keyPair = this.findKeyPairById(conversation.id)
+          if (!keyPair) continue
+
           conversations.push({
             ...conversation,
-            name: Crypto.decryptAESorFail(
-              conversation.name,
-              this.findKeyPairById(conversation.id)
-            ),
+            name: Crypto.decryptAESorFail(conversation.name, keyPair),
             description: Crypto.decryptAESorFail(
               conversation.description,
-              this.findKeyPairById(conversation.id)
+              keyPair
             ),
-            imageURL: Crypto.decryptAESorFail(
-              conversation.imageURL,
-              this.findKeyPairById(conversation.id)
-            ),
+            imageURL: Crypto.decryptAESorFail(conversation.imageURL, keyPair),
             bannerImageURL: Crypto.decryptAESorFail(
               conversation.bannerImageURL,
-              this.findKeyPairById(conversation.id)
+              keyPair
             ),
             lastMessageText: conversation.lastMessageText
-              ? Crypto.decryptAESorFail(
-                  conversation.lastMessageText,
-                  this.findKeyPairById(conversation.id)
-                )
+              ? Crypto.decryptAESorFail(conversation.lastMessageText, keyPair)
               : null,
           })
         } catch (error) {
