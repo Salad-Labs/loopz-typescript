@@ -4619,6 +4619,7 @@ export class Chat
         ),
         conversationId: (args as SendMessageArgs).conversationId,
         type: (args as SendMessageArgs).type,
+        messageRootId: (args as SendMessageArgs).messageRootId,
       },
     })
 

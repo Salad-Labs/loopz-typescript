@@ -12,7 +12,7 @@ import { Client as ClientEngine } from "../client"
 import { QIError } from "./qierror"
 import { Maybe } from "../../types/base"
 import { RealTimeWebSocketConnectionParams } from "../../types/chat/realtimewebsocketconnectionparams"
-import { FetchBody } from "@urql/core/dist/urql-core-chunk"
+import { ErrorLike, FetchBody } from "@urql/core/dist/urql-core-chunk"
 import UUIDSubscriptionClient from "./uuidsubscriptionclient"
 import { Observable } from "subscriptions-transport-ws"
 import { v4 as uuid4 } from "uuid"
@@ -358,11 +358,21 @@ export class Engine implements IEngine {
     if (
       response.error &&
       (!("data" in response) ||
-        ("data" in response && !response.data![queryName]))
+        ("data" in response &&
+          typeof response.data !== "undefined" &&
+          !response.data[queryName]))
     )
       return new QIError(response.error, "", true)
-    if ("errors" in response)
-      return new QIError({}, JSON.stringify(response.errors), false)
+
+    if ("error" in response && response.error)
+      return new QIError(
+        {
+          graphQLErrors: response.error.graphQLErrors,
+          response: response.error.response,
+        },
+        JSON.stringify(response.error.graphQLErrors),
+        false
+      )
 
     if (
       !("data" in response) ||
