@@ -1400,7 +1400,6 @@ export class Chat
 
     try {
       const keypairMap = this.getKeyPairMap()
-      // TODO always true because the keyPair is created on createConversation execution, before the subscription gets executed
       const alreadyMember = !!keypairMap.find((item) => {
         return item.id === response.conversationId
       })
@@ -3360,12 +3359,6 @@ export class Chat
 
       return response
     }
-
-    this.addKeyPairItem({
-      id: response.id,
-      AES,
-      iv,
-    })
 
     const conversationGroup: {
       keypairItem: KeyPairItem
