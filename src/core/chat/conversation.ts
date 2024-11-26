@@ -58,6 +58,7 @@ import { User } from "./user"
 import { Crypto } from "./crypto"
 import {
   getMembersFromConversationById,
+  getMessagesFromConversationById,
   getOwnerFromConversationById,
 } from "../../constants/chat/queries"
 import { EngineInitConfig } from "../../types"
@@ -1550,8 +1551,8 @@ export class Conversation
       ConversationGraphQL
     >(
       "getConversationById",
-      getMembersFromConversationById,
-      "_query() -> members()",
+      getMessagesFromConversationById,
+      "_query() -> messages()",
       null
     )
 
