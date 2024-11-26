@@ -1408,8 +1408,6 @@ export class Chat
 
       if (!alreadyMember) {
         //we need to update the _keyPairsMap with the new keys of the new conversation
-        //TODO, improve this part because even if the current user has already added this conversation in its own keypair map, we calculate the public/private key.
-        //so, we can skip this part if the user has already the keypair of the conversation (this happens because this subscription fire every time a user is added in the convo)
         const { conversationId, items } = response
         const item = items.find(
           (item) => item.userId === Auth.account?.dynamoDBUserID
