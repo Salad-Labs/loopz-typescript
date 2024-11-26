@@ -1391,8 +1391,22 @@ export class Chat
     >,
     uuid: string
   ) {
+    let operation: Maybe<"add_new_members" | "create_conversation"> = null
+
+    if (response instanceof QIError) {
+      this._emit("addMembersToConversationSubscriptionError", response)
+      return
+    }
+
     try {
-      if (!(response instanceof QIError)) {
+      const keypairMap = this.getKeyPairMap()
+      const alreadyMember = !!keypairMap.find((item) => {
+        return item.id === response.conversationId
+      })
+
+      operation = alreadyMember ? "add_new_members" : "create_conversation"
+
+      if (!alreadyMember) {
         //we need to update the _keyPairsMap with the new keys of the new conversation
         //TODO, improve this part because even if the current user has already added this conversation in its own keypair map, we calculate the public/private key.
         //so, we can skip this part if the user has already the keypair of the conversation (this happens because this subscription fire every time a user is added in the convo)
@@ -1447,7 +1461,7 @@ export class Chat
           })
           this.unsync()
 
-          throw "_qi_error_"
+          throw responseConversation
         }
 
         const { items: itemsConversation } = responseConversation
@@ -1498,7 +1512,7 @@ export class Chat
           })
           this.unsync()
 
-          throw "_qi_error_"
+          throw currentUser
         }
 
         //stores/update the conversations into the local db
@@ -1533,15 +1547,51 @@ export class Chat
         //let's add the subscriptions in order to keep synchronized this conversation
         this._addSubscriptionsSync(conversationId)
 
+        this._emit("conversationCreated", {
+          conversation,
+          conversationId,
+        })
+      } else {
+        //the user is already a member of this conversation, we need to emit a different event
+        const { conversationId, items } = response
+        const responseConversation = await this.listConversationsByIds(
+          [conversationId],
+          true
+        )
+
+        if (responseConversation instanceof QIError) {
+          const error = this._handleUnauthorizedQIError(responseConversation)
+          if (error) {
+            await Auth.fetchAuthToken()
+            this.silentReset()
+
+            return
+          }
+
+          this._emit("syncError", {
+            error: responseConversation,
+          })
+          this.unsync()
+
+          throw responseConversation
+        }
+
+        const { items: itemsConversation } = responseConversation
+        const conversation = itemsConversation[0]
+
         this._emit("conversationNewMembers", {
+          items,
           conversation,
           conversationId,
         })
       }
     } catch (error) {
       console.log("[ERROR]: _onAddMembersToConversationSync() -> ", error)
-      if (!(typeof error === "string" && error === "_qi_error_"))
+      if (operation === "create_conversation")
+        this._emit("conversationCreatedError", error)
+      else if (operation === "add_new_members")
         this._emit("conversationNewMembersError", error)
+      else this._emit("addMembersToConversationSubscriptionError", error)
     }
   }
 
