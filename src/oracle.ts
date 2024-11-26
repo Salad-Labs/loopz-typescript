@@ -84,9 +84,9 @@ export class Oracle {
       throw new Error("Oracle has not been configured")
 
     const url = Oracle._client.backendUrl(
-      `/collection/get/all/${args.networkId ? args.networkId : `*`}/${
-        args.searchType
-      }/${args.skip}/${args.take}${
+      `/collection/get/all/${
+        args.networkId ? args.networkId.replace("eip155:", "") : `*`
+      }/${args.searchType}/${args.skip}/${args.take}${
         args.queryString ? `/${args.queryString}` : ``
       }`
     )
@@ -123,9 +123,9 @@ export class Oracle {
       throw new Error("Oracle has not been configured")
 
     const url = Oracle._client.backendUrl(
-      `/collection/get/all/bookmark/${args.networkId ? args.networkId : `*`}/${
-        args.skip
-      }/${args.take}`
+      `/collection/get/all/bookmark/${
+        args.networkId ? args.networkId.replace("eip155:", "") : `*`
+      }/${args.skip}/${args.take}`
     )
 
     try {
@@ -168,9 +168,9 @@ export class Oracle {
       throw new Error("Oracle has not been configured")
 
     const url = Oracle._client.backendUrl(
-      `/nft/get/all/owner/${args.networkId}/${args.collectionAddress}/${
-        args.take
-      }${args.continuation ? `/${args.continuation}` : ``}`
+      `/nft/get/all/owner/${args.networkId.replace("eip155:", "")}/${
+        args.address
+      }/${args.take}${args.continuation ? `/${args.continuation}` : ``}`
     )
 
     try {
@@ -220,9 +220,9 @@ export class Oracle {
       throw new Error("Oracle has not been configured")
 
     const url = Oracle._client.backendUrl(
-      `/nft/get/metadata/owner/${args.networkId ? args.networkId : `*`}/${
-        args.collectionAddress
-      }/${args.address}/${args.take}${
+      `/nft/get/metadata/owner/${
+        args.networkId ? args.networkId.replace("eip155:", "") : `*`
+      }/${args.collectionAddress}/${args.address}/${args.take}${
         args.continuation ? `/${args.continuation}` : ``
       }`
     )
@@ -263,9 +263,9 @@ export class Oracle {
       throw new Error("Oracle has not been configured")
 
     const url = Oracle._client.backendUrl(
-      `/nft/metadata/${args.networkId}/${args.collectionAddress}/${
-        args.tokenId
-      }${args.address ? `/${args.address}` : ``}`
+      `/nft/metadata/${args.networkId.replace("eip155:", "")}/${
+        args.collectionAddress
+      }/${args.tokenId}${args.address ? `/${args.address}` : ``}`
     )
 
     try {

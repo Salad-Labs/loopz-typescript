@@ -1,3 +1,5 @@
+import { Network } from "../../base"
+
 /**
  * Represents the parameters for searching collections.
  */
@@ -17,7 +19,7 @@ type ListCollectionsArgs = {
   /**
    * @property {string} [networkId] - Optional network ID for the search.
    */
-  networkId?: string
+  networkId?: Network
   /**
    * @property {string} [queryString] - Optional query string for additional search parameters.
    */

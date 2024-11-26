@@ -11,7 +11,7 @@ type ListCollectiblesArgs = {
   /**
    * @property {string} address - The address to search for NFTs.
    */
-  collectionAddress: string
+  address: string
   /**
    * @property {number} take - The number of NFTs to retrieve.
    */

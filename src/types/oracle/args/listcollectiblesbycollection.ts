@@ -1,4 +1,4 @@
-import { Network } from "@ethersproject/providers"
+import { Network } from "../../base"
 
 /**
  * Defines the parameters for searching NFTs.
