@@ -18,4 +18,6 @@ export type SendMessageArgs = {
    * @property {MessageType} type - The type of message being sent.
    */
   type: MessageType
+
+  messageRootId?: string
 }
