@@ -123,6 +123,13 @@ export interface Collectible {
       }
   >
   /**
+   * @property {string | null} [tokenUri=null] - The URI of the token, if available.
+   */
+  metadata?: {
+    attributes: Array<{ trait_type: string; value: string }>
+    image: string
+  }
+  /**
    * @property {object} image - Represents an image object with various properties.
    */
   image: {

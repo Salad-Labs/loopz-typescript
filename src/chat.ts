@@ -224,6 +224,7 @@ import { KeyPairItem } from "./types/chat/keypairitem"
 import {
   ActiveUserConversationType,
   ConversationTradingPoolStatus,
+  MessageType,
 } from "./enums"
 import {
   LocalDBConversation,
@@ -482,6 +483,36 @@ export class Chat
     })
   }
 
+  /** message content handling */
+
+  private _getMessageContent(
+    content: string | { assets: Asset[]; message: string },
+    type: MessageType
+  ): string {
+    if (
+      (type === MessageType.Textual ||
+        type === MessageType.Attachment ||
+        type === MessageType.Rent ||
+        type === MessageType.TradeProposal) &&
+      typeof content !== "string"
+    )
+      throw new Error(
+        "The content of a textual message can not be different from a string."
+      )
+
+    switch (type) {
+      case MessageType.Textual:
+      case MessageType.Attachment:
+      case MessageType.Rent:
+      case MessageType.TradeProposal:
+        return content as string
+        break
+      case MessageType.Nft:
+        return JSON.stringify(content)
+        break
+    }
+  }
+
   /** private instance methods */
 
   private _defineHookFnLocalDB() {
@@ -656,7 +687,7 @@ export class Chat
 
   /** syncing data with backend*/
 
-  private async recoverUserConversations(
+  private async _recoverUserConversations(
     type: ActiveUserConversationType
   ): Promise<Maybe<Array<Conversation> | "_401_">> {
     try {
@@ -820,7 +851,7 @@ export class Chat
     return null
   }
 
-  private async recoverKeysFromConversations(): Promise<boolean | "_401_"> {
+  private async _recoverKeysFromConversations(): Promise<boolean | "_401_"> {
     try {
       let firstConversationMemberSet =
         await this.listConversationMemberByUserId(undefined, true)
@@ -902,7 +933,7 @@ export class Chat
     return false
   }
 
-  private async recoverMessagesFromConversations(
+  private async _recoverMessagesFromConversations(
     conversations: Array<Conversation>
   ): Promise<boolean | "_401_"> {
     try {
@@ -1214,10 +1245,10 @@ export class Chat
 
     //first operation. Recover the list of the conversations in which the user is a member.
     //unactive conversations are the convos in which the user left the group or has been ejected
-    const activeConversations = await this.recoverUserConversations(
+    const activeConversations = await this._recoverUserConversations(
       ActiveUserConversationType.Active
     )
-    const unactiveConversations = await this.recoverUserConversations(
+    const unactiveConversations = await this._recoverUserConversations(
       ActiveUserConversationType.Canceled
     )
 
@@ -1239,7 +1270,7 @@ export class Chat
     )
 
     //second operation. Recover the list of conversation member objects, in order to retrieve the public & private keys of all conversations.
-    const keysRecovered = await this.recoverKeysFromConversations()
+    const keysRecovered = await this._recoverKeysFromConversations()
     console.log("keysRecovered", keysRecovered)
 
     if (typeof keysRecovered === "boolean" && !keysRecovered) {
@@ -1257,7 +1288,7 @@ export class Chat
 
     //third operation. For each conversation, we need to download the messages if the lastMessageSentAt of the conversation is != null
     //and the date of the last message stored in the local db is less recent than the lastMessageSentAt date.
-    const messagesRecovered = await this.recoverMessagesFromConversations([
+    const messagesRecovered = await this._recoverMessagesFromConversations([
       ...activeConversations,
       ...unactiveConversations,
     ])
@@ -4687,7 +4718,7 @@ export class Chat
     >("sendMessage", sendMessage, "_mutation() -> sendMessage()", {
       input: {
         content: Crypto.encryptAESorFail(
-          content,
+          this._getMessageContent(content, (args as SendMessageArgs).type),
           this.findKeyPairById((args as SendMessageArgs).conversationId)
         ),
         conversationId: (args as SendMessageArgs).conversationId,
