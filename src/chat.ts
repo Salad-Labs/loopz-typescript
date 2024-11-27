@@ -503,6 +503,9 @@ export class Chat
               }
             })
           : null,
+        createdAt: new Date(record.createdAt),
+        updatedAt: record.updatedAt ? new Date(record.updatedAt) : null,
+        deletedAt: record.deletedAt ? new Date(record.deletedAt) : null,
       }
 
       _message.messageRoot = record.messageRoot
@@ -522,6 +525,13 @@ export class Chat
                     ),
                   }
                 })
+              : null,
+            createdAt: new Date(record.messageRoot.createdAt),
+            updatedAt: record.messageRoot.updatedAt
+              ? new Date(record.messageRoot.updatedAt)
+              : null,
+            deletedAt: record.messageRoot.deletedAt
+              ? new Date(record.messageRoot.deletedAt)
               : null,
           }
         : null
@@ -547,6 +557,9 @@ export class Chat
               }
             })
           : null,
+        createdAt: new Date(record.createdAt),
+        updatedAt: record.updatedAt ? new Date(record.updatedAt) : null,
+        deletedAt: record.deletedAt ? new Date(record.deletedAt) : null,
       }
 
       _message.messageRoot = record.messageRoot
@@ -566,6 +579,13 @@ export class Chat
                     ),
                   }
                 })
+              : null,
+            createdAt: new Date(record.messageRoot.createdAt),
+            updatedAt: record.messageRoot.updatedAt
+              ? new Date(record.messageRoot.updatedAt)
+              : null,
+            deletedAt: record.messageRoot.deletedAt
+              ? new Date(record.messageRoot.deletedAt)
               : null,
           }
         : null
@@ -2608,6 +2628,9 @@ export class Chat
                 }
               })
             : null,
+          createdAt: new Date(record.createdAt),
+          updatedAt: record.updatedAt ? new Date(record.updatedAt) : null,
+          deletedAt: record.deletedAt ? new Date(record.deletedAt) : null,
         }
 
         _message.messageRoot = record.messageRoot
@@ -2627,6 +2650,13 @@ export class Chat
                       ),
                     }
                   })
+                : null,
+              createdAt: new Date(record.messageRoot.createdAt),
+              updatedAt: record.messageRoot.updatedAt
+                ? new Date(record.messageRoot.updatedAt)
+                : null,
+              deletedAt: record.messageRoot.deletedAt
+                ? new Date(record.messageRoot.deletedAt)
                 : null,
             }
           : null
@@ -9566,6 +9596,9 @@ export class Chat
                   }
                 })
               : null,
+            createdAt: new Date(message.createdAt),
+            updatedAt: message.updatedAt ? new Date(message.updatedAt) : null,
+            deletedAt: message.deletedAt ? new Date(message.deletedAt) : null,
           }
 
           _message.messageRoot = message.messageRoot
@@ -9585,6 +9618,13 @@ export class Chat
                         ),
                       }
                     })
+                  : null,
+                createdAt: new Date(message.messageRoot.createdAt),
+                updatedAt: message.messageRoot.updatedAt
+                  ? new Date(message.messageRoot.updatedAt)
+                  : null,
+                deletedAt: message.messageRoot.deletedAt
+                  ? new Date(message.messageRoot.deletedAt)
                   : null,
               }
             : null
