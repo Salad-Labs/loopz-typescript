@@ -96,10 +96,17 @@ export interface Collectible {
      */
     spamClassifications: Array<string>
   }
+
+  id?: {
+    tokenId: string
+    tokenMetadata: {
+      tokenType: string
+    }
+  }
   /**
    * @property {string} tokenId - The unique identifier of the token.
    */
-  tokenId: string
+  tokenId?: string
   /**
    * @property {string} tokenType - The type of the token.
    */
@@ -128,6 +135,16 @@ export interface Collectible {
   metadata?: {
     attributes: Array<{ trait_type: string; value: string }>
     image: string
+  }
+
+  contractMetadata?: {
+    contractDeployer: string
+    deployedBlockNumber: number
+    name: string
+    openSea: {}
+    symbol: string
+    tokenType: string
+    totalSupply: string
   }
   /**
    * @property {object} image - Represents an image object with various properties.

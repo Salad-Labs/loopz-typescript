@@ -4706,11 +4706,6 @@ export class Chat
     args: SendMessageArgs,
     overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Message> {
-    let content: string
-
-    if (typeof args.content === "object") content = JSON.stringify(args.content)
-    else content = args.content
-
     const response = await this._mutation<
       MutationSendMessageArgs,
       { sendMessage: MessageGraphQL },
@@ -4718,7 +4713,7 @@ export class Chat
     >("sendMessage", sendMessage, "_mutation() -> sendMessage()", {
       input: {
         content: Crypto.encryptAESorFail(
-          this._getMessageContent(content, (args as SendMessageArgs).type),
+          this._getMessageContent(args.content, (args as SendMessageArgs).type),
           this.findKeyPairById((args as SendMessageArgs).conversationId)
         ),
         conversationId: (args as SendMessageArgs).conversationId,
