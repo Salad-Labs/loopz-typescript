@@ -288,6 +288,8 @@ export class Chat
       | "onRemoveReaction"
       | "onBatchDeleteMessages"
       | "onUpdateConversationGroup"
+      | "onRequestTrade"
+      | "onUpdateRequestTrade"
 
     unsubscribe: Function
     uuid: string
@@ -2101,6 +2103,54 @@ export class Chat
     }
   }
 
+  private _onRequestTradeSync(
+    response: QIError | ConversationTradingPool,
+    source: OperationResult<
+      {
+        onRequestTrade: ConversationTradingPoolGraphQL
+      },
+      SubscriptionOnRequestTradeArgs & {
+        jwt: string
+      }
+    >,
+    uuid: string
+  ) {
+    try {
+      if (!(response instanceof QIError)) {
+        this._emit("requestTrade", {
+          conversationTradingPool: response,
+        })
+      }
+    } catch (error) {
+      console.log("[ERROR]: _onRequestTradeSync() -> ", error)
+      this._emit("requestTradeError", error)
+    }
+  }
+
+  private _onUpdateRequestTradeSync(
+    response: QIError | ConversationTradingPool,
+    source: OperationResult<
+      {
+        onUpdateRequestTrade: ConversationTradingPoolGraphQL
+      },
+      SubscriptionOnUpdateRequestTradeArgs & {
+        jwt: string
+      }
+    >,
+    uuid: string
+  ) {
+    try {
+      if (!(response instanceof QIError)) {
+        this._emit("updateRequestTrade", {
+          conversationTradingPool: response,
+        })
+      }
+    } catch (error) {
+      console.log("[ERROR]: _onUpdateRequestTradeSync() -> ", error)
+      this._emit("updateRequestTradeError", error)
+    }
+  }
+
   private _addSubscriptionsSync(conversationId: string) {
     //add reaction(conversationId)
     const onAddReaction = this.onAddReaction(
@@ -2586,6 +2636,98 @@ export class Chat
 
       this._emit("syncError", {
         error: onUnmuteConversation,
+      })
+      this.unsync()
+
+      return
+    }
+
+    const onRequestTrade = this.onRequestTrade(
+      conversationId,
+      (
+        response: QIError | ConversationTradingPool,
+        source: OperationResult<
+          {
+            onRequestTrade: ConversationTradingPoolGraphQL
+          },
+          SubscriptionOnRequestTradeArgs & {
+            jwt: string
+          }
+        >,
+        uuid: string
+      ) => {
+        this._onRequestTradeSync(response, source, uuid)
+      },
+      true
+    )
+
+    if (!(onRequestTrade instanceof QIError)) {
+      const { unsubscribe, uuid } = onRequestTrade
+      this._unsubscribeSyncSet.push({
+        type: "onRequestTrade",
+        unsubscribe,
+        uuid,
+        conversationId,
+      })
+    } else {
+      const error = this._handleUnauthorizedQIError(onRequestTrade)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+
+        return
+      }
+
+      this._emit("syncError", {
+        error: onRequestTrade,
+      })
+      this.unsync()
+
+      return
+    }
+
+    const onUpdateRequestTrade = this.onUpdateRequestTrade(
+      conversationId,
+      (
+        response: QIError | ConversationTradingPool,
+        source: OperationResult<
+          {
+            onUpdateRequestTrade: ConversationTradingPoolGraphQL
+          },
+          SubscriptionOnUpdateRequestTradeArgs & {
+            jwt: string
+          }
+        >,
+        uuid: string
+      ) => {
+        this._onUpdateRequestTradeSync(response, source, uuid)
+      },
+      true
+    )
+
+    if (!(onUpdateRequestTrade instanceof QIError)) {
+      const { unsubscribe, uuid } = onRequestTrade
+      this._unsubscribeSyncSet.push({
+        type: "onUpdateRequestTrade",
+        unsubscribe,
+        uuid,
+        conversationId,
+      })
+    } else {
+      const error = this._handleUnauthorizedQIError(onUpdateRequestTrade)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+
+        return
+      }
+
+      this._emit("syncError", {
+        error: onRequestTrade,
       })
       this.unsync()
 

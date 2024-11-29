@@ -39,3 +39,7 @@ export type ChatEvents =
   | "conversationCreatedError"
   | "addMembersToConversationSubscriptionError"
   | "disconnect"
+  | "requestTrade"
+  | "updateRequestTrade"
+  | "requestTradeError"
+  | "updateRequestTradeError"
