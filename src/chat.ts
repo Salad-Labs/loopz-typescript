@@ -9886,54 +9886,85 @@ export class Chat
   }
 
   async searchTermsOnLocalDB(
-    terms: Array<string>
-  ): Promise<Array<{ conversationId: string; messageId: string }>> {
+    query: string,
+    options?: Partial<{ conversationId: string }>
+  ): Promise<Array<LocalDBMessage>> {
     if (!Auth.account) throw new Error("Account must be initialized.")
+
     try {
-      const results = await Dexie.Promise.all(
-        terms.map(
-          (prefix) =>
-            new Promise<string[]>((resolve, reject) =>
-              this._storage.message
-                .where("content")
-                .startsWith(prefix)
-                .and((m) => {
-                  return m.userDid === Auth.account!.did
-                })
-                .primaryKeys()
-                .then(resolve)
-                .catch(reject)
-            )
-        )
-      )
+      const searchResult: LocalDBMessage[] = []
 
-      // Intersect result set of primary keys
-      const reduced = results.reduce((a, b) => {
-        const set = new Set(b)
-        return a.filter((k) => set.has(k))
-      })
+      await this._storage.message
+        .filter((message) => {
+          const isInConversation = options?.conversationId
+            ? message.conversationId === options.conversationId
+            : true
+          const isFromUser = message.origin === "USER"
+          const isTextual = message.type === "TEXTUAL"
+          const isNotDeleted = !!!message.deletedAt
 
-      return new Promise<Array<{ conversationId: string; messageId: string }>>(
-        (resolve, reject) => {
-          Serpens.addAction(() => {
-            this._storage.message
-              .where(":id")
-              .anyOf(reduced)
-              .toArray()
-              .then((messages) =>
-                resolve(
-                  messages.map((message) => ({
-                    messageId: message.id,
-                    conversationId: message.conversationId,
-                  }))
-                )
-              )
-              .catch(reject)
-          })
-        }
-      )
-    } catch (error) {
-      throw error
+          return isInConversation && isFromUser && isTextual && isNotDeleted
+        })
+        .each((message) => {
+          const conversaitionKeyPair = this.findKeyPairById(
+            message.conversationId
+          )
+          if (!conversaitionKeyPair) return
+
+          const decryptedMessage = {
+            ...message,
+            content: Crypto.decryptAESorFail(
+              message.content,
+              conversaitionKeyPair
+            ),
+            reactions: message.reactions
+              ? message.reactions.map((reaction) => ({
+                  ...reaction,
+                  content: Crypto.decryptAESorFail(
+                    reaction.content,
+                    conversaitionKeyPair
+                  ),
+                }))
+              : null,
+            createdAt: new Date(message.createdAt),
+            updatedAt: message.updatedAt ? new Date(message.updatedAt) : null,
+            deletedAt: message.deletedAt ? new Date(message.deletedAt) : null,
+          }
+
+          if (!decryptedMessage.content.includes(query)) return
+
+          decryptedMessage.messageRoot = message.messageRoot
+            ? {
+                ...message.messageRoot,
+                content: Crypto.decryptAESorFail(
+                  message.messageRoot.content,
+                  conversaitionKeyPair
+                ),
+                reactions: message.messageRoot.reactions
+                  ? message.messageRoot.reactions.map((reaction) => ({
+                      ...reaction,
+                      content: Crypto.decryptAESorFail(
+                        reaction.content,
+                        conversaitionKeyPair
+                      ),
+                    }))
+                  : null,
+                createdAt: new Date(message.messageRoot.createdAt),
+                updatedAt: message.messageRoot.updatedAt
+                  ? new Date(message.messageRoot.updatedAt)
+                  : null,
+                deletedAt: message.messageRoot.deletedAt
+                  ? new Date(message.messageRoot.deletedAt)
+                  : null,
+              }
+            : null
+
+          searchResult.push(decryptedMessage)
+        })
+
+      return searchResult
+    } catch (e) {
+      throw e
     }
   }
 
