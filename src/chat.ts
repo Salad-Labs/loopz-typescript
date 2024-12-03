@@ -4805,7 +4805,7 @@ export class Chat
       { updateRequestTrade: ConversationTradingPoolGraphQL },
       ConversationTradingPoolGraphQL
     >(
-      "requestTrade",
+      "updateRequestTrade",
       updateRequestTrade,
       "_mutation() -> updateRequestTrade()",
       {
