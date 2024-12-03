@@ -6,7 +6,7 @@ import { Asset } from "../../../index"
  */
 export type RequestTradeArgs = {
   /**
-   * @property {Array<string>} creatorsIds - The array of users IDs involved in the trade.
+   * @property {Array<string>} involvedUsers - The array of users IDs involved in the trade.
    */
   involvedUsers: Array<string>
   /**
