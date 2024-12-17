@@ -21,11 +21,17 @@ export const LoopzChatProvider: FC<
   const hasStartedConnection = useRef(false)
   const hasStartedSynchronization = useRef(false)
   const [chatStatus, setChatStatus] = useState({
+    canChat: false,
     isConnecting: false,
     isConnected: false,
     isSyncing: false,
     isSynced: false,
   })
+
+  const setCanChat = useCallback(
+    (canChat: boolean) => setChatStatus((cs) => ({ ...cs, canChat })),
+    []
+  )
 
   const setIsConnected = useCallback(
     (isConnected: boolean) => setChatStatus((cs) => ({ ...cs, isConnected })),
@@ -38,17 +44,25 @@ export const LoopzChatProvider: FC<
   )
 
   useEffect(() => {
+    if (!initialized) return
+
+    setCanChat(instance.chat.clientCanChat())
+  }, [initialized, instance])
+
+  useEffect(() => {
     if (
       !initialized ||
       !isAuthenticated ||
       !autoConnect ||
       chatStatus.isConnected ||
+      !chatStatus.canChat ||
       hasStartedConnection.current
     )
       return
     hasStartedConnection.current = true
 
     setChatStatus({
+      canChat: true,
       isConnecting: true,
       isConnected: false,
       isSyncing: false,
@@ -59,6 +73,7 @@ export const LoopzChatProvider: FC<
       .connect()
       .then(() =>
         setChatStatus({
+          canChat: true,
           isConnecting: false,
           isConnected: true,
           isSyncing: autoSync ?? false,
@@ -68,6 +83,7 @@ export const LoopzChatProvider: FC<
       .catch(() => {
         hasStartedConnection.current = false
         setChatStatus({
+          canChat: true,
           isConnecting: false,
           isConnected: false,
           isSyncing: false,
@@ -95,6 +111,7 @@ export const LoopzChatProvider: FC<
 
     if (!autoSync)
       return setChatStatus({
+        canChat: true,
         isConnecting: false,
         isConnected: true,
         isSyncing: false,
@@ -104,21 +121,23 @@ export const LoopzChatProvider: FC<
     instance.chat
       .sync()
       .then(() =>
-        setChatStatus((prev) => ({
-          isConnecting: prev.isConnecting,
-          isConnected: prev.isConnected,
+        setChatStatus({
+          canChat: true,
+          isConnecting: false,
+          isConnected: true,
           isSyncing: false,
           isSynced: true,
-        }))
+        })
       )
       .catch(() => {
         hasStartedSynchronization.current = false
-        setChatStatus((prev) => ({
-          isConnecting: prev.isConnecting,
-          isConnected: prev.isConnected,
+        setChatStatus({
+          canChat: true,
+          isConnecting: false,
+          isConnected: true,
           isSyncing: false,
           isSynced: false,
-        }))
+        })
       })
   }, [initialized, chatStatus, autoSync, instance])
 
@@ -129,6 +148,7 @@ export const LoopzChatProvider: FC<
       hasStartedConnection.current = false
       hasStartedSynchronization.current = false
       setChatStatus({
+        canChat: true,
         isConnecting: false,
         isConnected: false,
         isSyncing: false,
@@ -151,7 +171,12 @@ export const LoopzChatProvider: FC<
   return (
     <LoopzChatContext.Provider
       value={
-        { ...chatStatus, setIsConnected, setIsSynced } as LoopzChatContextValue
+        {
+          ...chatStatus,
+          setCanChat,
+          setIsConnected,
+          setIsSynced,
+        } as LoopzChatContextValue
       }
     >
       {children}
