@@ -7,8 +7,8 @@ import { NotConnectedError } from "../../errors/NotConnectedError"
 import { LoopzContext } from "../context/loopzcontext"
 import { LoopzAuthContext } from "../context/loopzauthcontext"
 import { LoadingError } from "../../errors/AuthLoadingError"
+import { ClientCantChatError } from "../../errors/ClientCantChatError"
 import { useLoopzChatEvent } from "./useLoopzChatEvent"
-import { ClientCantChatError } from "src/errors/ClientCantChatError"
 
 export const useLoopzChat: UseLoopzChat = ({
   onSyncing,
