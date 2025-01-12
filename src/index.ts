@@ -1,25 +1,27 @@
 //Order class
-export * from "./order";
+export * from "./order"
 //Proposal class
-export * from "./proposal";
+export * from "./proposal"
 //Chat class
-export * from "./chat";
+export * from "./chat"
 //Oracle class
-export * from "./oracle";
+export * from "./oracle"
 //Auth class
-export * from "./auth";
+export * from "./auth"
 //Notification class
-export * from "./notification";
+export * from "./notification"
 //Core classes
-export * from "./core/index";
+export * from "./core/index"
 //Types
-export * from "./types";
+export * from "./types"
 //Interfaces
-export * from "./interfaces";
+export * from "./interfaces"
 //Enums
-export * from "./enums";
+export * from "./enums"
 //Costants
-export * from "./constants";
+export * from "./constants"
+//React
+export * from "./react"
 
 //Loopz
-export * from "./loopz";
+export * from "./loopz"
