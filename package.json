@@ -1,5 +1,5 @@
 {
-  "name": "loopz-typescript",
+  "name": "@salad-labs/loopz-typescript",
   "version": "1.0.0",
   "description": "The Official Loopz TypeScript SDK",
   "main": "index.js",
@@ -7,7 +7,10 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-    "codegen": "graphql-codegen"
+    "codegen": "graphql-codegen",
+    "prepublishOnly": "npm run build",
+    "version": "git add . && git commit -m \"Release v$npm_package_version\" && git tag v$npm_package_version",
+    "postpublish": "git push && git push --tags"
   },
   "repository": {
     "type": "git",
