@@ -1,15 +1,30 @@
-import { Auth } from "@src/auth"
-import { Chat } from "@src/chat"
-import { Loopz } from "@src/loopz"
-import { Oracle } from "@src/oracle"
-import { Proposal } from "@src/proposal"
-import { Order } from "@src/order"
+import { Auth } from "../../auth"
+import { Chat } from "../../chat"
+import { Oracle } from "../../oracle"
+import { Proposal } from "../../proposal"
+import { Order } from "../../order"
+import { Notification } from "../../notification"
 
-export interface ILoopzContext {
-  loopz: Loopz
-  auth: Auth
-  order: Order
-  proposal: Proposal
-  oracle: Oracle
-  chat: Chat
-}
+export type ILoopzContext =
+  | {
+      initialized: false
+      instance: {
+        auth: null
+        order: null
+        proposal: null
+        oracle: null
+        chat: null
+        notification: null
+      }
+    }
+  | {
+      initialized: true
+      instance: {
+        auth: Auth
+        order: Order
+        proposal: Proposal
+        oracle: Oracle
+        chat: Chat
+        notification: Notification
+      }
+    }

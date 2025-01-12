@@ -95,7 +95,6 @@ import {
   SubscriptionOnUpdateUserArgs,
   SubscriptionOnRequestTradeArgs,
   SubscriptionOnDeleteRequestTradeArgs,
-  SubscriptionOnAddMembersToConversationArgs,
   QueryListMessagesImportantByUserConversationIdArgs,
   ListMessagesImportantByUserConversationIdResult as ListMessagesImportantByUserConversationIdResultGraphQL,
   QueryListConversationsPinnedByCurrentUserArgs,
@@ -103,9 +102,6 @@ import {
   QueryListConversationMemberByUserIdArgs,
   ListConversationMemberByUserIdResult as ListConversationMemberByUserIdResultGraphQL,
   SubscriptionOnUnmuteConversationArgs,
-  MutationAddMemberToConversationArgs,
-  AddMemberToConversationResult as AddMemberToConversationResultGraphQL,
-  SubscriptionOnAddMemberToConversationArgs,
   BatchDeleteMessagesResult as BatchDeleteMessagesResultGraphQL,
   SubscriptionOnBatchDeleteMessagesArgs,
   MemberOutResult as MemberOutResultGraphQL,
@@ -116,6 +112,10 @@ import {
   QueryListTradesByConversationIdArgs,
   ListTradesByConversationIdResult as ListTradesByConversationIdResultGraphQL,
   QueryGetConversationTradingPoolByIdArgs,
+  QueryListMessagesByRangeOrderArgs,
+  ListMessagesByRangeOrderResult as ListMessagesByRangeOrderGraphQL,
+  ListMessagesUpdatedResult as ListMessagesUpdatedGraphQL,
+  QueryListMessagesUpdatedArgs,
 } from "./graphql/generated/graphql"
 import {
   addBlockedUser,
@@ -165,6 +165,9 @@ import {
   listUsersByIds,
   listTradesByConversationId,
   getConversationTradingPoolById,
+  listMessagesByRangeOrder,
+  listMessagesUpdated,
+  getMembersFromConversationById,
 } from "./constants/chat/queries"
 import { ConversationMember } from "./core/chat/conversationmember"
 import {
@@ -187,9 +190,9 @@ import {
   UpdateUserArgs,
   AddMembersToConversationArgs,
   EjectMemberArgs,
-  AddMemberToConversationArgs,
   UpdateRequestTradeArgs,
   ListTradesByConversationIdArgs,
+  ListMessagesByRangeOrderArgs,
 } from "./types/chat/schema/args"
 import { UAMutationEngine, UAQueryEngine } from "./interfaces/chat/core/ua"
 import { Asset, Maybe } from "./types/base"
@@ -213,7 +216,6 @@ import {
   onDeleteRequestTrade,
   onUpdateRequestTrade,
   onAddMembersToConversation,
-  onAddMemberToConversation,
   onBatchDeleteMessages,
 } from "./constants/chat/subscriptions"
 import { OperationResult } from "@urql/core"
@@ -222,21 +224,25 @@ import { KeyPairItem } from "./types/chat/keypairitem"
 import {
   ActiveUserConversationType,
   ConversationTradingPoolStatus,
+  MessageType,
 } from "./enums"
 import {
   LocalDBConversation,
   LocalDBMessage,
   LocalDBUser,
 } from "./core/app/database"
-import { Converter, findAddedAndRemovedConversation } from "./core"
-import Dexie, { Table } from "dexie"
+import { Converter, findAddedAndRemovedConversation, Serpens } from "./core"
+import Dexie from "dexie"
 import { Reaction } from "./core/chat/reaction"
 import { v4 as uuidv4 } from "uuid"
-import { DexieStorage } from "./core/app"
-import bip39 from "bip39"
+import * as bip39 from "@scure/bip39"
+import { wordlist } from "@scure/bip39/wordlists/english"
 import { ApiResponse } from "./types/base/apiresponse"
 import { md, mgf, pki } from "node-forge"
 import { Order } from "./order"
+import { Auth, ChatEvents, EngineInitConfig } from "."
+import { DetectiveMessage } from "./core/chat/detectivemessage"
+import { ListMessagesUpdatedArgs } from "./types/chat/schema/args/listmessagesupdated"
 
 export class Chat
   extends Engine
@@ -254,18 +260,22 @@ export class Chat
     UAMutationEngine,
     UAQueryEngine
 {
-  private _isSyncing: boolean = false
+  private static _config: Maybe<EngineInitConfig> = null
+
+  private static _instance: Maybe<Chat> = null
+
+  private _isSyncing = false
 
   private _syncingCounter: number = 0
 
-  private _eventsCallback: Array<{
-    event: "sync" | "syncing" | "syncError" | "syncUpdate"
+  private _eventsCallbacks: Array<{
+    event: ChatEvents
     callbacks: Array<Function>
   }> = []
 
   private _unsubscribeSyncSet: Array<{
     type:
-      | "onAddMemberToConversation"
+      | "onAddMembersToConversation"
       | "onAddReaction"
       | "onSendMessage"
       | "onEditMessage"
@@ -278,6 +288,8 @@ export class Chat
       | "onRemoveReaction"
       | "onBatchDeleteMessages"
       | "onUpdateConversationGroup"
+      | "onRequestTrade"
+      | "onUpdateRequestTrade"
 
     unsubscribe: Function
     uuid: string
@@ -299,70 +311,420 @@ export class Chat
 
   private _canChat: boolean = true
 
+  private _hookMessageCreated: boolean = false
+
+  private _hookMessageUpdated: boolean = false
+
+  private _hookMessageDeleted: boolean = false
+
+  private _hookConversationCreated: boolean = false
+
+  private _hookConversationUpdated: boolean = false
+
+  private _syncRunning: boolean = false
+
+  private _hookMessageCreatingFn: Maybe<
+    (primaryKey: string, record: LocalDBMessage) => void
+  > = null
+
+  private _hookMessageUpdatingFn: Maybe<
+    (modifications: Object, primaryKey: string, record: LocalDBMessage) => void
+  > = null
+
+  private _hookConversationCreatingFn: Maybe<
+    (primaryKey: string, record: LocalDBConversation) => void
+  > = null
+
+  private _hookConversationUpdatingFn: Maybe<
+    (
+      modifications: Object,
+      primaryKey: string,
+      record: LocalDBConversation
+    ) => void
+  > = null
+
+  private _syncTimeout: Maybe<NodeJS.Timeout> = null
+
+  private static _detectiveMessage: DetectiveMessage
+
   static readonly SYNCING_TIME = 60000
 
-  private _emit(
-    event: "sync" | "syncing" | "syncError" | "syncUpdate",
-    args?: any
-  ) {
-    const index = this._eventsCallback.findIndex((item) => {
+  private constructor() {
+    if (!!!Chat._config)
+      throw new Error("Chat must be configured before getting the instance")
+
+    super(Chat._config)
+
+    //let's build the instance of DetectiveMessage, starting the scan immediately
+    if (!Chat._detectiveMessage) {
+      DetectiveMessage.config({ storage: Chat._config.storage })
+      Chat._detectiveMessage = DetectiveMessage.getInstance()
+    }
+
+    this._defineHookFnLocalDB()
+
+    Chat._instance = this
+  }
+
+  /** static methods */
+
+  static config(config: EngineInitConfig) {
+    if (!!Chat._config) throw new Error("Chat already configured")
+
+    Chat._config = config
+  }
+
+  static getInstance() {
+    return Chat._instance ?? new Chat()
+  }
+
+  static getDetectiveMessageInstance() {
+    return Chat._detectiveMessage
+  }
+
+  static silentRestoreSubscriptionSync() {
+    if (!Chat._instance) return
+
+    //let's clear the timeout
+    if (Chat._instance._syncTimeout) clearTimeout(Chat._instance._syncTimeout)
+
+    //let's unsubscribe everything from the previous results
+    for (const { conversationId } of Chat._instance._conversationsMap.filter(
+      (conversation) => conversation.type === "ACTIVE"
+    )) {
+      Chat._instance._removeSubscriptionsSync(conversationId)
+    }
+
+    //let's clear the _unsubscribeSyncSet from the previous results
+    Chat._instance._unsubscribeSyncSet = []
+
+    //add member to conversation. This event is global, basically the user is always listening if
+    //someone wants to add him into a conversation.
+    const onAddMembersToConversation =
+      Chat._instance.onAddMembersToConversation(
+        (
+          response:
+            | QIError
+            | {
+                conversationId: string
+                membersIds: Array<string>
+                items: Array<ConversationMember>
+              },
+          source: OperationResult<
+            {
+              onAddMembersToConversation: ListConversationMembersGraphQL
+            },
+            {
+              jwt: string
+            }
+          >,
+          uuid: string
+        ) => {
+          Chat._instance!._onAddMembersToConversationSync(
+            response,
+            source,
+            uuid
+          )
+        },
+        true
+      )
+
+    if (!(onAddMembersToConversation instanceof QIError)) {
+      const { unsubscribe, uuid } = onAddMembersToConversation
+      Chat._instance._unsubscribeSyncSet.push({
+        type: "onAddMembersToConversation",
+        unsubscribe,
+        uuid,
+        conversationId: "", //this value is updated inside the callback fired by the subscription
+      })
+    } else {
+      const error = Chat._instance._handleUnauthorizedQIError(
+        onAddMembersToConversation
+      )
+      if (error) {
+        ;(async () => {
+          if (!Chat._instance) return
+
+          await Auth.fetchAuthToken()
+          Chat._instance.silentReset()
+        })()
+
+        return
+      }
+
+      Chat._instance._emit("syncError", {
+        error: onAddMembersToConversation,
+      })
+      Chat._instance.unsync()
+
+      return
+    }
+
+    //now that we have a _conversationsMap array filled, we can add subscription for every conversation that is currently active
+    for (const { conversationId } of Chat._instance._conversationsMap.filter(
+      (conversation) => conversation.type === "ACTIVE"
+    )) {
+      Chat._instance._addSubscriptionsSync(conversationId)
+    }
+
+    ;(async () => {
+      if (!Chat._instance) return
+
+      await Chat._instance._sync(Chat._instance._syncingCounter)
+    })()
+  }
+
+  static unsyncBrutal(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!Chat._instance) {
+        reject("instance not setup correctly.")
+        return
+      }
+
+      Chat._instance.unsync().then(resolve).catch(reject)
+    })
+  }
+
+  /** message content handling */
+
+  private _getMessageContent(
+    content: string | { assets: Asset[]; message: string },
+    type: MessageType
+  ): string {
+    if (
+      (type === MessageType.Textual ||
+        type === MessageType.Attachment ||
+        type === MessageType.Rent ||
+        type === MessageType.TradeProposal) &&
+      typeof content !== "string"
+    )
+      throw new Error(
+        "The content of a textual message can not be different from a string."
+      )
+
+    switch (type) {
+      case MessageType.Textual:
+      case MessageType.Attachment:
+      case MessageType.Rent:
+      case MessageType.TradeProposal:
+        return content as string
+        break
+      case MessageType.Nft:
+        return JSON.stringify(content)
+        break
+    }
+  }
+
+  /** private instance methods */
+
+  private _defineHookFnLocalDB() {
+    this._hookMessageCreatingFn = (primaryKey, record) => {
+      const _message = {
+        ...record,
+        content: Crypto.decryptAESorFail(
+          record.content,
+          this.findKeyPairById(record.conversationId)
+        ),
+        reactions: record.reactions
+          ? record.reactions.map((reaction) => {
+              return {
+                ...reaction,
+                content: Crypto.decryptAESorFail(
+                  reaction.content,
+                  this.findKeyPairById(record.conversationId)
+                ),
+              }
+            })
+          : null,
+        createdAt: new Date(record.createdAt),
+        updatedAt: record.updatedAt ? new Date(record.updatedAt) : null,
+        deletedAt: record.deletedAt ? new Date(record.deletedAt) : null,
+      }
+
+      _message.messageRoot = record.messageRoot
+        ? {
+            ...record.messageRoot,
+            content: Crypto.decryptAESorFail(
+              record.messageRoot.content,
+              this.findKeyPairById(record.conversationId)
+            ),
+            reactions: record.messageRoot.reactions
+              ? record.messageRoot.reactions.map((reaction) => {
+                  return {
+                    ...reaction,
+                    content: Crypto.decryptAESorFail(
+                      reaction.content,
+                      this.findKeyPairById(record.conversationId)
+                    ),
+                  }
+                })
+              : null,
+            createdAt: new Date(record.messageRoot.createdAt),
+            updatedAt: record.messageRoot.updatedAt
+              ? new Date(record.messageRoot.updatedAt)
+              : null,
+            deletedAt: record.messageRoot.deletedAt
+              ? new Date(record.messageRoot.deletedAt)
+              : null,
+          }
+        : null
+
+      this._emit("messageCreatedLDB", _message)
+    }
+
+    this._hookMessageUpdatingFn = (modifications, primaryKey, record) => {
+      const _message = {
+        ...record,
+        content: Crypto.decryptAESorFail(
+          record.content,
+          this.findKeyPairById(record.conversationId)
+        ),
+        reactions: record.reactions
+          ? record.reactions.map((reaction) => {
+              return {
+                ...reaction,
+                content: Crypto.decryptAESorFail(
+                  reaction.content,
+                  this.findKeyPairById(record.conversationId)
+                ),
+              }
+            })
+          : null,
+        createdAt: new Date(record.createdAt),
+        updatedAt: record.updatedAt ? new Date(record.updatedAt) : null,
+        deletedAt: record.deletedAt ? new Date(record.deletedAt) : null,
+      }
+
+      _message.messageRoot = record.messageRoot
+        ? {
+            ...record.messageRoot,
+            content: Crypto.decryptAESorFail(
+              record.messageRoot.content,
+              this.findKeyPairById(record.conversationId)
+            ),
+            reactions: record.messageRoot.reactions
+              ? record.messageRoot.reactions.map((reaction) => {
+                  return {
+                    ...reaction,
+                    content: Crypto.decryptAESorFail(
+                      reaction.content,
+                      this.findKeyPairById(record.conversationId)
+                    ),
+                  }
+                })
+              : null,
+            createdAt: new Date(record.messageRoot.createdAt),
+            updatedAt: record.messageRoot.updatedAt
+              ? new Date(record.messageRoot.updatedAt)
+              : null,
+            deletedAt: record.messageRoot.deletedAt
+              ? new Date(record.messageRoot.deletedAt)
+              : null,
+          }
+        : null
+
+      this._emit("messageUpdatedLDB", _message)
+    }
+
+    this._hookConversationCreatingFn = (primaryKey, record) => {
+      const _conversation = {
+        ...record,
+        name: Crypto.decryptAESorFail(
+          record.name,
+          this.findKeyPairById(record.id)
+        ),
+        description: Crypto.decryptAESorFail(
+          record.description,
+          this.findKeyPairById(record.id)
+        ),
+        imageURL: Crypto.decryptAESorFail(
+          record.imageURL,
+          this.findKeyPairById(record.id)
+        ),
+        bannerImageURL: Crypto.decryptAESorFail(
+          record.bannerImageURL,
+          this.findKeyPairById(record.id)
+        ),
+      }
+
+      this._emit("conversationCreatedLDB", _conversation)
+    }
+
+    this._hookConversationUpdatingFn = (modifications, primaryKey, record) => {
+      const _conversation = {
+        ...record,
+        name: Crypto.decryptAESorFail(
+          record.name,
+          this.findKeyPairById(record.id)
+        ),
+        description: Crypto.decryptAESorFail(
+          record.description,
+          this.findKeyPairById(record.id)
+        ),
+        imageURL: Crypto.decryptAESorFail(
+          record.imageURL,
+          this.findKeyPairById(record.id)
+        ),
+        bannerImageURL: Crypto.decryptAESorFail(
+          record.bannerImageURL,
+          this.findKeyPairById(record.id)
+        ),
+      }
+
+      this._emit("conversationUpdatedLDB", _conversation)
+    }
+  }
+
+  private _emit(event: ChatEvents, args?: any) {
+    const index = this._eventsCallbacks.findIndex((item) => {
       return item.event === event
     })
 
     if (index > -1)
       this,
-        this._eventsCallback[index].callbacks.forEach((callback) => {
+        this._eventsCallbacks[index].callbacks.forEach((callback) => {
           callback(args)
         })
   }
 
-  private _on(
-    event: "sync" | "syncing" | "syncError" | "syncUpdate",
-    callback: Function
-  ) {
-    const index = this._eventsCallback.findIndex((item) => {
-      return item.event === event
-    })
-
-    if (index > -1) this._eventsCallback[index].callbacks.push(callback)
-    else
-      this._eventsCallback.push({
-        event,
-        callbacks: [callback],
-      })
-  }
-
-  private _off(event: "sync" | "syncing" | "syncError" | "syncUpdate") {
-    const index = this._eventsCallback.findIndex((item) => {
-      return item.event === event
-    })
-
-    if (index > -1) this._eventsCallback[index].callbacks = []
-  }
-
   /** syncing data with backend*/
 
-  private async recoverUserConversations(
+  private async _recoverUserConversations(
     type: ActiveUserConversationType
-  ): Promise<Maybe<Array<Conversation>>> {
+  ): Promise<Maybe<Array<Conversation> | "_401_">> {
     try {
-      let AUCfirstSet = await this.listAllActiveUserConversationIds({
-        type,
-      })
+      let AUCfirstSet = await this.listAllActiveUserConversationIds(
+        {
+          type,
+        },
+        true
+      )
 
-      if (AUCfirstSet instanceof QIError)
+      if (AUCfirstSet instanceof QIError) {
+        const error = this._handleUnauthorizedQIError(AUCfirstSet)
+        if (error) throw "_401_"
+
         throw new Error(JSON.stringify(AUCfirstSet))
+      }
 
       let { nextToken, items } = AUCfirstSet
       let activeIds = [...items]
 
       while (nextToken) {
-        const set = await this.listAllActiveUserConversationIds({
-          type,
-          nextToken,
-        })
+        const set = await this.listAllActiveUserConversationIds(
+          {
+            type,
+            nextToken,
+          },
+          true
+        )
 
-        if (set instanceof QIError) break
+        if (set instanceof QIError) {
+          const error = this._handleUnauthorizedQIError(set)
+          if (error) throw "_401_"
+
+          break
+        }
 
         const { nextToken: token, items } = set
 
@@ -372,18 +734,30 @@ export class Chat
         else break
       }
 
-      let conversationfirstSet = await this.listConversationsByIds(activeIds)
+      let conversationfirstSet = await this.listConversationsByIds(
+        activeIds,
+        true
+      )
 
-      if (conversationfirstSet instanceof QIError)
+      if (conversationfirstSet instanceof QIError) {
+        const error = this._handleUnauthorizedQIError(conversationfirstSet)
+        if (error) throw "_401_"
+
         throw new Error(JSON.stringify(conversationfirstSet))
+      }
 
       let { unprocessedKeys, items: conversations } = conversationfirstSet
       let conversationsItems = [...conversations]
 
       while (unprocessedKeys) {
-        const set = await this.listConversationsByIds(unprocessedKeys)
+        const set = await this.listConversationsByIds(unprocessedKeys, true)
 
-        if (set instanceof QIError) break
+        if (set instanceof QIError) {
+          const error = this._handleUnauthorizedQIError(set)
+          if (error) throw "_401_"
+
+          break
+        }
 
         const { unprocessedKeys: ids, items } = set
 
@@ -393,57 +767,118 @@ export class Chat
         else break
       }
 
-      const currentUser = await this.getCurrentUser()
+      const currentUser = await this.getCurrentUser(true)
 
-      if (currentUser instanceof QIError)
+      if (currentUser instanceof QIError) {
+        const error = this._handleUnauthorizedQIError(currentUser)
+        if (error) throw "_401_"
+
         throw new Error(JSON.stringify(currentUser))
+      }
 
       //stores/update the conversations into the local db
-      await this._storage.insertBulkSafe<LocalDBConversation>(
-        "conversation",
-        conversationsItems.map((conversation: Conversation) => {
-          let isConversationArchived = false
 
-          if (currentUser.archivedConversations) {
-            const index = currentUser.archivedConversations.findIndex((id) => {
-              return id === conversation.id
+      if (this._syncingCounter > 0) {
+        //if this sync is not the first one, we disable the hook for the creation and update of the conversations
+        //because potentially could be detrimental for the performance
+        this._storage.conversation
+          .hook("creating")
+          .unsubscribe(this._hookConversationCreatingFn!)
+        this._storage.conversation
+          .hook("updating")
+          .unsubscribe(this._hookConversationUpdatingFn!)
+
+        this._hookConversationCreated = false
+        this._hookConversationUpdated = false
+      }
+
+      if (conversationsItems.length > 0) {
+        const conversationsStored = await new Promise<LocalDBConversation[]>(
+          (resolve, reject) => {
+            Serpens.addAction(() => {
+              this._storage.conversation
+                .where("indexDid")
+                .equals(Auth.account!.did)
+                .toArray()
+                .then(resolve)
+                .catch(reject)
+            })
+          }
+        )
+
+        await this._storage.insertBulkSafe(
+          "conversation",
+          conversationsItems.map((conversation: Conversation) => {
+            let conversationStored = conversationsStored.find((item) => {
+              return item.id === conversation.id
             })
 
-            if (index > -1) isConversationArchived = true
-          }
+            let isConversationArchived = false
 
-          return Converter.fromConversationToLocalDBConversation(
-            conversation,
-            this._account!.did,
-            this._account!.organizationId,
-            isConversationArchived
-          )
-        })
-      )
+            if (currentUser.archivedConversations) {
+              const index = currentUser.archivedConversations.findIndex(
+                (id) => {
+                  return id === conversation.id
+                }
+              )
+
+              if (index > -1) isConversationArchived = true
+            }
+
+            return Converter.fromConversationToLocalDBConversation(
+              conversation,
+              Auth.account!.did,
+              Auth.account!.organizationId,
+              isConversationArchived,
+              conversationStored ? conversationStored.lastMessageAuthor : null,
+              conversationStored ? conversationStored.lastMessageText : null,
+              conversationStored ? conversationStored.lastMessageRead : null
+            )
+          })
+        )
+      }
 
       return conversationsItems
     } catch (error) {
+      if (typeof error === "string" && error === "_401_") {
+        await Auth.fetchAuthToken()
+        this.silentReset()
+
+        return "_401_"
+      }
+
       console.log("[ERROR]: recoverUserConversations() -> ", error)
     }
 
     return null
   }
 
-  private async recoverKeysFromConversations(): Promise<boolean> {
+  private async _recoverKeysFromConversations(): Promise<boolean | "_401_"> {
     try {
       let firstConversationMemberSet =
-        await this.listConversationMemberByUserId()
+        await this.listConversationMemberByUserId(undefined, true)
 
-      if (firstConversationMemberSet instanceof QIError)
+      if (firstConversationMemberSet instanceof QIError) {
+        const error = this._handleUnauthorizedQIError(
+          firstConversationMemberSet
+        )
+        if (error) throw "_401_"
+
         throw new Error(JSON.stringify(firstConversationMemberSet))
+      }
 
       let { nextToken, items } = firstConversationMemberSet
       let conversationMemberItems = [...items]
 
       while (nextToken) {
-        const set = await this.listConversationMemberByUserId(nextToken)
+        const set = await this.listConversationMemberByUserId(nextToken, true)
 
-        if (set instanceof QIError) break
+        if (set instanceof QIError) {
+          const error = this._handleUnauthorizedQIError(set)
+          if (error) throw "_401_"
+
+          break
+        }
 
         const { nextToken: token, items } = set
 
@@ -453,34 +888,7 @@ export class Chat
         else break
       }
 
-      //let's take all the information related to our keys into _userKeyPair object. These are the public and private key of the current user.
-      //To do that, let's do a query on the local user table. If the _userKeyPair is already set, we skip this operation.
-      if (!this._userKeyPair) {
-        let user = (await this._storage.get("user", "[did+organizationId]", [
-          this._account!.did,
-          this._account!.organizationId,
-        ])) as LocalDBUser
-
-        const { e2eEncryptedPrivateKey, e2ePublicKey: e2ePublicKeyPem } = user!
-        const { e2eSecret } = this._account!
-        const { e2eSecretIV } = this._account!
-
-        const e2ePrivateKeyPem = Crypto.decryptAES_CBC(
-          e2eEncryptedPrivateKey,
-          Buffer.from(e2eSecret, "hex").toString("base64"),
-          Buffer.from(e2eSecretIV, "hex").toString("base64")
-        )
-
-        const userKeyPair = await Crypto.generateKeyPairFromPem(
-          e2ePublicKeyPem,
-          e2ePrivateKeyPem
-        )
-
-        if (!userKeyPair)
-          throw new Error("Impossible to recover the user key pair.")
-
-        this.setUserKeyPair(userKeyPair)
-      }
+      console.log("user key pair ", this.getUserKeyPair())
 
       //now, from the private key of the user, we will decrypt all the information about the conversation member.
       //we will store these decrypted pairs public keys/private keys into the _keyPairsMap array.
@@ -488,31 +896,21 @@ export class Chat
       let isError: boolean = false
 
       for (const conversationMember of conversationMemberItems) {
-        const {
-          encryptedConversationPrivateKey,
-          encryptedConversationPublicKey,
-        } = conversationMember
-        const privateKeyPem = Crypto.decryptStringOrFail(
+        const { encryptedConversationIVKey, encryptedConversationAESKey } =
+          conversationMember
+        const iv = Crypto.decryptStringOrFail(
           this.getUserKeyPair()!.privateKey,
-          encryptedConversationPrivateKey
+          encryptedConversationIVKey
         )
-        const publicKeyPem = Crypto.decryptStringOrFail(
+        const AES = Crypto.decryptStringOrFail(
           this.getUserKeyPair()!.privateKey,
-          encryptedConversationPublicKey
+          encryptedConversationAESKey
         )
-        const keypair = await Crypto.generateKeyPairFromPem(
-          privateKeyPem,
-          publicKeyPem
-        )
-
-        if (!keypair) {
-          isError = true
-          break
-        }
 
         _keyPairsMap.push({
           id: conversationMember.conversationId,
-          keypair,
+          AES,
+          iv,
         })
       }
 
@@ -521,17 +919,25 @@ export class Chat
 
       this.setKeyPairMap(_keyPairsMap)
 
+      console.log("key pair map is ", _keyPairsMap)
+
       return true
     } catch (error) {
       console.log("[ERROR]: recoverKeysFromConversations() -> ", error)
+      if (typeof error === "string" && error === "_401_") {
+        await Auth.fetchAuthToken()
+        this.silentReset()
+
+        return "_401_"
+      }
     }
 
     return false
   }
 
-  private async recoverMessagesFromConversations(
+  private async _recoverMessagesFromConversations(
     conversations: Array<Conversation>
-  ): Promise<boolean> {
+  ): Promise<boolean | "_401_"> {
     try {
       for (const conversation of conversations) {
         const { id, lastMessageSentAt } = conversation
@@ -543,23 +949,40 @@ export class Chat
 
         //messages important handling
         const messagesImportantFirstSet =
-          await this.listMessagesImportantByUserConversationId({
-            conversationId: id,
-          })
+          await this.listMessagesImportantByUserConversationId(
+            {
+              conversationId: id,
+            },
+            true
+          )
 
-        if (messagesImportantFirstSet instanceof QIError)
+        if (messagesImportantFirstSet instanceof QIError) {
+          const error = this._handleUnauthorizedQIError(
+            messagesImportantFirstSet
+          )
+          if (error) throw "_401_"
+
           throw new Error(JSON.stringify(messagesImportantFirstSet))
+        }
 
         let { nextToken, items } = messagesImportantFirstSet
         let messagesImportant = [...items]
 
         while (nextToken) {
-          const set = await this.listMessagesImportantByUserConversationId({
-            conversationId: id,
-            nextToken,
-          })
+          const set = await this.listMessagesImportantByUserConversationId(
+            {
+              conversationId: id,
+              nextToken,
+            },
+            true
+          )
 
-          if (set instanceof QIError) break
+          if (set instanceof QIError) {
+            const error = this._handleUnauthorizedQIError(set)
+            if (error) throw "_401_"
+
+            break
+          }
 
           const { nextToken: token, items } = set
 
@@ -570,47 +993,76 @@ export class Chat
         }
 
         //messages handling
-
-        let messageTable = this._storage.getTable("message") as Dexie.Table<
-          LocalDBMessage,
-          string,
-          LocalDBMessage
-        >
-        let lastMessageStored = await messageTable
-          .orderBy("createdAt")
-          .filter(
-            (element) =>
-              element.origin === "USER" &&
-              element.userDid === this._account!.did
-          )
-          .reverse()
-          .first()
+        let lastMessageStored = await new Promise<LocalDBMessage | undefined>(
+          (resolve, reject) => {
+            Serpens.addAction(() => {
+              this._storage.message
+                .where("conversationId")
+                .equals(id)
+                .filter(
+                  (element) =>
+                    element.origin === "USER" &&
+                    element.userDid === Auth.account!.did
+                )
+                .toArray()
+                .then((array) => {
+                  resolve(
+                    array.length > 0
+                      ? array.sort((a, b) => {
+                          return (
+                            new Date(b.createdAt).getTime() -
+                            new Date(a.createdAt).getTime()
+                          )
+                        })[0]
+                      : undefined
+                  )
+                })
+                .catch(reject)
+            })
+          }
+        )
 
         const canDownloadMessages =
           !lastMessageStored ||
           (lastMessageStored &&
-            lastMessageStored.createdAt! < lastMessageSentAt)
+            new Date(lastMessageStored.createdAt!).getTime() <
+              new Date(lastMessageSentAt).getTime())
 
         //the check of history message is already done on backend side
 
         if (canDownloadMessages) {
-          const messagesFirstSet = await this.listMessagesByConversationId({
-            id,
-          })
+          const messagesFirstSet = await this.listMessagesByConversationId(
+            {
+              id,
+            },
+            true
+          )
 
-          if (messagesFirstSet instanceof QIError)
+          if (messagesFirstSet instanceof QIError) {
+            const error = this._handleUnauthorizedQIError(messagesFirstSet)
+            if (error) throw "_401_"
+
             throw new Error(JSON.stringify(messagesFirstSet))
+          }
 
           let { nextToken, items } = messagesFirstSet
           let messages = [...items]
 
           while (nextToken) {
-            const set = await this.listMessagesByConversationId({
-              id,
-              nextToken,
-            })
+            const set = await this.listMessagesByConversationId(
+              {
+                id,
+                nextToken,
+              },
+              true
+            )
 
-            if (set instanceof QIError) break
+            if (set instanceof QIError) {
+              const error = this._handleUnauthorizedQIError(set)
+              if (error) throw "_401_"
+
+              break
+            }
 
             const { nextToken: token, items } = set
 
@@ -621,7 +1073,21 @@ export class Chat
           }
 
           //let's store the messages without create duplicates
-          if (messages.length > 0)
+          if (messages.length > 0) {
+            //if this sync is not the first one, we disable the hook for the creation and update of the messages
+            //because potentially could be detrimental for the performance
+            if (this._syncingCounter > 0) {
+              this._storage.message
+                .hook("creating")
+                .unsubscribe(this._hookMessageCreatingFn!)
+              this._storage.message
+                .hook("updating")
+                .unsubscribe(this._hookMessageUpdatingFn!)
+
+              this._hookMessageCreated = false
+              this._hookMessageUpdated = false
+            }
+
             //it's possible this array is empty when the chat history settings has value 'false'
             this._storage.insertBulkSafe(
               "message",
@@ -630,22 +1096,146 @@ export class Chat
                   messagesImportant.findIndex((important) => {
                     return important.messageId === message.id
                   }) > -1
-
                 return Converter.fromMessageToLocalDBMessage(
                   message,
-                  this._account!.did,
-                  this._account!.organizationId,
+                  Auth.account!.did,
+                  Auth.account!.organizationId,
                   isMessageImportant,
                   "USER"
                 )
               })
             )
+            await new Promise((resolve, reject) => {
+              Serpens.addAction(() =>
+                this._storage.conversation
+                  .where("[id+userDid]")
+                  .equals([messages[0].conversationId, Auth.account!.did])
+                  .modify((conversation: LocalDBConversation) => {
+                    const lastMessage = messages[0] //messages are ordered from the most recent to the less recent message, so the first item is the last message sent
+                    conversation.lastMessageAuthor = lastMessage.user.username
+                    conversation.lastMessageText = lastMessage.content
+                    conversation.lastMessageSentAt = lastMessage.createdAt
+                  })
+                  .then(resolve)
+                  .catch(reject)
+              )
+            })
+
+            //let's collect these messages for our detective message instance (only if this sync is not the first)
+            if (this._syncingCounter > 0)
+              messages.forEach((message) => {
+                Chat._detectiveMessage.collectClue(
+                  message,
+                  Auth.account!.did,
+                  Auth.account!.organizationId
+                )
+              })
+          }
+        }
+
+        //now we check if we have some messages that were edited (adding/removing a reaction or editing the text)
+        //first, we get the last sync date from the current user
+
+        let user = (await this._storage.get("user", "[did+organizationId]", [
+          Auth.account!.did,
+          Auth.account!.organizationId,
+        ])) as LocalDBUser
+
+        //we do a check only if lastSyncAt is !== null
+        if (user.lastSyncAt) {
+          const { lastSyncAt } = user
+
+          const messagesUpdatedFirstSet = await this.listMessagesUpdated(
+            {
+              conversationId: id,
+              greaterThanDate: lastSyncAt,
+            },
+            true
+          )
+
+          if (messagesUpdatedFirstSet instanceof QIError) {
+            const error = this._handleUnauthorizedQIError(
+              messagesUpdatedFirstSet
+            )
+            if (error) throw "_401_"
+
+            throw new Error(JSON.stringify(messagesUpdatedFirstSet))
+          }
+
+          let { nextToken, items } = messagesUpdatedFirstSet
+          let messagesUpdated = [...items]
+
+          while (nextToken) {
+            const set = await this.listMessagesUpdated(
+              {
+                conversationId: id,
+                greaterThanDate: lastSyncAt,
+                nextToken,
+              },
+              true
+            )
+
+            if (set instanceof QIError) {
+              const error = this._handleUnauthorizedQIError(set)
+              if (error) throw "_401_"
+
+              break
+            }
+
+            const { nextToken: token, items } = set
+
+            messagesUpdated = [...messagesUpdated, ...items]
+
+            if (token) nextToken = token
+            else break
+          }
+
+          //let's update the messages in the local table
+          if (messagesUpdated.length > 0) {
+            //if this sync is not the first one, we disable the hook for the creation and update of the messages
+            //because potentially could be detrimental for the performance
+            if (this._syncingCounter > 0) {
+              this._storage.message
+                .hook("creating")
+                .unsubscribe(this._hookMessageCreatingFn!)
+              this._storage.message
+                .hook("updating")
+                .unsubscribe(this._hookMessageUpdatingFn!)
+
+              this._hookMessageCreated = false
+              this._hookMessageUpdated = false
+            }
+
+            //it's possible this array is empty when the chat history settings has value 'false'
+            this._storage.insertBulkSafe(
+              "message",
+              messagesUpdated.map((message) => {
+                const isMessageImportant =
+                  messagesImportant.findIndex((important) => {
+                    return important.messageId === message.id
+                  }) > -1
+                return Converter.fromMessageToLocalDBMessage(
+                  message,
+                  Auth.account!.did,
+                  Auth.account!.organizationId,
+                  isMessageImportant,
+                  "USER"
+                )
+              })
+            )
+          }
         }
       }
 
       return true
     } catch (error) {
       console.log("[ERROR]: recoverMessagesFromConversations() -> ", error)
+      if (typeof error === "string" && error === "_401_") {
+        await Auth.fetchAuthToken()
+        this.silentReset()
+
+        return "_401_"
+      }
     }
 
     return false
@@ -657,43 +1247,74 @@ export class Chat
 
     //first operation. Recover the list of the conversations in which the user is a member.
     //unactive conversations are the convos in which the user left the group or has been ejected
-    const activeConversations = await this.recoverUserConversations(
+    const activeConversations = await this._recoverUserConversations(
       ActiveUserConversationType.Active
     )
-    const unactiveConversations = await this.recoverUserConversations(
+    const unactiveConversations = await this._recoverUserConversations(
       ActiveUserConversationType.Canceled
     )
 
+    console.log("activeConversations", activeConversations)
+    console.log("unactiveConversations", unactiveConversations)
+
     if (!activeConversations || !unactiveConversations) {
-      this._emit("syncError", { error: `error during conversation sincying.` })
+      this._emit("syncError", { error: `error during conversation syncing.` })
+      this.unsync()
       return
     }
 
+    //_sync(..) is called internally by silentReset()
+    if (activeConversations === "_401_" || unactiveConversations === "_401_")
+      return
+
+    console.log(
+      "after check if (!activeConversations || !unactiveConversations)"
+    )
+
     //second operation. Recover the list of conversation member objects, in order to retrieve the public & private keys of all conversations.
-    const keysRecovered = await this.recoverKeysFromConversations()
-    if (!keysRecovered) {
+    const keysRecovered = await this._recoverKeysFromConversations()
+    console.log("keysRecovered", keysRecovered)
+
+    if (typeof keysRecovered === "boolean" && !keysRecovered) {
       this._emit("syncError", {
         error: `error during recovering of the keys from conversations.`,
       })
+      this.unsync()
       return
     }
 
+    //_sync(..) is called internally by silentReset()
+    if (keysRecovered === "_401_") return
+
+    console.log("after check if (!keysRecovered)")
+
     //third operation. For each conversation, we need to download the messages if the lastMessageSentAt of the conversation is != null
     //and the date of the last message stored in the local db is less recent than the lastMessageSentAt date.
-    const messagesRecovered = await this.recoverMessagesFromConversations([
+    const messagesRecovered = await this._recoverMessagesFromConversations([
       ...activeConversations,
       ...unactiveConversations,
     ])
+
+    console.log("messagesRecovered", messagesRecovered)
+
     if (!messagesRecovered) {
       this._emit("syncError", {
         error: `error during recovering of the messages from conversations.`,
       })
+      this.unsync()
       return
     }
+
+    //_sync(..) is called internally by silentReset()
+    if (messagesRecovered === "_401_") return
+
+    console.log("after check if (!messagesRecovered)")
 
     //let's setup an array of the conversations in the first sync cycle.
     //This will allow to map the conversations in every single cycle that comes after the first one.
     if (syncingCounter === 0) {
+      console.log("inside check if (syncingCounter === 0)")
+
       for (const activeConversation of activeConversations)
         this._conversationsMap.push({
           type: "ACTIVE",
@@ -707,13 +1328,23 @@ export class Chat
           conversationId: unactiveConversation.id,
           conversation: unactiveConversation,
         })
+
+      console.log(
+        "inside check if (syncingCounter === 0) this._conversationsMap is ",
+        this._conversationsMap
+      )
     } else {
-      //this situation happens when a subscription between onAddMemberToConversation, onEjectMember, onLeaveConversation doesn't fire properly.
+      //this situation happens when a subscription between onAddMembersToConversation, onEjectMember, onLeaveConversation doesn't fire properly.
       //here we can check if there are differences between the previous sync and the current one
       //theoretically since we have subscriptions, we should be in a situation in which we don't have any difference
       //since the subscription role is to keep the array _conversationsMap synchronized.
       //But it can be also the opposite. So inside this block we will check if there are conversations that need
       //subscriptions to be added or the opposite (so subscriptions that need to be removed)
+
+      console.log(
+        "inside else syncingCounter is > 0, now its value is ",
+        this._syncingCounter
+      )
 
       const conversations = [...activeConversations, ...unactiveConversations]
       const flatConversationMap = this._conversationsMap.map(
@@ -721,73 +1352,136 @@ export class Chat
       )
 
       const { added, removed } = findAddedAndRemovedConversation(
-        conversations,
-        flatConversationMap
+        flatConversationMap,
+        conversations
       )
 
+      console.log("added and removed are ", added, removed)
+
       if (added.length > 0)
-        for (const conversation of added)
+        for (const conversation of added) {
+          this._conversationsMap.push({
+            type: "ACTIVE",
+            conversationId: conversation.id,
+            conversation,
+          })
           this._addSubscriptionsSync(conversation.id)
+          this._emit("conversationNewMembers", {
+            conversation,
+            conversationId: conversation.id,
+          })
+        }
 
       if (removed.length > 0)
-        for (const conversation of removed)
-          this._removeSubscribtionsSync(conversation.id)
+        for (const conversation of removed) {
+          this._conversationsMap = this._conversationsMap.filter((item) => {
+            return item.conversationId !== conversation.id
+          })
+          this._removeSubscriptionsSync(conversation.id)
+        }
     }
 
-    if (syncingCounter === 0) this._emit("sync")
-    else this._emit("syncUpdate", this._syncingCounter)
+    //we add the internal events for the local database
+    if (!this._hookMessageCreated) this._onMessageCreatedLDB()
+    if (!this._hookMessageUpdated) this._onMessageUpdatedLDB()
+    if (!this._hookMessageDeleted) this._onMessageDeletedLDB()
+    if (!this._hookConversationCreated) this._onConversationCreatedLDB()
+    if (!this._hookConversationUpdated) this._onConversationUpdatedLDB()
+
+    this._isSyncing = false
+
+    console.log(
+      "ready to emit sync or syncUpdate, this._syncingCounter is ",
+      this._syncingCounter
+    )
+
+    syncingCounter === 0
+      ? this._emit("sync")
+      : this._emit("syncUpdate", this._syncingCounter)
 
     this._syncingCounter++
 
-    setTimeout(async () => {
+    console.log("let's update the last sync date...")
+
+    let user = (await this._storage.get("user", "[did+organizationId]", [
+      Auth.account!.did,
+      Auth.account!.organizationId,
+    ])) as LocalDBUser
+
+    await new Promise((resolve, reject) => {
+      Serpens.addAction(() => {
+        this._storage.user
+          .update(user, {
+            lastSyncAt: new Date(),
+          })
+          .then(resolve)
+          .catch(reject)
+      })
+    })
+
+    console.log("calling another _sync()")
+
+    if (this._syncTimeout) clearTimeout(this._syncTimeout)
+    this._syncTimeout = setTimeout(async () => {
       await this._sync(this._syncingCounter)
     }, Chat.SYNCING_TIME)
   }
 
-  private async _onAddMemberToConversationSync(
+  private async _onAddMembersToConversationSync(
     response:
       | QIError
       | {
           conversationId: string
-          memberId: string
-          item: ConversationMember
+          membersIds: Array<string>
+          items: Array<ConversationMember>
         },
     source: OperationResult<
       {
-        onAddMemberToConversation: AddMemberToConversationResultGraphQL
+        onAddMembersToConversation: ListConversationMembersGraphQL
       },
-      SubscriptionOnAddMemberToConversationArgs & {
+      {
         jwt: string
       }
     >,
     uuid: string
   ) {
-    try {
-      if (!(response instanceof QIError)) {
-        //we need to update the _keyPairsMap with the new keys of the new conversation
-        const { conversationId } = response
-        const {
-          encryptedConversationPrivateKey,
-          encryptedConversationPublicKey,
-        } = response.item
-        //these pair is encrypted with the public key of the current user, so we need to decrypt them
-        const conversationPrivateKeyPem = Crypto.decryptStringOrFail(
-          this._userKeyPair!.privateKey,
-          encryptedConversationPrivateKey
-        )
-        const conversationPublicKeyPem = Crypto.decryptStringOrFail(
-          this._userKeyPair!.privateKey,
-          encryptedConversationPublicKey
-        )
-        const keypair = await Crypto.generateKeyPairFromPem(
-          conversationPublicKeyPem,
-          conversationPrivateKeyPem
-        )
+    let operation: Maybe<"add_new_members" | "create_conversation"> = null
 
+    if (response instanceof QIError) {
+      this._emit("addMembersToConversationSubscriptionError", response)
+      return
+    }
+
+    try {
+      const keypairMap = this.getKeyPairMap()
+      const alreadyMember = !!keypairMap.find((item) => {
+        return item.id === response.conversationId
+      })
+
+      operation = alreadyMember ? "add_new_members" : "create_conversation"
+
+      if (!alreadyMember) {
+        //we need to update the _keyPairsMap with the new keys of the new conversation
+        const { conversationId, items } = response
+        const item = items.find(
+          (item) => item.userId === Auth.account?.dynamoDBUserID
+        )
+        const { encryptedConversationIVKey, encryptedConversationAESKey } =
+          item!
+        //these pair is encrypted with the public key of the current user, so we need to decrypt them
+        const conversationIVKey = Crypto.decryptStringOrFail(
+          this._userKeyPair!.privateKey,
+          encryptedConversationIVKey
+        )
+        const conversationAESKey = Crypto.decryptStringOrFail(
+          this._userKeyPair!.privateKey,
+          encryptedConversationAESKey
+        )
         //this add a key pair only if it doesn't exist. if it does, then internally skip this operation
         this.addKeyPairItem({
           id: conversationId,
-          keypair: keypair!,
+          AES: conversationAESKey,
+          iv: conversationIVKey,
         })
 
         //we update also the _unsubscribeSyncSet array using the uuid emitted by the subscription
@@ -800,78 +1494,156 @@ export class Chat
           this._unsubscribeSyncSet[index].conversationId = conversationId
 
         //now we store the conversation in the local database
-        const responseConversation = await this.listConversationsByIds([
-          conversationId,
-        ])
+        const responseConversation = await this.listConversationsByIds(
+          [conversationId],
+          true
+        )
 
-        if (!(responseConversation instanceof QIError)) {
-          const { items } = responseConversation
-          const conversation = items[0]
+        if (responseConversation instanceof QIError) {
+          const error = this._handleUnauthorizedQIError(responseConversation)
+          if (error) {
+            await Auth.fetchAuthToken()
+            this.silentReset()
 
-          //we need to check if the conversation was already inside the _conversationsMap array. If it exists then we update the array
-          //otherwise we add a new element
-          const index = this._conversationsMap.findIndex((conversationItem) => {
+            return
+          }
+
+          this._emit("syncError", {
+            error: responseConversation,
+          })
+          this.unsync()
+
+          throw responseConversation
+        }
+
+        const { items: itemsConversation } = responseConversation
+        const conversation = itemsConversation[0]
+
+        //we need to check if the conversation was already inside the _conversationsMap array. If it exists then we update the array
+        //otherwise we add a new element
+        const indexMap = this._conversationsMap.findIndex(
+          (conversationItem) => {
             return conversationItem.conversationId === conversation.id
+          }
+        )
+
+        //this is an additional check that it's used to avoid to add the subscriptions to a conversation that potentially
+        //could have them already. This could happen potentially if the _sync() is executed
+        //immediately before the _onAddMembersToConversationSync() in the javascript event loop
+        const subscriptionConversationCheck = {
+          conversationWasActive: false,
+        }
+
+        if (indexMap > -1) {
+          //it should never be ACTIVE at this point, but this is for more safety
+          if (this._conversationsMap[indexMap].type === "ACTIVE")
+            subscriptionConversationCheck.conversationWasActive = true
+
+          this._conversationsMap[indexMap].type = "ACTIVE"
+          this._conversationsMap[indexMap].conversation = conversation
+        } else
+          this._conversationsMap.push({
+            conversation,
+            conversationId: conversation.id,
+            type: "ACTIVE",
           })
 
-          //this is an additional check that it's used to avoid to add the subscriptions to a conversation that potentially
-          //could have them already. This could happen potentially if the _sync() is executed
-          //immediately before the _onAddMemberToConversationSync() in the javascript event loop
-          const subscriptionConversationCheck = {
-            conversationWasActive: false,
+        const currentUser = await this.getCurrentUser(true)
+
+        if (currentUser instanceof QIError) {
+          const error = this._handleUnauthorizedQIError(currentUser)
+          if (error) {
+            await Auth.fetchAuthToken()
+            this.silentReset()
+
+            return
           }
 
-          if (index > -1) {
-            //it should never be ACTIVE at this point, but this is for more safety
-            if (this._conversationsMap[index].type === "ACTIVE")
-              subscriptionConversationCheck.conversationWasActive = true
+          this._emit("syncError", {
+            error: currentUser,
+          })
+          this.unsync()
 
-            this._conversationsMap[index].type = "ACTIVE"
-            this._conversationsMap[index].conversation = conversation
-          } else
-            this._conversationsMap.push({
-              conversation,
-              conversationId: conversation.id,
-              type: "ACTIVE",
-            })
-
-          const currentUser = await this.getCurrentUser()
-
-          if (currentUser instanceof QIError)
-            throw new Error(JSON.stringify(currentUser))
-
-          //stores/update the conversations into the local db
-          let isConversationArchived = false
-
-          if (currentUser.archivedConversations) {
-            const index = currentUser.archivedConversations.findIndex((id) => {
-              return id === conversationId
-            })
-
-            if (index > -1) isConversationArchived = true
-          }
-
-          this._storage.insertBulkSafe<LocalDBConversation>("conversation", [
-            Converter.fromConversationToLocalDBConversation(
-              conversation,
-              this._account!.did,
-              this._account!.organizationId,
-              isConversationArchived
-            ),
-          ])
-
-          //let's remove all the subscriptions previously added
-          if (subscriptionConversationCheck.conversationWasActive) {
-            this._removeSubscribtionsSync(conversationId)
-            this._conversationsMap[index].type = "ACTIVE" //assign again "type" the value "ACTIVE" because _removeSubscribtionsSync() turns type to "CANCELED"
-          }
-
-          //let's add the subscriptions in order to keep synchronized this conversation
-          this._addSubscriptionsSync(conversationId)
+          throw currentUser
         }
+
+        //stores/update the conversations into the local db
+        let isConversationArchived = false
+
+        if (currentUser.archivedConversations) {
+          const index = currentUser.archivedConversations.findIndex((id) => {
+            return id === conversationId
+          })
+
+          if (index > -1) isConversationArchived = true
+        }
+
+        await this._storage.insertBulkSafe("conversation", [
+          Converter.fromConversationToLocalDBConversation(
+            conversation,
+            Auth.account!.did,
+            Auth.account!.organizationId,
+            isConversationArchived,
+            null,
+            null,
+            null
+          ),
+        ])
+
+        //let's remove all the subscriptions previously added
+        if (subscriptionConversationCheck.conversationWasActive) {
+          this._removeSubscriptionsSync(conversationId)
+          this._conversationsMap[index].type = "ACTIVE" //assign again "type" the value "ACTIVE" because _removeSubscriptionsSync() turns type to "CANCELED"
+        }
+
+        //let's add the subscriptions in order to keep synchronized this conversation
+        this._addSubscriptionsSync(conversationId)
+
+        this._emit("conversationCreated", {
+          conversation,
+          conversationId,
+        })
+      } else {
+        //the user is already a member of this conversation, we need to emit a different event
+        const { conversationId, items } = response
+        const responseConversation = await this.listConversationsByIds(
+          [conversationId],
+          true
+        )
+
+        if (responseConversation instanceof QIError) {
+          const error = this._handleUnauthorizedQIError(responseConversation)
+          if (error) {
+            await Auth.fetchAuthToken()
+            this.silentReset()
+
+            return
+          }
+
+          this._emit("syncError", {
+            error: responseConversation,
+          })
+          this.unsync()
+
+          throw responseConversation
+        }
+
+        const { items: itemsConversation } = responseConversation
+        const conversation = itemsConversation[0]
+
+        this._emit("conversationNewMembers", {
+          items,
+          conversation,
+          conversationId,
+        })
       }
     } catch (error) {
-      console.log("[ERROR]: _onAddMemberToConversationSync() -> ", error)
+      console.log("[ERROR]: _onAddMembersToConversationSync() -> ", error)
+      if (operation === "create_conversation")
+        this._emit("conversationCreatedError", error)
+      else if (operation === "add_new_members")
+        this._emit("conversationNewMembersError", error)
+      else this._emit("addMembersToConversationSubscriptionError", error)
     }
   }
 
@@ -892,15 +1664,35 @@ export class Chat
         this._storage.insertBulkSafe("message", [
           Converter.fromMessageToLocalDBMessage(
             response,
-            this._account!.did,
-            this._account!.organizationId,
+            Auth.account!.did,
+            Auth.account!.organizationId,
             false,
             "USER"
           ),
         ])
+
+        this._emit("reactionAdded", {
+          message: {
+            ...response,
+            reactions: response.reactions
+              ? response.reactions.map((r) => {
+                  return {
+                    userId: r.userId,
+                    createdAt: r.createdAt,
+                    content: Crypto.decryptAESorFail(
+                      r.content,
+                      this.findKeyPairById(response.conversationId)
+                    ),
+                  }
+                })
+              : null,
+          },
+          conversationId: response.conversationId,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onAddReactionSync() -> ", error)
+      this._emit("reactionAddedError", error)
     }
   }
 
@@ -921,15 +1713,35 @@ export class Chat
         this._storage.insertBulkSafe("message", [
           Converter.fromMessageToLocalDBMessage(
             response,
-            this._account!.did,
-            this._account!.organizationId,
+            Auth.account!.did,
+            Auth.account!.organizationId,
             false,
             "USER"
           ),
         ])
+
+        this._emit("reactionRemoved", {
+          message: {
+            ...response,
+            reactions: response.reactions
+              ? response.reactions.map((r) => {
+                  return {
+                    userId: r.userId,
+                    createdAt: r.createdAt,
+                    content: Crypto.decryptAESorFail(
+                      r.content,
+                      this.findKeyPairById(response.conversationId)
+                    ),
+                  }
+                })
+              : null,
+          },
+          conversationId: response.conversationId,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onRemoveReactionSync() -> ", error)
+      this._emit("reactionRemovedError", error)
     }
   }
 
@@ -951,35 +1763,48 @@ export class Chat
         this._storage.insertBulkSafe("message", [
           Converter.fromMessageToLocalDBMessage(
             response,
-            this._account!.did,
-            this._account!.organizationId,
+            Auth.account!.did,
+            Auth.account!.organizationId,
             false,
             "USER"
           ),
         ])
 
+        Chat._detectiveMessage.collectClue(
+          response,
+          Auth.account!.did,
+          Auth.account!.organizationId
+        )
         //let's update the conversation in the case it was deleted locally by the user.
         //the conversation if it is deleted, returns visible for the user.
 
-        this._storage.query(
-          async (
-            db: Dexie,
-            table: Table<LocalDBConversation, string, LocalDBConversation>
-          ) => {
-            const conversation = await this._storage.get(
-              "conversation",
-              "[conversationId+userDid]",
-              [response.conversationId, this._account!.did]
-            )
-            table.update(conversation, {
-              deletedAt: null,
-            })
-          },
-          "conversation"
+        const conversation = await this._storage.get(
+          "conversation",
+          "[id+userDid]",
+          [response.conversationId, Auth.account!.did]
         )
+        await new Promise((resolve, reject) => {
+          Serpens.addAction(() => {
+            this._storage.conversation
+              .update(conversation, {
+                deletedAt: null,
+                lastMessageAuthor: response.user.username,
+                lastMessageSentAt: new Date(),
+                lastMessageText: response.content,
+              })
+              .then(resolve)
+              .catch(reject)
+          })
+        })
+
+        this._emit("messageReceived", {
+          message: response,
+          conversationId: response.conversationId,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onSendMessageSync() -> ", error)
+      this._emit("messageReceivedError", error)
     }
   }
 
@@ -1000,15 +1825,21 @@ export class Chat
         this._storage.insertBulkSafe("message", [
           Converter.fromMessageToLocalDBMessage(
             response,
-            this._account!.did,
-            this._account!.organizationId,
+            Auth.account!.did,
+            Auth.account!.organizationId,
             false,
             "USER"
           ),
         ])
+
+        this._emit("messageUpdated", {
+          message: response,
+          conversationId: response.conversationId,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onEditMessageSync() -> ", error)
+      this._emit("messageUpdatedError", error)
     }
   }
 
@@ -1026,16 +1857,19 @@ export class Chat
   ) {
     try {
       if (!(response instanceof QIError)) {
-        await this._storage.deleteItem(
-          "message",
-          this._storage instanceof DexieStorage ? `[id+userDid]` : ``,
-          this._storage instanceof DexieStorage
-            ? [response.id, this._account!.did]
-            : `${response.id}-${this._account!.did}`
-        )
+        await this._storage.deleteItem("message", "[id+userDid]", [
+          response.id,
+          Auth.account!.did,
+        ])
+
+        this._emit("messageDeleted", {
+          message: response,
+          conversationId: response.conversationId,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onDeleteMessageSync() -> ", error)
+      this._emit("messageDeletedError", error)
     }
   }
 
@@ -1059,17 +1893,19 @@ export class Chat
     try {
       if (!(response instanceof QIError)) {
         for (const id of response.messagesIds) {
-          await this._storage.deleteItem(
-            "message",
-            this._storage instanceof DexieStorage ? `[id+userDid]` : ``,
-            this._storage instanceof DexieStorage
-              ? [id, this._account!.did]
-              : `${id}-${this._account!.did}`
-          )
+          await this._storage.deleteItem("message", "[id+userDid]", [
+            id,
+            Auth.account!.did,
+          ])
         }
+
+        this._emit("batchMessagesDeleted", {
+          messagesIds: response.messagesIds,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onBatchDeleteMessagesSync() -> ", error)
+      this._emit("batchMessagesDeletedError", error)
     }
   }
 
@@ -1089,25 +1925,29 @@ export class Chat
       if (!(response instanceof QIError)) {
         const conversationStored = (await this._storage.get(
           "conversation",
-          this._storage instanceof DexieStorage
-            ? "[id+userDid]"
-            : `compositeKey`,
-          this._storage instanceof DexieStorage
-            ? [response.id, this._account!.did]
-            : `${response.id}-${this._account!.did}`
+          "[id+userDid]",
+          [(response.id, Auth.account!.did)]
         )) as Maybe<LocalDBConversation>
 
         this._storage.insertBulkSafe("conversation", [
           Converter.fromConversationToLocalDBConversation(
             response,
-            this._account!.did,
-            this._account!.organizationId,
-            conversationStored ? conversationStored.isArchived : false
+            Auth.account!.did,
+            Auth.account!.organizationId,
+            conversationStored ? conversationStored.isArchived : false,
+            conversationStored ? conversationStored.lastMessageAuthor : null,
+            conversationStored ? conversationStored.lastMessageText : null,
+            conversationStored ? conversationStored.lastMessageRead : null
           ),
         ])
+
+        this._emit("conversationGroupUpdated", {
+          conversation: response,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onUpdateConversationGroupSync() -> ", error)
+      this._emit("conversationGroupUpdatedError", error)
     }
   }
 
@@ -1128,30 +1968,36 @@ export class Chat
     try {
       if (!(response instanceof QIError)) {
         const conversationId = response.conversationId
-        this._removeSubscribtionsSync(conversationId)
+        this._removeSubscriptionsSync(conversationId)
+        const message = {
+          id: uuidv4(),
+          userId: response.memberOut.id,
+          organizationId: Auth.account!.organizationId,
+          userDid: Auth.account!.did,
+          conversationId: response.conversationId,
+          content: "",
+          reactions: [],
+          isImportant: false,
+          type: "EJECTED",
+          origin: "SYSTEM",
+          messageRoot: null,
+          messageRootId: null,
+          createdAt: new Date(),
+          updateAt: null,
+          deletedAt: null,
+        }
 
-        this._storage.insertBulkSafe("message", [
-          {
-            id: uuidv4(),
-            userId: response.memberOut.id,
-            organizationId: this._account!.organizationId,
-            userDid: this._account!.did,
-            conversationId: response.conversationId,
-            content: "",
-            reactions: [],
-            isImportant: false,
-            type: "EJECTED",
-            origin: "SYSTEM",
-            messageRoot: null,
-            messageRootId: null,
-            createdAt: new Date(),
-            updateAt: null,
-            deletedAt: null,
-          },
-        ])
+        this._storage.insertBulkSafe("message", [message])
+
+        this._emit("messageReceived", {
+          message,
+          conversationId,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onEjectMemberSync() -> ", error)
+      this._emit("memberEjectedError", error)
+      this._emit("messageReceivedError", error)
     }
   }
 
@@ -1173,31 +2019,37 @@ export class Chat
     try {
       if (!(response instanceof QIError)) {
         const conversationId = response.conversationId
-        this._removeSubscribtionsSync(conversationId)
+        this._removeSubscriptionsSync(conversationId)
+        const message = {
+          id: uuidv4(),
+          userId: response.memberOut.id,
+          organizationId: Auth.account!.organizationId,
+          userDid: Auth.account!.did,
+          conversationId: response.conversationId,
+          content: "",
+          reactions: [],
+          isImportant: false,
+          type: "LEFT",
+          origin: "SYSTEM",
+          messageRoot: null,
+          messageRootId: null,
+          createdAt: new Date(),
+          updateAt: null,
+          deletedAt: null,
+        }
 
         //handling system messages that shows the user left the conversation
-        this._storage.insertBulkSafe("message", [
-          {
-            id: uuidv4(),
-            userId: response.memberOut.id,
-            organizationId: this._account!.organizationId,
-            userDid: this._account!.did,
-            conversationId: response.conversationId,
-            content: "",
-            reactions: [],
-            isImportant: false,
-            type: "LEFT",
-            origin: "SYSTEM",
-            messageRoot: null,
-            messageRootId: null,
-            createdAt: new Date(),
-            updateAt: null,
-            deletedAt: null,
-          },
-        ])
+        this._storage.insertBulkSafe("message", [message])
+
+        this._emit("messageReceived", {
+          message,
+          conversationId,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onLeaveConversationSync() -> ", error)
+      this._emit("memberLeftError", error)
+      this._emit("messageReceivedError", error)
     }
   }
 
@@ -1216,9 +2068,13 @@ export class Chat
     //TODO socket notification handling
     try {
       if (!(response instanceof QIError)) {
+        this._emit("conversationMuted", {
+          conversation: response,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onMuteConversationSync() -> ", error)
+      this._emit("conversationMutedError", error)
     }
   }
 
@@ -1237,9 +2093,61 @@ export class Chat
     //TODO socket notification handling
     try {
       if (!(response instanceof QIError)) {
+        this._emit("conversationUnmuted", {
+          conversation: response,
+        })
       }
     } catch (error) {
       console.log("[ERROR]: _onUnmuteConversationSync() -> ", error)
+      this._emit("conversationUnmutedError", error)
+    }
+  }
+
+  private _onRequestTradeSync(
+    response: QIError | ConversationTradingPool,
+    source: OperationResult<
+      {
+        onRequestTrade: ConversationTradingPoolGraphQL
+      },
+      SubscriptionOnRequestTradeArgs & {
+        jwt: string
+      }
+    >,
+    uuid: string
+  ) {
+    try {
+      if (!(response instanceof QIError)) {
+        this._emit("requestTrade", {
+          conversationTradingPool: response,
+        })
+      }
+    } catch (error) {
+      console.log("[ERROR]: _onRequestTradeSync() -> ", error)
+      this._emit("requestTradeError", error)
+    }
+  }
+
+  private _onUpdateRequestTradeSync(
+    response: QIError | ConversationTradingPool,
+    source: OperationResult<
+      {
+        onUpdateRequestTrade: ConversationTradingPoolGraphQL
+      },
+      SubscriptionOnUpdateRequestTradeArgs & {
+        jwt: string
+      }
+    >,
+    uuid: string
+  ) {
+    try {
+      if (!(response instanceof QIError)) {
+        this._emit("updateRequestTrade", {
+          conversationTradingPool: response,
+        })
+      }
+    } catch (error) {
+      console.log("[ERROR]: _onUpdateRequestTradeSync() -> ", error)
+      this._emit("updateRequestTradeError", error)
     }
   }
 
@@ -1247,7 +2155,17 @@ export class Chat
     //add reaction(conversationId)
     const onAddReaction = this.onAddReaction(
       conversationId,
-      this._onAddReactionSync
+      (
+        response: QIError | Message,
+        source: OperationResult<
+          { onAddReaction: MessageGraphQL },
+          SubscriptionOnAddReactionArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onAddReactionSync(response, source, uuid)
+      },
+      true
     )
 
     if (!(onAddReaction instanceof QIError)) {
@@ -1258,12 +2176,39 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onAddReaction)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+
+        return
+      }
+
+      this._emit("syncError", {
+        error: onAddReaction,
+      })
+      this.unsync()
+
+      return
     }
 
     //remove reaction(conversationId)
     const onRemoveReaction = this.onRemoveReaction(
       conversationId,
-      this._onRemoveReactionSync
+      (
+        response: QIError | Message,
+        source: OperationResult<
+          { onRemoveReaction: MessageGraphQL },
+          SubscriptionOnRemoveReactionArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onRemoveReactionSync(response, source, uuid)
+      },
+      true
     )
 
     if (!(onRemoveReaction instanceof QIError)) {
@@ -1274,12 +2219,39 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onRemoveReaction)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+
+        return
+      }
+
+      this._emit("syncError", {
+        error: onRemoveReaction,
+      })
+      this.unsync()
+
+      return
     }
 
     //send message(conversationId)
     const onSendMessage = this.onSendMessage(
       conversationId,
-      this._onSendMessageSync
+      (
+        response: Message | QIError,
+        source: OperationResult<
+          { onSendMessage: MessageGraphQL },
+          SubscriptionOnSendMessageArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onSendMessageSync(response, source, uuid)
+      },
+      true
     )
 
     if (!(onSendMessage instanceof QIError)) {
@@ -1290,12 +2262,39 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onSendMessage)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+
+        return
+      }
+
+      this._emit("syncError", {
+        error: onSendMessage,
+      })
+      this.unsync()
+
+      return
     }
 
     //edit message(conversationId)
     const onEditMessage = this.onEditMessage(
       conversationId,
-      this._onEditMessageSync
+      (
+        response: QIError | Message,
+        source: OperationResult<
+          { onEditMessage: MessageGraphQL },
+          SubscriptionOnEditMessageArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onEditMessageSync(response, source, uuid)
+      },
+      true
     )
 
     if (!(onEditMessage instanceof QIError)) {
@@ -1306,12 +2305,40 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onEditMessage)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+
+        return
+      }
+
+      this._emit("syncError", {
+        error: onEditMessage,
+      })
+      this.unsync()
+
+      return
     }
 
     //delete message(conversationId)
     const onDeleteMessage = this.onDeleteMessage(
       conversationId,
-      this._onDeleteMessageSync
+      (
+        response: QIError | Message,
+        source: OperationResult<
+          { onDeleteMessage: MessageGraphQL },
+          SubscriptionOnDeleteMessageArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onDeleteMessageSync(response, source, uuid)
+      },
+
+      true
     )
 
     if (!(onDeleteMessage instanceof QIError)) {
@@ -1322,12 +2349,39 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onDeleteMessage)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+
+        return
+      }
+
+      this._emit("syncError", {
+        error: onDeleteMessage,
+      })
+      this.unsync()
+
+      return
     }
 
     //delete batch messages(conversationId)
     const onBatchDeleteMessages = this.onBatchDeleteMessages(
       conversationId,
-      this._onBatchDeleteMessagesSync
+      (
+        response: QIError | { conversationId: string; messagesIds: string[] },
+        source: OperationResult<
+          { onBatchDeleteMessages: BatchDeleteMessagesResultGraphQL },
+          SubscriptionOnBatchDeleteMessagesArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onBatchDeleteMessagesSync(response, source, uuid)
+      },
+      true
     )
 
     if (!(onBatchDeleteMessages instanceof QIError)) {
@@ -1338,12 +2392,39 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onBatchDeleteMessages)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+
+        return
+      }
+
+      this._emit("syncError", {
+        error: onBatchDeleteMessages,
+      })
+      this.unsync()
+
+      return
     }
 
     //update settings group(conversationId)
     const onUpdateConversationGroup = this.onUpdateConversationGroup(
       conversationId,
-      this._onUpdateConversationGroupSync
+      (
+        response: QIError | Conversation,
+        source: OperationResult<
+          { onUpdateConversationGroup: ConversationGraphQL },
+          SubscriptionOnUpdateConversationGroupArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onUpdateConversationGroupSync(response, source, uuid)
+      },
+      true
     )
 
     if (!(onUpdateConversationGroup instanceof QIError)) {
@@ -1354,12 +2435,45 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onUpdateConversationGroup)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+
+        return
+      }
+
+      this._emit("syncError", {
+        error: onUpdateConversationGroup,
+      })
+      this.unsync()
+
+      return
     }
 
     //eject member(conversationId)
     const onEjectMember = this.onEjectMember(
       conversationId,
-      this._onEjectMemberSync
+      (
+        response:
+          | QIError
+          | {
+              conversationId: string
+              conversation: Conversation
+              memberOut: User
+            },
+        source: OperationResult<
+          { onEjectMember: MemberOutResultGraphQL },
+          SubscriptionOnEjectMemberArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onEjectMemberSync(response, source, uuid)
+      },
+      true
     )
 
     if (!(onEjectMember instanceof QIError)) {
@@ -1370,12 +2484,45 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onEjectMember)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+
+        return
+      }
+
+      this._emit("syncError", {
+        error: onEjectMember,
+      })
+      this.unsync()
+
+      return
     }
 
     //leave group/conversation(conversationId)
     const onLeaveConversation = this.onLeaveConversation(
       conversationId,
-      this._onLeaveConversationSync
+      (
+        response:
+          | QIError
+          | {
+              conversationId: string
+              conversation: Conversation
+              memberOut: User
+            },
+        source: OperationResult<
+          { onLeaveConversation: MemberOutResultGraphQL },
+          SubscriptionOnLeaveConversationArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onLeaveConversationSync(response, source, uuid)
+      },
+      true
     )
 
     if (!(onLeaveConversation instanceof QIError)) {
@@ -1386,12 +2533,39 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onLeaveConversation)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+
+        return
+      }
+
+      this._emit("syncError", {
+        error: onLeaveConversation,
+      })
+      this.unsync()
+
+      return
     }
 
     //mute conversation(conversationId)
     const onMuteConversation = this.onMuteConversation(
       conversationId,
-      this._onMuteConversationSync
+      (
+        response: QIError | Conversation,
+        source: OperationResult<
+          { onMuteConversation: ConversationGraphQL },
+          SubscriptionOnMuteConversationArgs & { jwt: string }
+        >,
+        uuid: string
+      ) => {
+        this._onMuteConversationSync(response, source, uuid)
+      },
+      true
     )
 
     if (!(onMuteConversation instanceof QIError)) {
@@ -1402,12 +2576,43 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onMuteConversation)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+
+        return
+      }
+
+      this._emit("syncError", {
+        error: onMuteConversation,
+      })
+      this.unsync()
+
+      return
     }
 
     //unmute conversation(conversationId)
     const onUnmuteConversation = this.onUnmuteConversation(
       conversationId,
-      this._onUnmuteConversationSync
+      (
+        response: QIError | Conversation,
+        source: OperationResult<
+          {
+            onUnmuteConversation: ConversationGraphQL
+          },
+          SubscriptionOnUnmuteConversationArgs & {
+            jwt: string
+          }
+        >,
+        uuid: string
+      ) => {
+        this._onUnmuteConversationSync(response, source, uuid)
+      },
+      true
     )
 
     if (!(onUnmuteConversation instanceof QIError)) {
@@ -1418,10 +2623,119 @@ export class Chat
         uuid,
         conversationId,
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onUnmuteConversation)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+
+        return
+      }
+
+      this._emit("syncError", {
+        error: onUnmuteConversation,
+      })
+      this.unsync()
+
+      return
+    }
+
+    const onRequestTrade = this.onRequestTrade(
+      conversationId,
+      (
+        response: QIError | ConversationTradingPool,
+        source: OperationResult<
+          {
+            onRequestTrade: ConversationTradingPoolGraphQL
+          },
+          SubscriptionOnRequestTradeArgs & {
+            jwt: string
+          }
+        >,
+        uuid: string
+      ) => {
+        this._onRequestTradeSync(response, source, uuid)
+      },
+      true
+    )
+
+    if (!(onRequestTrade instanceof QIError)) {
+      const { unsubscribe, uuid } = onRequestTrade
+      this._unsubscribeSyncSet.push({
+        type: "onRequestTrade",
+        unsubscribe,
+        uuid,
+        conversationId,
+      })
+    } else {
+      const error = this._handleUnauthorizedQIError(onRequestTrade)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+
+        return
+      }
+
+      this._emit("syncError", {
+        error: onRequestTrade,
+      })
+      this.unsync()
+
+      return
+    }
+
+    const onUpdateRequestTrade = this.onUpdateRequestTrade(
+      conversationId,
+      (
+        response: QIError | ConversationTradingPool,
+        source: OperationResult<
+          {
+            onUpdateRequestTrade: ConversationTradingPoolGraphQL
+          },
+          SubscriptionOnUpdateRequestTradeArgs & {
+            jwt: string
+          }
+        >,
+        uuid: string
+      ) => {
+        this._onUpdateRequestTradeSync(response, source, uuid)
+      },
+      true
+    )
+
+    if (!(onUpdateRequestTrade instanceof QIError)) {
+      const { unsubscribe, uuid } = onRequestTrade
+      this._unsubscribeSyncSet.push({
+        type: "onUpdateRequestTrade",
+        unsubscribe,
+        uuid,
+        conversationId,
+      })
+    } else {
+      const error = this._handleUnauthorizedQIError(onUpdateRequestTrade)
+      if (error) {
+        ;(async () => {
+          await Auth.fetchAuthToken()
+          this.silentReset()
+        })()
+
+        return
+      }
+
+      this._emit("syncError", {
+        error: onRequestTrade,
+      })
+      this.unsync()
+
+      return
     }
   }
 
-  private _removeSubscribtionsSync(conversationId: string) {
+  private _removeSubscriptionsSync(conversationId: string) {
     //let's remove first the subscriptions
     const unsubscribeItems = this._unsubscribeSyncSet.filter((item) => {
       return item.conversationId === conversationId
@@ -1431,7 +2745,12 @@ export class Chat
       try {
         item.unsubscribe()
       } catch (error) {
-        console.log("[ERROR]: unsubscribe() -> ", item.uuid, item.type)
+        console.log(
+          "[ERROR]: unsubscribe() failed for conversation item -> ",
+          item.uuid,
+          item.type,
+          conversationId
+        )
       }
     })
 
@@ -1448,6 +2767,123 @@ export class Chat
     if (index > -1) this._conversationsMap[index].type = "CANCELED"
   }
 
+  /** local database events */
+
+  private _onMessageCreatedLDB() {
+    try {
+      this._hookMessageCreated = true
+      this._storage.message.hook("creating", this._hookMessageCreatingFn!)
+    } catch (error) {
+      console.log(error)
+      this._hookMessageCreated = false
+      this._emit("messageCreatedLDBError", error)
+    }
+  }
+
+  private _onMessageDeletedLDB() {
+    try {
+      this._hookMessageDeleted = true
+      this._storage.message.hook("deleting", (primaryKey, record) => {
+        const _message = {
+          ...record,
+          content: Crypto.decryptAESorFail(
+            record.content,
+            this.findKeyPairById(record.conversationId)
+          ),
+          reactions: record.reactions
+            ? record.reactions.map((reaction) => {
+                return {
+                  ...reaction,
+                  content: Crypto.decryptAESorFail(
+                    reaction.content,
+                    this.findKeyPairById(record.conversationId)
+                  ),
+                }
+              })
+            : null,
+          createdAt: new Date(record.createdAt),
+          updatedAt: record.updatedAt ? new Date(record.updatedAt) : null,
+          deletedAt: record.deletedAt ? new Date(record.deletedAt) : null,
+        }
+
+        _message.messageRoot = record.messageRoot
+          ? {
+              ...record.messageRoot,
+              content: Crypto.decryptAESorFail(
+                record.messageRoot.content,
+                this.findKeyPairById(record.conversationId)
+              ),
+              reactions: record.messageRoot.reactions
+                ? record.messageRoot.reactions.map((reaction) => {
+                    return {
+                      ...reaction,
+                      content: Crypto.decryptAESorFail(
+                        reaction.content,
+                        this.findKeyPairById(record.conversationId)
+                      ),
+                    }
+                  })
+                : null,
+              createdAt: new Date(record.messageRoot.createdAt),
+              updatedAt: record.messageRoot.updatedAt
+                ? new Date(record.messageRoot.updatedAt)
+                : null,
+              deletedAt: record.messageRoot.deletedAt
+                ? new Date(record.messageRoot.deletedAt)
+                : null,
+            }
+          : null
+
+        this._emit("messageDeletedLDB", _message)
+      })
+    } catch (error) {
+      console.log(error)
+      this._hookMessageDeleted = false
+      this._emit("messageDeletedLDBError", error)
+    }
+  }
+
+  private _onMessageUpdatedLDB() {
+    try {
+      this._hookMessageUpdated = true
+      this._storage.message.hook("updating", this._hookMessageUpdatingFn!)
+    } catch (error) {
+      console.log(error)
+      this._hookMessageUpdated = false
+      this._emit("messageUpdatedLDBError", error)
+    }
+  }
+
+  private _onConversationCreatedLDB() {
+    try {
+      this._hookConversationCreated = true
+      this._storage.conversation.hook(
+        "creating",
+        this._hookConversationCreatingFn!
+      )
+    } catch (error) {
+      console.log(error)
+      this._hookConversationCreated = false
+      this._emit("conversationCreatedLDBError", error)
+    }
+  }
+
+  private _onConversationUpdatedLDB() {
+    try {
+      this._hookConversationUpdated = true
+      this._storage.conversation.hook(
+        "updating",
+        this._hookConversationUpdatingFn!
+      )
+    } catch (error) {
+      console.log(error)
+      this._hookConversationUpdated = false
+      this._emit("conversationUpdatedLDBError", error)
+    }
+  }
+
+  /** public instance methods */
+
   /** Mutations */
 
   /**
@@ -1455,9 +2891,17 @@ export class Chat
    * @param {string} [id] - The ID of the user to block.
    * @returns {Promise<User | QIError>} A promise that resolves to a User object if successful, or a QIError object if there was an error.
    */
-  async blockUser(): Promise<User | QIError>
-  async blockUser(id: string): Promise<User | QIError>
-  async blockUser(id?: unknown): Promise<User | QIError> {
+  async blockUser(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
+  async blockUser(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
+  async blockUser(
+    id?: unknown,
+    overrideHandlingUnauthorizedQIError?: unknown
+  ): Promise<User | QIError> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use blockUser(id : string) instead."
@@ -1472,7 +2916,14 @@ export class Chat
       blockId: id,
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -1483,6 +2934,7 @@ export class Chat
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -1515,11 +2967,13 @@ export class Chat
       createdAt: new Date(response.createdAt),
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
   async addMembersToConversation(
-    args: AddMembersToConversationArgs
+    args: AddMembersToConversationArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     { conversationId: string; items: Array<ConversationMember> } | QIError
   > {
@@ -1539,7 +2993,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listConversationMembers: {
       conversationId: string
@@ -1553,11 +3014,12 @@ export class Chat
           conversationId: item.conversationId,
           userId: item.userId,
           type: item.type,
-          encryptedConversationPublicKey: item.encryptedConversationPublicKey,
-          encryptedConversationPrivateKey: item.encryptedConversationPrivateKey,
+          encryptedConversationAESKey: item.encryptedConversationAESKey,
+          encryptedConversationIVKey: item.encryptedConversationIVKey,
           createdAt: item.createdAt,
           updatedAt: item.updatedAt,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
         })
       }),
     }
@@ -1565,46 +3027,17 @@ export class Chat
     return listConversationMembers
   }
 
-  async addMemberToConversation(
-    args: AddMemberToConversationArgs
-  ): Promise<ConversationMember | QIError> {
-    const response = await this._mutation<
-      MutationAddMemberToConversationArgs,
-      { addMemberToConversation: AddMemberToConversationResultGraphQL },
-      AddMemberToConversationResultGraphQL
-    >(
-      "addMembersToConversation",
-      addMembersToConversation,
-      "_mutation() -> addMembersToConversation()",
-      {
-        input: {
-          conversationId: (args as AddMemberToConversationArgs).id,
-          member: (args as AddMemberToConversationArgs).member,
-        },
-      }
-    )
-
-    if (response instanceof QIError) return response
-
-    return new ConversationMember({
-      ...this._parentConfig!,
-      id: response.item.id,
-      conversationId: response.item.conversationId,
-      userId: response.item.userId,
-      type: response.item.type,
-      encryptedConversationPublicKey:
-        response.item.encryptedConversationPublicKey,
-      encryptedConversationPrivateKey:
-        response.item.encryptedConversationPrivateKey,
-      createdAt: response.item.createdAt,
-      updatedAt: response.item.updatedAt,
-      client: this._client!,
-    })
-  }
-
-  async pinMessage(): Promise<Message | QIError>
-  async pinMessage(id: string): Promise<Message | QIError>
-  async pinMessage(id?: unknown): Promise<Message | QIError> {
+  async pinMessage(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Message | QIError>
+  async pinMessage(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Message | QIError>
+  async pinMessage(
+    id?: unknown,
+    overrideHandlingUnauthorizedQIError?: unknown
+  ): Promise<Message | QIError> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use pinMessage(id : string) instead."
@@ -1619,7 +3052,14 @@ export class Chat
       messageId: id,
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -1634,6 +3074,7 @@ export class Chat
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -1652,6 +3093,7 @@ export class Chat
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -1665,6 +3107,19 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
+            },
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -1673,6 +3128,8 @@ export class Chat
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -1683,15 +3140,27 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
+      },
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
   async addReactionToMessage(
-    args: AddReactionToMessageArgs
+    args: AddReactionToMessageArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError> {
     const response = await this._mutation<
       MutationAddReactionToMessageArgs,
@@ -1704,16 +3173,23 @@ export class Chat
       {
         input: {
           messageId: args.messageId,
-          reactionContent: Crypto.encryptStringOrFail(
-            this.findPublicKeyById(args.conversationId),
-            args.reaction
+          reactionContent: Crypto.encryptAESorFail(
+            args.reaction,
+            this.findKeyPairById(args.conversationId)
           ),
           conversationId: args.conversationId,
         },
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -1728,6 +3204,7 @@ export class Chat
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -1746,6 +3223,7 @@ export class Chat
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -1759,6 +3237,19 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
+            },
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -1767,6 +3258,8 @@ export class Chat
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -1777,15 +3270,27 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
+      },
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
   async addReportToConversation(
-    args: AddReportToConversationArgs
+    args: AddReportToConversationArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | ConversationReport> {
     const response = await this._mutation<
       MutationAddReportToConversationArgs,
@@ -1803,7 +3308,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new ConversationReport({
       ...this._parentConfig!,
@@ -1813,11 +3325,13 @@ export class Chat
       createdAt: response.createdAt,
       updatedAt: response.updatedAt,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
   async addReportToMessage(
-    args: AddReportToMessageArgs
+    args: AddReportToMessageArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | MessageReport> {
     const response = await this._mutation<
       MutationAddReportToMessageArgs,
@@ -1835,7 +3349,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new MessageReport({
       ...this._parentConfig!,
@@ -1845,12 +3366,21 @@ export class Chat
       createdAt: response.createdAt,
       updatedAt: response.updatedAt,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
-  async archiveConversation(): Promise<User | QIError>
-  async archiveConversation(id: string): Promise<User | QIError>
-  async archiveConversation(id?: unknown): Promise<User | QIError> {
+  async archiveConversation(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
+  async archiveConversation(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
+  async archiveConversation(
+    id?: unknown,
+    overrideHandlingUnauthorizedQIError?: unknown
+  ): Promise<User | QIError> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use archiveConversation(id : string) instead."
@@ -1870,7 +3400,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -1881,6 +3418,7 @@ export class Chat
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -1913,10 +3451,14 @@ export class Chat
       createdAt: new Date(response.createdAt),
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
-  async archiveConversations(ids: Array<string>): Promise<User | QIError> {
+  async archiveConversations(
+    ids: Array<string>,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError> {
     const response = await this._mutation<
       MutationArchiveConversationsArgs,
       { archiveConversations: UserGraphQL },
@@ -1930,7 +3472,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -1941,6 +3490,7 @@ export class Chat
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -1973,15 +3523,19 @@ export class Chat
       createdAt: new Date(response.createdAt),
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
   async createConversationGroup(
-    args: CreateConversationGroupArgs
+    args: CreateConversationGroupArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
-    { keypairItem: KeyPairItem | null; conversation: Conversation } | QIError
+    { keypairItem: KeyPairItem; conversation: Conversation } | QIError
   > {
-    const keypair = await Crypto.generateKeys("HIGH")
+    const AES = Crypto.generateBase64Key_AES256()
+    const iv = Crypto.generateBase64IV_128Bit()
+
     const response = await this._mutation<
       MutationCreateConversationGroupArgs,
       { createConversationGroup: ConversationGraphQL },
@@ -1992,27 +3546,23 @@ export class Chat
       "_mutation() -> createConversationGroup()",
       {
         input: {
-          name: Crypto.encrypt(keypair!.publicKey, args.name),
-          description: Crypto.encrypt(keypair!.publicKey, args.description),
-          bannerImageURL: Crypto.encrypt(
-            keypair!.publicKey,
-            args.bannerImageURL
-          ),
-          imageURL: Crypto.encrypt(keypair!.publicKey, args.imageURL),
-          imageSettings: Crypto.encrypt(
-            keypair!.publicKey,
-            JSON.stringify(args.imageSettings)
-          ),
+          name: Crypto.encryptAES_CBC(args.name, AES, iv),
+          description: Crypto.encryptAES_CBC(args.description, AES, iv),
+          bannerImageURL: Crypto.encryptAES_CBC(args.bannerImageURL, AES, iv),
+          imageURL: Crypto.encryptAES_CBC(args.imageURL, AES, iv),
+          imageSettings: JSON.stringify(args.imageSettings),
         },
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
 
-    this.addKeyPairItem({
-      id: response.id,
-      keypair: keypair!,
-    })
+      return response
+    }
 
     const conversationGroup: {
       keypairItem: KeyPairItem
@@ -2020,7 +3570,8 @@ export class Chat
     } = {
       keypairItem: {
         id: response.id,
-        keypair: keypair!,
+        AES,
+        iv,
       },
       conversation: new Conversation({
         ...this._parentConfig!,
@@ -2044,6 +3595,8 @@ export class Chat
         updatedAt: response.updatedAt ? response.updatedAt : null,
         deletedAt: response.deletedAt ? response.deletedAt : null,
         client: this._client!,
+        realtimeClient: this._realtimeClient!,
+        chatParent: this,
       }),
     }
 
@@ -2051,11 +3604,14 @@ export class Chat
   }
 
   async createConversationOneToOne(
-    args: CreateConversationOneToOneArgs
+    args: CreateConversationOneToOneArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
-    QIError | { keypairItem: KeyPairItem | null; conversation: Conversation }
+    QIError | { keypairItem: KeyPairItem; conversation: Conversation }
   > {
-    const keypair = await Crypto.generateKeys("HIGH")
+    const AES = Crypto.generateBase64Key_AES256()
+    const iv = Crypto.generateBase64IV_128Bit()
+
     const response = await this._mutation<
       MutationCreateConversationOneToOneArgs,
       { createConversationOneToOne: ConversationGraphQL },
@@ -2066,26 +3622,32 @@ export class Chat
       "_mutation() -> createConversationOneToOne()",
       {
         input: {
-          name: Crypto.encrypt(keypair!.publicKey, args.name),
-          description: Crypto.encrypt(keypair!.publicKey, args.description),
-          bannerImageURL: Crypto.encrypt(
-            keypair!.publicKey,
-            args.bannerImageURL
-          ),
-          imageURL: Crypto.encrypt(keypair!.publicKey, args.imageURL),
+          name: Crypto.encryptAES_CBC(args.name, AES, iv),
+          description: Crypto.encryptAES_CBC(args.description, AES, iv),
+          bannerImageURL: Crypto.encryptAES_CBC(args.bannerImageURL, AES, iv),
+          imageURL: Crypto.encryptAES_CBC(args.imageURL, AES, iv),
+          imageSettings: JSON.stringify(args.imageSettings),
         },
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const conversationItem: {
-      keypairItem: KeyPairItem | null
+      keypairItem: KeyPairItem
       conversation: Conversation
     } = {
       keypairItem: {
         id: response.id,
-        keypair: keypair!,
+        AES,
+        iv,
       },
       conversation: new Conversation({
         ...this._parentConfig!,
@@ -2109,6 +3671,8 @@ export class Chat
         updatedAt: response.updatedAt ? response.updatedAt : null,
         deletedAt: response.deletedAt ? response.deletedAt : null,
         client: this._client!,
+        realtimeClient: this._realtimeClient!,
+        chatParent: this,
       }),
     }
 
@@ -2116,7 +3680,8 @@ export class Chat
   }
 
   async deleteBatchConversationMessages(
-    args: DeleteBatchConversationMessagesArgs
+    args: DeleteBatchConversationMessagesArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<{ conversationId: string; messagesIds: string[] } | QIError> {
     const response = await this._mutation<
       MutationDeleteBatchConversationMessagesArgs,
@@ -2134,7 +3699,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return {
       conversationId: response.conversationId,
@@ -2142,7 +3714,10 @@ export class Chat
     }
   }
 
-  async deleteMessage(id: string): Promise<Message | QIError> {
+  async deleteMessage(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Message | QIError> {
     const response = await this._mutation<
       MutationDeleteConversationMessageArgs,
       { deleteConversationMessage: MessageGraphQL },
@@ -2158,7 +3733,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -2173,6 +3755,7 @@ export class Chat
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -2191,6 +3774,7 @@ export class Chat
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -2204,6 +3788,19 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
+            },
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -2212,6 +3809,8 @@ export class Chat
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -2222,15 +3821,27 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
+      },
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
   async deleteRequestTrade(
-    id: string
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<ConversationTradingPool | QIError> {
     const response = await this._mutation<
       MutationDeleteRequestTradeArgs,
@@ -2245,7 +3856,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new ConversationTradingPool({
       ...this._parentConfig!,
@@ -2260,10 +3878,14 @@ export class Chat
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
-  async editMessage(args: EditMessageArgs): Promise<QIError | Message> {
+  async editMessage(
+    args: EditMessageArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | Message> {
     const response = await this._mutation<
       MutationEditMessageArgs,
       { editMessage: MessageGraphQL },
@@ -2271,15 +3893,22 @@ export class Chat
     >("editMessage", editMessage, "_mutation() -> editMessage()", {
       input: {
         messageId: args.id,
-        content: Crypto.encryptStringOrFail(
-          this.findPublicKeyById(args.conversationId),
-          args.content
+        content: Crypto.encryptAESorFail(
+          args.content,
+          this.findKeyPairById(args.conversationId)
         ),
         conversationId: args.conversationId,
       },
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -2294,6 +3923,7 @@ export class Chat
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -2312,6 +3942,7 @@ export class Chat
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -2325,6 +3956,19 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
+            },
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -2333,6 +3977,8 @@ export class Chat
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -2343,15 +3989,27 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
+      },
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
   async ejectMember(
-    args: EjectMemberArgs
+    args: EjectMemberArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     | QIError
     | { conversationId: string; conversation: Conversation; memberOut: User }
@@ -2367,7 +4025,14 @@ export class Chat
       },
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return {
       conversationId: response.conversationId,
@@ -2411,6 +4076,8 @@ export class Chat
           ? response.conversation.deletedAt
           : null,
         client: this._client!,
+        realtimeClient: this._realtimeClient!,
+        chatParent: this,
       }),
       memberOut: new User({
         ...this._parentConfig!,
@@ -2424,6 +4091,9 @@ export class Chat
         bio: response.memberOut.bio ? response.memberOut.bio : null,
         avatarUrl: response.memberOut.avatarUrl
           ? new URL(response.memberOut.avatarUrl)
+          : null,
+        imageSettings: response.memberOut.imageSettings
+          ? response.memberOut.imageSettings
           : null,
         isVerified: response.memberOut.isVerified
           ? response.memberOut.isVerified
@@ -2475,16 +4145,18 @@ export class Chat
           ? new Date(response.memberOut.updatedAt)
           : null,
         client: this._client!,
+        realtimeClient: this._realtimeClient!,
       }),
     }
   }
 
   async eraseConversationByAdmin(
-    id: string
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     { conversationId: string; items: Array<{ id: string }> } | QIError
   > {
-    const response = await this._query<
+    const response = await this._mutation<
       MutationEraseConversationByAdminArgs,
       { eraseConversationByAdmin: EraseConversationByAdminBatchResultGraphQL },
       EraseConversationByAdminBatchResultGraphQL
@@ -2497,7 +4169,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listConversations: {
       conversationId: string
@@ -2510,18 +4189,22 @@ export class Chat
     return listConversations
   }
 
-  async leaveConversation(): Promise<
-    | { conversationId: string; conversation: Conversation; memberOut: User }
-    | QIError
-  >
   async leaveConversation(
-    id: string
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     | { conversationId: string; conversation: Conversation; memberOut: User }
     | QIError
   >
   async leaveConversation(
-    id?: unknown
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<
+    | { conversationId: string; conversation: Conversation; memberOut: User }
+    | QIError
+  >
+  async leaveConversation(
+    id?: unknown,
+    overrideHandlingUnauthorizedQIError?: unknown
   ): Promise<
     | { conversationId: string; conversation: Conversation; memberOut: User }
     | QIError
@@ -2545,7 +4228,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return {
       conversationId: response.conversationId,
@@ -2589,6 +4279,8 @@ export class Chat
           ? response.conversation.deletedAt
           : null,
         client: this._client!,
+        realtimeClient: this._realtimeClient!,
+        chatParent: this,
       }),
       memberOut: new User({
         ...this._parentConfig!,
@@ -2602,6 +4294,9 @@ export class Chat
         bio: response.memberOut.bio ? response.memberOut.bio : null,
         avatarUrl: response.memberOut.avatarUrl
           ? new URL(response.memberOut.avatarUrl)
+          : null,
+        imageSettings: response.memberOut.imageSettings
+          ? response.memberOut.imageSettings
           : null,
         isVerified: response.memberOut.isVerified
           ? response.memberOut.isVerified
@@ -2653,14 +4348,19 @@ export class Chat
           ? new Date(response.memberOut.updatedAt)
           : null,
         client: this._client!,
+        realtimeClient: this._realtimeClient!,
       }),
     }
   }
 
   async muteConversation(
-    args: MuteConversationArgs
+    args: MuteConversationArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Conversation>
-  async muteConversation(args: unknown): Promise<Conversation | QIError> {
+  async muteConversation(
+    args: unknown,
+    overrideHandlingUnauthorizedQIError?: unknown
+  ): Promise<Conversation | QIError> {
     const response = await this._mutation<
       MutationMuteConversationArgs,
       { muteConversation: ConversationGraphQL },
@@ -2674,7 +4374,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Conversation({
       ...this._parentConfig!,
@@ -2696,12 +4403,22 @@ export class Chat
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
-  async unlockUser(): Promise<QIError | User>
-  async unlockUser(id: string): Promise<QIError | User>
-  async unlockUser(id?: unknown): Promise<QIError | User> {
+  async unlockUser(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | User>
+  async unlockUser(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | User>
+  async unlockUser(
+    id?: unknown,
+    overrideHandlingUnauthorizedQIError?: unknown
+  ): Promise<QIError | User> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unlockUser(id : string) instead."
@@ -2716,7 +4433,14 @@ export class Chat
       blockId: id,
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -2727,6 +4451,7 @@ export class Chat
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -2759,12 +4484,21 @@ export class Chat
       createdAt: new Date(response.createdAt),
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
-  async unpinMessage(): Promise<QIError | Message>
-  async unpinMessage(id: string): Promise<QIError | Message>
-  async unpinMessage(id?: unknown): Promise<QIError | Message> {
+  async unpinMessage(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | Message>
+  async unpinMessage(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | Message>
+  async unpinMessage(
+    id?: unknown,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | Message> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unpinMessage(id : string) instead."
@@ -2784,7 +4518,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -2799,6 +4540,7 @@ export class Chat
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -2817,6 +4559,7 @@ export class Chat
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -2830,6 +4573,19 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
+            },
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -2838,6 +4594,8 @@ export class Chat
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -2848,15 +4606,27 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
+      },
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
   async removeReactionFromMessage(
-    args: RemoveReactionFromMessageArgs
+    args: RemoveReactionFromMessageArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Message> {
     const response = await this._mutation<
       MutationRemoveReactionFromMessageArgs,
@@ -2868,9 +4638,9 @@ export class Chat
       "_mutation() -> removeReactionFromMessage()",
       {
         input: {
-          reactionContent: Crypto.encryptStringOrFail(
-            this.findPublicKeyById(args.conversationId),
-            args.reaction
+          reactionContent: Crypto.encryptAESorFail(
+            args.reaction,
+            this.findKeyPairById(args.conversationId)
           ),
           messageId: args.messageId,
           conversationId: args.conversationId,
@@ -2878,7 +4648,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -2893,6 +4670,7 @@ export class Chat
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -2911,6 +4689,7 @@ export class Chat
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -2924,6 +4703,19 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
+            },
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -2932,6 +4724,8 @@ export class Chat
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -2942,15 +4736,27 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
+      },
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
   async requestTrade(
-    args: RequestTradeArgs
+    args: RequestTradeArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | ConversationTradingPool> {
     const response = await this._mutation<
       MutationRequestTradeArgs,
@@ -2964,7 +4770,14 @@ export class Chat
       },
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new ConversationTradingPool({
       ...this._parentConfig!,
@@ -2979,18 +4792,20 @@ export class Chat
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
   async updateRequestTrade(
-    args: UpdateRequestTradeArgs
+    args: UpdateRequestTradeArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | ConversationTradingPool> {
     const response = await this._mutation<
       MutationUpdateRequestTradeArgs,
       { updateRequestTrade: ConversationTradingPoolGraphQL },
       ConversationTradingPoolGraphQL
     >(
-      "requestTrade",
+      "updateRequestTrade",
       updateRequestTrade,
       "_mutation() -> updateRequestTrade()",
       {
@@ -3003,7 +4818,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new ConversationTradingPool({
       ...this._parentConfig!,
@@ -3018,31 +4840,38 @@ export class Chat
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
-  async sendMessage(args: SendMessageArgs): Promise<QIError | Message> {
-    let content: string
-
-    if (typeof args.content === "object") content = JSON.stringify(args.content)
-    else content = args.content
-
+  async sendMessage(
+    args: SendMessageArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | Message> {
     const response = await this._mutation<
       MutationSendMessageArgs,
       { sendMessage: MessageGraphQL },
       MessageGraphQL
     >("sendMessage", sendMessage, "_mutation() -> sendMessage()", {
       input: {
-        content: Crypto.encryptStringOrFail(
-          this.findPublicKeyById((args as SendMessageArgs).conversationId),
-          content
+        content: Crypto.encryptAESorFail(
+          this._getMessageContent(args.content, (args as SendMessageArgs).type),
+          this.findKeyPairById((args as SendMessageArgs).conversationId)
         ),
         conversationId: (args as SendMessageArgs).conversationId,
         type: (args as SendMessageArgs).type,
+        messageRootId: (args as SendMessageArgs).messageRootId,
       },
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -3057,6 +4886,7 @@ export class Chat
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -3075,6 +4905,7 @@ export class Chat
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -3088,6 +4919,19 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
+            },
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -3096,6 +4940,8 @@ export class Chat
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -3106,16 +4952,35 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
+      },
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
-  async unarchiveConversation(): Promise<QIError | User>
-  async unarchiveConversation(id: string): Promise<QIError | User>
-  async unarchiveConversation(id?: unknown): Promise<QIError | User> {
+  async unarchiveConversation(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | User>
+  async unarchiveConversation(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | User>
+  async unarchiveConversation(
+    id?: unknown,
+    overrideHandlingUnauthorizedQIError?: unknown
+  ): Promise<QIError | User> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unarchiveConversation(id : string) instead."
@@ -3135,7 +5000,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -3146,6 +5018,7 @@ export class Chat
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -3178,10 +5051,14 @@ export class Chat
       createdAt: new Date(response.createdAt),
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
-  async unarchiveConversations(ids: Array<string>): Promise<User | QIError> {
+  async unarchiveConversations(
+    ids: Array<string>,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError> {
     const response = await this._mutation<
       MutationUnarchiveConversationsArgs,
       { unarchiveConversations: UserGraphQL },
@@ -3195,7 +5072,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -3206,6 +5090,7 @@ export class Chat
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -3238,12 +5123,21 @@ export class Chat
       createdAt: new Date(response.createdAt),
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
-  async unmuteConversation(): Promise<QIError | Conversation>
-  async unmuteConversation(id: string): Promise<QIError | Conversation>
-  async unmuteConversation(id?: unknown): Promise<QIError | Conversation> {
+  async unmuteConversation(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | Conversation>
+  async unmuteConversation(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | Conversation>
+  async unmuteConversation(
+    id?: unknown,
+    overrideHandlingUnauthorizedQIError?: unknown
+  ): Promise<QIError | Conversation> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unmuteConversation(id : string) instead."
@@ -3263,7 +5157,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Conversation({
       ...this._parentConfig!,
@@ -3285,11 +5186,14 @@ export class Chat
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
   async updateConversationGroup(
-    args: UpdateConversationGroupInputArgs
+    args: UpdateConversationGroupInputArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Conversation> {
     const response = await this._mutation<
       MutationUpdateConversationGroupArgs,
@@ -3302,28 +5206,35 @@ export class Chat
       {
         input: {
           conversationId: args.conversationId,
-          description: Crypto.encryptStringOrFail(
-            this.findPublicKeyById(args.conversationId),
-            args.description
+          description: Crypto.encryptAESorFail(
+            args.description,
+            this.findKeyPairById(args.conversationId)
           ),
-          imageURL: Crypto.encryptStringOrFail(
-            this.findPublicKeyById(args.conversationId),
-            new URL(args.imageURL).toString()
+          imageURL: Crypto.encryptAESorFail(
+            new URL(args.imageURL).toString(),
+            this.findKeyPairById(args.conversationId)
           ),
-          bannerImageURL: Crypto.encryptStringOrFail(
-            this.findPublicKeyById(args.conversationId),
-            new URL(args.bannerImageURL).toString()
+          bannerImageURL: Crypto.encryptAESorFail(
+            new URL(args.bannerImageURL).toString(),
+            this.findKeyPairById(args.conversationId)
           ),
-          name: Crypto.encryptStringOrFail(
-            this.findPublicKeyById(args.conversationId),
-            args.name
+          name: Crypto.encryptAESorFail(
+            args.name,
+            this.findKeyPairById(args.conversationId)
           ),
           settings: JSON.stringify(args.settings),
         },
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Conversation({
       ...this._parentConfig!,
@@ -3345,10 +5256,15 @@ export class Chat
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
-  async updateUser(args: UpdateUserArgs): Promise<QIError | User> {
+  async updateUser(
+    args: UpdateUserArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | User> {
     const response = await this._mutation<
       MutationUpdateUserInfoArgs,
       { updateUserInfo: UserGraphQL },
@@ -3368,7 +5284,14 @@ export class Chat
       },
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -3379,6 +5302,7 @@ export class Chat
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -3411,12 +5335,21 @@ export class Chat
       createdAt: new Date(response.createdAt),
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
-  async markImportantMessage(): Promise<Message | QIError>
-  async markImportantMessage(id: string): Promise<Message | QIError>
-  async markImportantMessage(id?: unknown): Promise<Message | QIError> {
+  async markImportantMessage(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Message | QIError>
+  async markImportantMessage(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Message | QIError>
+  async markImportantMessage(
+    id?: unknown,
+    overrideHandlingUnauthorizedQIError?: unknown
+  ): Promise<Message | QIError> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use markImportantMessage(id : string) instead."
@@ -3436,7 +5369,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const message = new Message({
       ...this._parentConfig!,
@@ -3451,6 +5391,7 @@ export class Chat
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -3469,6 +5410,7 @@ export class Chat
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -3482,6 +5424,19 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
+            },
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -3490,6 +5445,8 @@ export class Chat
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -3500,18 +5457,29 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
+      },
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
 
     //let's update the local db
     this._storage.insertBulkSafe("message", [
       Converter.fromMessageToLocalDBMessage(
         message,
-        this._account!.did,
-        this._account!.organizationId,
+        Auth.account!.did,
+        Auth.account!.organizationId,
         true,
         "USER"
       ),
@@ -3520,9 +5488,17 @@ export class Chat
     return message
   }
 
-  async unmarkImportantMessage(): Promise<QIError | Message>
-  async unmarkImportantMessage(id: string): Promise<QIError | Message>
-  async unmarkImportantMessage(id?: unknown): Promise<QIError | Message> {
+  async unmarkImportantMessage(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | Message>
+  async unmarkImportantMessage(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | Message>
+  async unmarkImportantMessage(
+    id?: unknown,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | Message> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unmarkImportantMessage(id : string) instead."
@@ -3542,7 +5518,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const message = new Message({
       ...this._parentConfig!,
@@ -3557,6 +5540,7 @@ export class Chat
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -3575,6 +5559,7 @@ export class Chat
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -3588,6 +5573,19 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
+            },
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -3596,6 +5594,8 @@ export class Chat
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -3606,18 +5606,29 @@ export class Chat
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
+      },
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
 
     //let's update the local db
     this._storage.insertBulkSafe("message", [
       Converter.fromMessageToLocalDBMessage(
         message,
-        this._account!.did,
-        this._account!.organizationId,
+        Auth.account!.did,
+        Auth.account!.organizationId,
         false,
         "USER"
       ),
@@ -3626,9 +5637,17 @@ export class Chat
     return message
   }
 
-  async pinConversation(): Promise<Conversation | QIError>
-  async pinConversation(id: string): Promise<Conversation | QIError>
-  async pinConversation(id?: unknown): Promise<Conversation | QIError> {
+  async pinConversation(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Conversation | QIError>
+  async pinConversation(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Conversation | QIError>
+  async pinConversation(
+    id?: unknown,
+    overrideHandlingUnauthorizedQIError?: unknown
+  ): Promise<Conversation | QIError> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use pinConversation(id : string) instead."
@@ -3648,7 +5667,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Conversation({
       ...this._parentConfig!,
@@ -3670,12 +5696,22 @@ export class Chat
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
-  async unpinConversation(): Promise<QIError | boolean>
-  async unpinConversation(id: string): Promise<QIError | boolean>
-  async unpinConversation(id?: unknown): Promise<QIError | boolean> {
+  async unpinConversation(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | boolean>
+  async unpinConversation(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | boolean>
+  async unpinConversation(
+    id?: unknown,
+    overrideHandlingUnauthorizedQIError?: unknown
+  ): Promise<QIError | boolean> {
     if (!id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unpinConversation(id : string) instead."
@@ -3695,7 +5731,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return true
   }
@@ -3705,7 +5748,8 @@ export class Chat
   */
 
   async listAllActiveUserConversationIds(
-    args: ListAllActiveUserConversationIdsArgs
+    args: ListAllActiveUserConversationIdsArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | { items: string[]; nextToken?: string | undefined }> {
     const response = await this._query<
       QueryListAllActiveUserConversationIdsArgs,
@@ -3725,7 +5769,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const activeUserConversationIds = {
       items: response.items,
@@ -3735,8 +5786,62 @@ export class Chat
     return activeUserConversationIds
   }
 
+  /**
+   * Retrieves the conversation members from the conversation by its ID.
+   * @returns A Promise that resolves to an array of ConversationMember objects or a QIError object.
+   */
+  async listConversationMembersByConversationId(
+    conversationId: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<ConversationMember[] | QIError> {
+    const response = await this._query<
+      QueryGetConversationByIdArgs,
+      {
+        getConversationById: ConversationGraphQL
+      },
+      ConversationGraphQL
+    >(
+      "getConversationById",
+      getMembersFromConversationById,
+      "_query() -> listConversationMembersByConversationId()",
+      {
+        conversationId,
+      }
+    )
+
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
+
+    const listConversationMembers: Array<ConversationMember> =
+      // TODO why response.members is of type array and not { items: Array }?
+      (response.members as any).items.map((item) => {
+        return new ConversationMember({
+          ...this._parentConfig!,
+          id: item!.id,
+          conversationId: item!.conversationId,
+          userId: item!.userId,
+          type: item!.type,
+          encryptedConversationAESKey: item!.encryptedConversationAESKey,
+          encryptedConversationIVKey: item!.encryptedConversationIVKey,
+          createdAt: item!.createdAt,
+          updatedAt: item!.updatedAt,
+          client: this._client!,
+          realtimeClient: this._realtimeClient!,
+        })
+      })
+
+    return listConversationMembers
+  }
+
   async listConversationMemberByUserId(
-    nextToken?: string | undefined
+    nextToken?: string | undefined,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     | QIError
     | { items: ConversationMember[]; nextToken?: Maybe<string> | undefined }
@@ -3756,7 +5861,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listConversationMember: {
       nextToken?: string
@@ -3770,11 +5882,12 @@ export class Chat
           conversationId: item.conversationId,
           userId: item.userId,
           type: item.type,
-          encryptedConversationPrivateKey: item.encryptedConversationPrivateKey,
-          encryptedConversationPublicKey: item.encryptedConversationPublicKey,
+          encryptedConversationIVKey: item.encryptedConversationIVKey,
+          encryptedConversationAESKey: item.encryptedConversationAESKey,
           createdAt: item.createdAt,
           updatedAt: item.updatedAt,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
         })
       }),
     }
@@ -3782,7 +5895,10 @@ export class Chat
     return listConversationMember
   }
 
-  async listUsersByIds(ids: string[]): Promise<
+  async listUsersByIds(
+    ids: string[],
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<
     | QIError
     | {
         items: User[]
@@ -3797,7 +5913,14 @@ export class Chat
       usersIds: ids,
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listUsers: {
       unprocessedKeys?: Maybe<string[]>
@@ -3814,6 +5937,7 @@ export class Chat
           email: item.email ? item.email : null,
           bio: item.bio ? item.bio : null,
           avatarUrl: item.avatarUrl ? new URL(item.avatarUrl) : null,
+          imageSettings: item.imageSettings ? item.imageSettings : null,
           isVerified: item.isVerified ? item.isVerified : false,
           isPfpNft: item.isPfpNft ? item.isPfpNft : false,
           blacklistIds: item.blacklistIds ? item.blacklistIds : null,
@@ -3846,6 +5970,7 @@ export class Chat
           createdAt: new Date(item.createdAt),
           updatedAt: item.updatedAt ? new Date(item.updatedAt) : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
         })
       }),
     }
@@ -3853,7 +5978,10 @@ export class Chat
     return listUsers
   }
 
-  async listConversationsByIds(ids: string[]): Promise<
+  async listConversationsByIds(
+    ids: string[],
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<
     | QIError
     | {
         items: Conversation[]
@@ -3871,49 +5999,63 @@ export class Chat
       { conversationsIds: ids }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listConversations: {
       unprocessedKeys?: Maybe<string[]>
       items: Array<Conversation>
     } = {
-      unprocessedKeys: response.unprocessedKeys,
-      items: response.items.map((item) => {
-        return new Conversation({
-          ...this._parentConfig!,
-          id: item.id,
-          name: item.name,
-          description: item.description ? item.description : null,
-          imageURL: item.imageURL ? item.imageURL : null,
-          bannerImageURL: item.bannerImageURL ? item.bannerImageURL : null,
-          imageSettings: item.imageSettings ? item.imageSettings : null,
-          settings: item.settings ? item.settings : null,
-          membersIds: item.membersIds ? item.membersIds : null,
-          mutedBy: item.mutedBy ? item.mutedBy : null,
-          type: item.type,
-          lastMessageSentAt: item.lastMessageSentAt
-            ? item.lastMessageSentAt
-            : null,
-          ownerId: item.ownerId ? item.ownerId : null,
-          createdAt: item.createdAt,
-          updatedAt: item.updatedAt ? item.updatedAt : null,
-          deletedAt: item.deletedAt ? item.deletedAt : null,
-          client: this._client!,
-        })
-      }),
+      unprocessedKeys: response ? response.unprocessedKeys : null,
+      items: response
+        ? response.items.map((item) => {
+            return new Conversation({
+              ...this._parentConfig!,
+              id: item.id,
+              name: item.name,
+              description: item.description ? item.description : null,
+              imageURL: item.imageURL ? item.imageURL : null,
+              bannerImageURL: item.bannerImageURL ? item.bannerImageURL : null,
+              imageSettings: item.imageSettings ? item.imageSettings : null,
+              settings: item.settings ? item.settings : null,
+              membersIds: item.membersIds ? item.membersIds : null,
+              mutedBy: item.mutedBy ? item.mutedBy : null,
+              type: item.type,
+              lastMessageSentAt: item.lastMessageSentAt
+                ? item.lastMessageSentAt
+                : null,
+              ownerId: item.ownerId ? item.ownerId : null,
+              createdAt: item.createdAt,
+              updatedAt: item.updatedAt ? item.updatedAt : null,
+              deletedAt: item.deletedAt ? item.deletedAt : null,
+              client: this._client!,
+              realtimeClient: this._realtimeClient!,
+              chatParent: this,
+            })
+          })
+        : [],
     }
 
     return listConversations
   }
 
   async listMessagesByConversationId(
-    args: ListMessagesByConversationIdArgs
+    args: ListMessagesByConversationIdArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     QIError | { items: Message[]; nextToken?: Maybe<string> | undefined }
   > {
     const response = await this._query<
       QueryListMessagesByConversationIdArgs,
-      { listConversationsByIds: ListMessagesByConversationIdResultGraphQL },
+      {
+        listMessagesByConversationId: ListMessagesByConversationIdResultGraphQL
+      },
       ListMessagesByConversationIdResultGraphQL
     >(
       "listMessagesByConversationId",
@@ -3927,7 +6069,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listMessages: {
       nextToken?: string
@@ -3948,6 +6097,7 @@ export class Chat
                   content: reaction.content,
                   createdAt: reaction.createdAt,
                   client: this._client!,
+                  realtimeClient: this._realtimeClient!,
                 })
               })
             : null,
@@ -3966,6 +6116,7 @@ export class Chat
                         content: reaction.content,
                         createdAt: reaction.createdAt,
                         client: this._client!,
+                        realtimeClient: this._realtimeClient!,
                       })
                     })
                   : null,
@@ -3979,6 +6130,19 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                user: {
+                  id: item.messageRoot.user!.id,
+                  username: item.messageRoot.user!.username
+                    ? item.messageRoot.user!.username
+                    : "",
+                  avatarURL: item.messageRoot.user!.avatarUrl
+                    ? item.messageRoot.user!.avatarUrl
+                    : "",
+                  imageSettings: item.messageRoot.user!.imageSettings
+                    ? JSON.parse(item.messageRoot.user!.imageSettings)
+                    : null,
+                },
+                order: item.messageRoot.order,
                 createdAt: item.messageRoot.createdAt,
                 updatedAt: item.messageRoot.updatedAt
                   ? item.messageRoot.updatedAt
@@ -3987,6 +6151,8 @@ export class Chat
                   ? item.messageRoot.deletedAt
                   : null,
                 client: this._client!,
+                realtimeClient: this._realtimeClient!,
+                chatParent: this,
               })
             : null,
           messageRootId: item.messageRootId ? item.messageRootId : null,
@@ -3997,10 +6163,300 @@ export class Chat
                 | "TRADE_PROPOSAL"
                 | "RENT")
             : null,
+          user: {
+            id: item.user!.id,
+            username: item.user!.username ? item.user!.username : "",
+            avatarURL: item.user!.avatarUrl ? item.user!.avatarUrl : "",
+            imageSettings: item.user!.imageSettings
+              ? JSON.parse(item.user!.imageSettings)
+              : null,
+          },
+          order: item.order,
           createdAt: item.createdAt,
           updatedAt: item.updatedAt ? item.updatedAt : null,
           deletedAt: item.deletedAt ? item.deletedAt : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
+          chatParent: this,
+        })
+      }),
+    }
+
+    return listMessages
+  }
+
+  async listMessagesByRangeOrder(
+    args: ListMessagesByRangeOrderArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<
+    QIError | { items: Message[]; nextToken?: Maybe<string> | undefined }
+  > {
+    const response = await this._query<
+      QueryListMessagesByRangeOrderArgs,
+      { listMessagesByRangeOrder: ListMessagesByRangeOrderGraphQL },
+      ListMessagesByRangeOrderGraphQL
+    >(
+      "listMessagesByRangeOrder",
+      listMessagesByRangeOrder,
+      "_query() -> listMessagesByRangeOrder()",
+      {
+        input: {
+          conversationId: args.id,
+          minOrder: args.minOrder,
+          maxOrder: args.maxOrder,
+          nextToken: args.nextToken,
+        },
+      }
+    )
+
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
+
+    const listMessages: {
+      nextToken?: string
+      items: Array<Message>
+    } = {
+      nextToken: response.nextToken ? response.nextToken : undefined,
+      items: response.items.map((item) => {
+        return new Message({
+          ...this._parentConfig!,
+          id: item.id,
+          content: item.content,
+          conversationId: item.conversationId,
+          reactions: item.reactions
+            ? item.reactions.map((reaction) => {
+                return new Reaction({
+                  ...this._parentConfig!,
+                  userId: reaction.userId,
+                  content: reaction.content,
+                  createdAt: reaction.createdAt,
+                  client: this._client!,
+                  realtimeClient: this._realtimeClient!,
+                })
+              })
+            : null,
+          userId: item.userId,
+          messageRoot: item.messageRoot
+            ? new Message({
+                ...this._parentConfig!,
+                id: item.messageRoot.id,
+                content: item.messageRoot.content,
+                conversationId: item.messageRoot.conversationId,
+                reactions: item.messageRoot.reactions
+                  ? item.messageRoot.reactions.map((reaction) => {
+                      return new Reaction({
+                        ...this._parentConfig!,
+                        userId: reaction.userId,
+                        content: reaction.content,
+                        createdAt: reaction.createdAt,
+                        client: this._client!,
+                        realtimeClient: this._realtimeClient!,
+                      })
+                    })
+                  : null,
+                userId: item.messageRoot.userId,
+                messageRoot: null,
+                messageRootId: null,
+                type: item.messageRoot.type
+                  ? (item.messageRoot.type as
+                      | "TEXTUAL"
+                      | "ATTACHMENT"
+                      | "TRADE_PROPOSAL"
+                      | "RENT")
+                  : null,
+                user: {
+                  id: item.messageRoot.user!.id,
+                  username: item.messageRoot.user!.username
+                    ? item.messageRoot.user!.username
+                    : "",
+                  avatarURL: item.messageRoot.user!.avatarUrl
+                    ? item.messageRoot.user!.avatarUrl
+                    : "",
+                  imageSettings: item.messageRoot.user!.imageSettings
+                    ? JSON.parse(item.messageRoot.user!.imageSettings)
+                    : null,
+                },
+                order: item.messageRoot.order,
+                createdAt: item.messageRoot.createdAt,
+                updatedAt: item.messageRoot.updatedAt
+                  ? item.messageRoot.updatedAt
+                  : null,
+                deletedAt: item.messageRoot.deletedAt
+                  ? item.messageRoot.deletedAt
+                  : null,
+                client: this._client!,
+                realtimeClient: this._realtimeClient!,
+                chatParent: this,
+              })
+            : null,
+          messageRootId: item.messageRootId ? item.messageRootId : null,
+          type: item.type
+            ? (item.type as
+                | "TEXTUAL"
+                | "ATTACHMENT"
+                | "TRADE_PROPOSAL"
+                | "RENT")
+            : null,
+          user: {
+            id: item.user!.id,
+            username: item.user!.username ? item.user!.username : "",
+            avatarURL: item.user!.avatarUrl ? item.user!.avatarUrl : "",
+            imageSettings: item.user!.imageSettings
+              ? JSON.parse(item.user!.imageSettings)
+              : null,
+          },
+          order: item.order,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt ? item.updatedAt : null,
+          deletedAt: item.deletedAt ? item.deletedAt : null,
+          client: this._client!,
+          realtimeClient: this._realtimeClient!,
+          chatParent: this,
+        })
+      }),
+    }
+
+    return listMessages
+  }
+
+  async listMessagesUpdated(
+    args: ListMessagesUpdatedArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<
+    QIError | { items: Message[]; nextToken?: Maybe<string> | undefined }
+  > {
+    const response = await this._query<
+      QueryListMessagesUpdatedArgs,
+      { listMessagesByRangeOrder: ListMessagesUpdatedGraphQL },
+      ListMessagesUpdatedGraphQL
+    >(
+      "listMessagesUpdated",
+      listMessagesUpdated,
+      "_query() -> listMessagesUpdated()",
+      {
+        input: {
+          conversationId: args.conversationId,
+          greaterThanDate: args.greaterThanDate,
+          nextToken: args.nextToken,
+        },
+      }
+    )
+
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
+
+    const listMessages: {
+      nextToken?: string
+      items: Array<Message>
+    } = {
+      nextToken: response.nextToken ? response.nextToken : undefined,
+      items: response.items.map((item) => {
+        return new Message({
+          ...this._parentConfig!,
+          id: item.id,
+          content: item.content,
+          conversationId: item.conversationId,
+          reactions: item.reactions
+            ? item.reactions.map((reaction) => {
+                return new Reaction({
+                  ...this._parentConfig!,
+                  userId: reaction.userId,
+                  content: reaction.content,
+                  createdAt: reaction.createdAt,
+                  client: this._client!,
+                  realtimeClient: this._realtimeClient!,
+                })
+              })
+            : null,
+          userId: item.userId,
+          messageRoot: item.messageRoot
+            ? new Message({
+                ...this._parentConfig!,
+                id: item.messageRoot.id,
+                content: item.messageRoot.content,
+                conversationId: item.messageRoot.conversationId,
+                reactions: item.messageRoot.reactions
+                  ? item.messageRoot.reactions.map((reaction) => {
+                      return new Reaction({
+                        ...this._parentConfig!,
+                        userId: reaction.userId,
+                        content: reaction.content,
+                        createdAt: reaction.createdAt,
+                        client: this._client!,
+                        realtimeClient: this._realtimeClient!,
+                      })
+                    })
+                  : null,
+                userId: item.messageRoot.userId,
+                messageRoot: null,
+                messageRootId: null,
+                type: item.messageRoot.type
+                  ? (item.messageRoot.type as
+                      | "TEXTUAL"
+                      | "ATTACHMENT"
+                      | "TRADE_PROPOSAL"
+                      | "RENT")
+                  : null,
+                user: {
+                  id: item.messageRoot.user!.id,
+                  username: item.messageRoot.user!.username
+                    ? item.messageRoot.user!.username
+                    : "",
+                  avatarURL: item.messageRoot.user!.avatarUrl
+                    ? item.messageRoot.user!.avatarUrl
+                    : "",
+                  imageSettings: item.messageRoot.user!.imageSettings
+                    ? JSON.parse(item.messageRoot.user!.imageSettings)
+                    : null,
+                },
+                order: item.messageRoot.order,
+                createdAt: item.messageRoot.createdAt,
+                updatedAt: item.messageRoot.updatedAt
+                  ? item.messageRoot.updatedAt
+                  : null,
+                deletedAt: item.messageRoot.deletedAt
+                  ? item.messageRoot.deletedAt
+                  : null,
+                client: this._client!,
+                realtimeClient: this._realtimeClient!,
+                chatParent: this,
+              })
+            : null,
+          messageRootId: item.messageRootId ? item.messageRootId : null,
+          type: item.type
+            ? (item.type as
+                | "TEXTUAL"
+                | "ATTACHMENT"
+                | "TRADE_PROPOSAL"
+                | "RENT")
+            : null,
+          user: {
+            id: item.user!.id,
+            username: item.user!.username ? item.user!.username : "",
+            avatarURL: item.user!.avatarUrl ? item.user!.avatarUrl : "",
+            imageSettings: item.user!.imageSettings
+              ? JSON.parse(item.user!.imageSettings)
+              : null,
+          },
+          order: item.order,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt ? item.updatedAt : null,
+          deletedAt: item.deletedAt ? item.deletedAt : null,
+          client: this._client!,
+          realtimeClient: this._realtimeClient!,
+          chatParent: this,
         })
       }),
     }
@@ -4009,7 +6465,8 @@ export class Chat
   }
 
   async listMessagesImportantByUserConversationId(
-    args: ListMessagesImportantByUserConversationIdArgs
+    args: ListMessagesImportantByUserConversationIdArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     | {
         items: MessageImportant[]
@@ -4035,7 +6492,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listMessagesImportant: {
       nextToken?: string
@@ -4061,6 +6525,7 @@ export class Chat
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -4079,6 +6544,7 @@ export class Chat
                           content: reaction.content,
                           createdAt: reaction.createdAt,
                           client: this._client!,
+                          realtimeClient: this._realtimeClient!,
                         })
                       })
                     : null,
@@ -4092,6 +6558,21 @@ export class Chat
                         | "TRADE_PROPOSAL"
                         | "RENT")
                     : null,
+                  user: {
+                    id: item.message!.messageRoot.user!.id,
+                    username: item.message!.messageRoot.user!.username
+                      ? item.message!.messageRoot.user!.username
+                      : "",
+                    avatarURL: item.message!.messageRoot.user!.avatarUrl
+                      ? item.message!.messageRoot.user!.avatarUrl
+                      : "",
+                    imageSettings: item.message!.messageRoot.user!.imageSettings
+                      ? JSON.parse(
+                          item.message!.messageRoot.user!.imageSettings
+                        )
+                      : null,
+                  },
+                  order: item.message!.messageRoot.order,
                   createdAt: item.message!.messageRoot.createdAt,
                   updatedAt: item.message!.messageRoot.updatedAt
                     ? item.message!.messageRoot.updatedAt
@@ -4100,6 +6581,8 @@ export class Chat
                     ? item.message!.messageRoot.deletedAt
                     : null,
                   client: this._client!,
+                  realtimeClient: this._realtimeClient!,
+                  chatParent: this,
                 })
               : null,
             messageRootId: item.message!.messageRootId
@@ -4112,15 +6595,27 @@ export class Chat
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: item.user!.id,
+              username: item.user!.username ? item.user!.username : "",
+              avatarURL: item.user!.avatarUrl ? item.user!.avatarUrl : "",
+              imageSettings: item.user!.imageSettings
+                ? JSON.parse(item.user!.imageSettings)
+                : null,
+            },
+            order: item.message!.order,
             createdAt: item.message!.createdAt,
             updatedAt: item.message!.updatedAt ? item.message!.updatedAt : null,
             deletedAt: item.message!.deletedAt ? item.message!.deletedAt : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this,
           }),
           conversationId: item.conversationId,
           createdAt: item.createdAt,
           updatedAt: item.updatedAt,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
         })
       }),
     }
@@ -4129,7 +6624,8 @@ export class Chat
   }
 
   async listConversationsPinnedByCurrentUser(
-    nextToken?: string | undefined
+    nextToken?: string | undefined,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     | QIError
     | { items: ConversationPin[]; nextToken?: Maybe<string> | undefined }
@@ -4149,7 +6645,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listConversationsPinned: {
       nextToken?: string
@@ -4202,10 +6705,13 @@ export class Chat
               ? item.conversation!.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this,
           }),
           createdAt: item.createdAt,
           updatedAt: item.updatedAt,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
         })
       }),
     }
@@ -4214,7 +6720,8 @@ export class Chat
   }
 
   async findUsersByUsernameOrAddress(
-    args: FindUsersByUsernameOrAddressArgs
+    args: FindUsersByUsernameOrAddressArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | { items: User[]; nextToken?: String | undefined }> {
     const response = await this._query<
       QueryFindUsersByUsernameOrAddressArgs,
@@ -4234,7 +6741,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listUsers: {
       nextToken?: string
@@ -4251,6 +6765,7 @@ export class Chat
           email: item.email ? item.email : null,
           bio: item.bio ? item.bio : null,
           avatarUrl: item.avatarUrl ? new URL(item.avatarUrl) : null,
+          imageSettings: item.imageSettings ? item.imageSettings : null,
           isVerified: item.isVerified ? item.isVerified : false,
           isPfpNft: item.isPfpNft ? item.isPfpNft : false,
           blacklistIds: item.blacklistIds ? item.blacklistIds : null,
@@ -4283,6 +6798,7 @@ export class Chat
           createdAt: new Date(item.createdAt),
           updatedAt: item.updatedAt ? new Date(item.updatedAt) : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
         })
       }),
     }
@@ -4290,7 +6806,9 @@ export class Chat
     return listUsers
   }
 
-  async getCurrentUser(): Promise<QIError | User> {
+  async getCurrentUser(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | User> {
     const response = await this._query<
       null,
       {
@@ -4299,7 +6817,14 @@ export class Chat
       UserGraphQL
     >("getCurrentUser", getCurrentUser, "_query() -> getCurrentUser()", null)
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -4310,6 +6835,7 @@ export class Chat
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
+      imageSettings: response.imageSettings ? response.imageSettings : null,
       isVerified: response.isVerified ? response.isVerified : false,
       isPfpNft: response.isPfpNft ? response.isPfpNft : false,
       blacklistIds: response.blacklistIds ? response.blacklistIds : null,
@@ -4342,10 +6868,14 @@ export class Chat
       createdAt: new Date(response.createdAt),
       updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
-  async getConversationById(id: string): Promise<Conversation | QIError> {
+  async getConversationById(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Conversation | QIError> {
     const response = await this._query<
       QueryGetConversationByIdArgs,
       { getConversationById: ConversationGraphQL },
@@ -4359,7 +6889,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Conversation({
       ...this._parentConfig!,
@@ -4381,11 +6918,14 @@ export class Chat
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this,
     })
   }
 
   async listTradesByConversationId(
-    args: ListTradesByConversationIdArgs
+    args: ListTradesByConversationIdArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     | { items: Array<ConversationTradingPool>; nextToken?: Maybe<string> }
     | QIError
@@ -4409,7 +6949,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const listTrades: {
       nextToken?: string
@@ -4430,6 +6977,7 @@ export class Chat
           updatedAt: item.updatedAt ? item.updatedAt : null,
           deletedAt: item.deletedAt ? item.deletedAt : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
         })
       }),
     }
@@ -4438,7 +6986,8 @@ export class Chat
   }
 
   async getConversationTradingPoolById(
-    conversationTradingPoolId: string
+    conversationTradingPoolId: string,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<ConversationTradingPool | QIError> {
     const response = await this._query<
       QueryGetConversationTradingPoolByIdArgs,
@@ -4455,7 +7004,14 @@ export class Chat
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new ConversationTradingPool({
       ...this._parentConfig!,
@@ -4470,6 +7026,7 @@ export class Chat
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -4490,17 +7047,29 @@ export class Chat
         }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): SubscriptionGarbage | QIError {
     const key = "onSendMessage"
-    const metasubcription = this._subscription<
+    const metasubscription = this._subscription<
       SubscriptionOnSendMessageArgs,
       { onSendMessage: MessageGraphQL }
     >(onSendMessage, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -4509,6 +7078,15 @@ export class Chat
       >("onSendMessage", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -4527,6 +7105,7 @@ export class Chat
                   content: reaction.content,
                   createdAt: reaction.createdAt,
                   client: this._client!,
+                  realtimeClient: this._realtimeClient!,
                 })
               })
             : null,
@@ -4545,6 +7124,7 @@ export class Chat
                         content: reaction.content,
                         createdAt: reaction.createdAt,
                         client: this._client!,
+                        realtimeClient: this._realtimeClient!,
                       })
                     })
                   : null,
@@ -4558,6 +7138,19 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                user: {
+                  id: r.messageRoot.user!.id,
+                  username: r.messageRoot.user!.username
+                    ? r.messageRoot.user!.username
+                    : "",
+                  avatarURL: r.messageRoot.user!.avatarUrl
+                    ? r.messageRoot.user!.avatarUrl
+                    : "",
+                  imageSettings: r.messageRoot.user!.imageSettings
+                    ? JSON.parse(r.messageRoot.user!.imageSettings)
+                    : null,
+                },
+                order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
                   ? r.messageRoot.updatedAt
@@ -4566,16 +7159,29 @@ export class Chat
                   ? r.messageRoot.deletedAt
                   : null,
                 client: this._client!,
+                realtimeClient: this._realtimeClient!,
+                chatParent: this,
               })
             : null,
           messageRootId: r.messageRootId ? r.messageRootId : null,
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          user: {
+            id: r.user!.id,
+            username: r.user!.username ? r.user!.username : "",
+            avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+            imageSettings: r.user!.imageSettings
+              ? JSON.parse(r.user!.imageSettings)
+              : null,
+          },
+          order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -4594,17 +7200,29 @@ export class Chat
         SubscriptionOnEditMessageArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onEditMessage"
-    const metasubcription = this._subscription<
+    const metasubscription = this._subscription<
       SubscriptionOnEditMessageArgs,
       { onEditMessage: MessageGraphQL }
     >(onEditMessage, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -4613,6 +7231,15 @@ export class Chat
       >("onEditMessage", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -4631,6 +7258,7 @@ export class Chat
                   content: reaction.content,
                   createdAt: reaction.createdAt,
                   client: this._client!,
+                  realtimeClient: this._realtimeClient!,
                 })
               })
             : null,
@@ -4649,6 +7277,7 @@ export class Chat
                         content: reaction.content,
                         createdAt: reaction.createdAt,
                         client: this._client!,
+                        realtimeClient: this._realtimeClient!,
                       })
                     })
                   : null,
@@ -4662,6 +7291,17 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                user: {
+                  id: r.messageRoot.user!.id,
+                  username: r.messageRoot.user!.username
+                    ? r.messageRoot.user!.username
+                    : "",
+                  avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+                  imageSettings: r.user!.imageSettings
+                    ? JSON.parse(r.user!.imageSettings)
+                    : null,
+                },
+                order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
                   ? r.messageRoot.updatedAt
@@ -4670,16 +7310,29 @@ export class Chat
                   ? r.messageRoot.deletedAt
                   : null,
                 client: this._client!,
+                realtimeClient: this._realtimeClient!,
+                chatParent: this,
               })
             : null,
           messageRootId: r.messageRootId ? r.messageRootId : null,
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          user: {
+            id: r.user!.id,
+            username: r.user!.username ? r.user!.username : "",
+            avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+            imageSettings: r.user!.imageSettings
+              ? JSON.parse(r.user!.imageSettings)
+              : null,
+          },
+          order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -4698,17 +7351,29 @@ export class Chat
         SubscriptionOnBatchDeleteMessagesArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onBatchDeleteMessages"
-    const metasubcription = this._subscription<
+    const metasubscription = this._subscription<
       SubscriptionOnBatchDeleteMessagesArgs,
       { onBatchDeleteMessages: BatchDeleteMessagesResultGraphQL }
     >(onBatchDeleteMessages, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -4717,6 +7382,15 @@ export class Chat
       >("onBatchDeleteMessages", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -4743,17 +7417,29 @@ export class Chat
         SubscriptionOnDeleteMessageArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onDeleteMessage"
-    const metasubcription = this._subscription<
+    const metasubscription = this._subscription<
       SubscriptionOnDeleteMessageArgs,
       { onDeleteMessage: MessageGraphQL }
     >(onDeleteMessage, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -4762,7 +7448,17 @@ export class Chat
       >("onDeleteMessage", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
+
         return
       }
 
@@ -4780,6 +7476,7 @@ export class Chat
                   content: reaction.content,
                   createdAt: reaction.createdAt,
                   client: this._client!,
+                  realtimeClient: this._realtimeClient!,
                 })
               })
             : null,
@@ -4799,6 +7496,7 @@ export class Chat
                         content: reaction.content,
                         createdAt: reaction.createdAt,
                         client: this._client!,
+                        realtimeClient: this._realtimeClient!,
                       })
                     })
                   : null,
@@ -4812,6 +7510,17 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                user: {
+                  id: r.messageRoot.user!.id,
+                  username: r.messageRoot.user!.username
+                    ? r.messageRoot.user!.username
+                    : "",
+                  avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+                  imageSettings: r.user!.imageSettings
+                    ? JSON.parse(r.user!.imageSettings)
+                    : null,
+                },
+                order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
                   ? r.messageRoot.updatedAt
@@ -4820,15 +7529,28 @@ export class Chat
                   ? r.messageRoot.deletedAt
                   : null,
                 client: this._client!,
+                realtimeClient: this._realtimeClient!,
+                chatParent: this,
               })
             : null,
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          user: {
+            id: r.user!.id,
+            username: r.user!.username ? r.user!.username : "",
+            avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+            imageSettings: r.user!.imageSettings
+              ? JSON.parse(r.user!.imageSettings)
+              : null,
+          },
+          order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -4847,17 +7569,29 @@ export class Chat
         SubscriptionOnAddReactionArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onAddReaction"
-    const metasubcription = this._subscription<
+    const metasubscription = this._subscription<
       SubscriptionOnAddReactionArgs,
       { onAddReaction: MessageGraphQL }
     >(onAddReaction, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -4866,6 +7600,15 @@ export class Chat
       >("onAddReaction", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -4884,6 +7627,7 @@ export class Chat
                   content: reaction.content,
                   createdAt: reaction.createdAt,
                   client: this._client!,
+                  realtimeClient: this._realtimeClient!,
                 })
               })
             : null,
@@ -4903,6 +7647,7 @@ export class Chat
                         content: reaction.content,
                         createdAt: reaction.createdAt,
                         client: this._client!,
+                        realtimeClient: this._realtimeClient!,
                       })
                     })
                   : null,
@@ -4916,6 +7661,17 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                user: {
+                  id: r.messageRoot.user!.id,
+                  username: r.messageRoot.user!.username
+                    ? r.messageRoot.user!.username
+                    : "",
+                  avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+                  imageSettings: r.user!.imageSettings
+                    ? JSON.parse(r.user!.imageSettings)
+                    : null,
+                },
+                order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
                   ? r.messageRoot.updatedAt
@@ -4924,15 +7680,28 @@ export class Chat
                   ? r.messageRoot.deletedAt
                   : null,
                 client: this._client!,
+                realtimeClient: this._realtimeClient!,
+                chatParent: this,
               })
             : null,
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          user: {
+            id: r.user!.id,
+            username: r.user!.username ? r.user!.username : "",
+            avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+            imageSettings: r.user!.imageSettings
+              ? JSON.parse(r.user!.imageSettings)
+              : null,
+          },
+          order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -4951,17 +7720,29 @@ export class Chat
         SubscriptionOnRemoveReactionArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onRemoveReaction"
-    const metasubcription = this._subscription<
+    const metasubscription = this._subscription<
       SubscriptionOnRemoveReactionArgs,
       { onRemoveReaction: MessageGraphQL }
     >(onRemoveReaction, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -4970,6 +7751,15 @@ export class Chat
       >("onRemoveReaction", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -4988,6 +7778,7 @@ export class Chat
                   content: reaction.content,
                   createdAt: reaction.createdAt,
                   client: this._client!,
+                  realtimeClient: this._realtimeClient!,
                 })
               })
             : null,
@@ -5007,6 +7798,7 @@ export class Chat
                         content: reaction.content,
                         createdAt: reaction.createdAt,
                         client: this._client!,
+                        realtimeClient: this._realtimeClient!,
                       })
                     })
                   : null,
@@ -5020,6 +7812,17 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                user: {
+                  id: r.messageRoot.user!.id,
+                  username: r.messageRoot.user!.username
+                    ? r.messageRoot.user!.username
+                    : "",
+                  avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+                  imageSettings: r.user!.imageSettings
+                    ? JSON.parse(r.user!.imageSettings)
+                    : null,
+                },
+                order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
                   ? r.messageRoot.updatedAt
@@ -5028,15 +7831,28 @@ export class Chat
                   ? r.messageRoot.deletedAt
                   : null,
                 client: this._client!,
+                realtimeClient: this._realtimeClient!,
+                chatParent: this,
               })
             : null,
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          user: {
+            id: r.user!.id,
+            username: r.user!.username ? r.user!.username : "",
+            avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+            imageSettings: r.user!.imageSettings
+              ? JSON.parse(r.user!.imageSettings)
+              : null,
+          },
+          order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -5055,17 +7871,29 @@ export class Chat
         SubscriptionOnAddPinMessageArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onAddPinMessage"
-    const metasubcription = this._subscription<
+    const metasubscription = this._subscription<
       SubscriptionOnAddPinMessageArgs,
       { onAddPinMessage: MessageGraphQL }
     >(onAddPinMessage, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -5074,6 +7902,15 @@ export class Chat
       >("onAddPinMessage", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -5092,6 +7929,7 @@ export class Chat
                   content: reaction.content,
                   createdAt: reaction.createdAt,
                   client: this._client!,
+                  realtimeClient: this._realtimeClient!,
                 })
               })
             : null,
@@ -5111,6 +7949,7 @@ export class Chat
                         content: reaction.content,
                         createdAt: reaction.createdAt,
                         client: this._client!,
+                        realtimeClient: this._realtimeClient!,
                       })
                     })
                   : null,
@@ -5124,6 +7963,19 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                user: {
+                  id: r.messageRoot.user!.id,
+                  username: r.messageRoot.user!.username
+                    ? r.messageRoot.user!.username
+                    : "",
+                  avatarURL: r.messageRoot.user!.avatarUrl
+                    ? r.messageRoot.user!.avatarUrl
+                    : "",
+                  imageSettings: r.messageRoot.user!.imageSettings
+                    ? JSON.parse(r.messageRoot.user!.imageSettings)
+                    : null,
+                },
+                order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
                   ? r.messageRoot.updatedAt
@@ -5132,15 +7984,28 @@ export class Chat
                   ? r.messageRoot.deletedAt
                   : null,
                 client: this._client!,
+                realtimeClient: this._realtimeClient!,
+                chatParent: this,
               })
             : null,
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          user: {
+            id: r.user!.id,
+            username: r.user!.username ? r.user!.username : "",
+            avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+            imageSettings: r.user!.imageSettings
+              ? JSON.parse(r.user!.imageSettings)
+              : null,
+          },
+          order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -5159,17 +8024,29 @@ export class Chat
         SubscriptionOnRemovePinMessageArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onRemovePinMessage"
-    const metasubcription = this._subscription<
+    const metasubscription = this._subscription<
       SubscriptionOnRemovePinMessageArgs,
       { onRemovePinMessage: MessageGraphQL }
     >(onRemovePinMessage, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -5178,6 +8055,15 @@ export class Chat
       >("onRemovePinMessage", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -5196,6 +8082,7 @@ export class Chat
                   content: reaction.content,
                   createdAt: reaction.createdAt,
                   client: this._client!,
+                  realtimeClient: this._realtimeClient!,
                 })
               })
             : null,
@@ -5214,6 +8101,7 @@ export class Chat
                         content: reaction.content,
                         createdAt: reaction.createdAt,
                         client: this._client!,
+                        realtimeClient: this._realtimeClient!,
                       })
                     })
                   : null,
@@ -5227,6 +8115,17 @@ export class Chat
                       | "TRADE_PROPOSAL"
                       | "RENT")
                   : null,
+                user: {
+                  id: r.messageRoot.user!.id,
+                  username: r.messageRoot.user!.username
+                    ? r.messageRoot.user!.username
+                    : "",
+                  avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+                  imageSettings: r.user!.imageSettings
+                    ? JSON.parse(r.user!.imageSettings)
+                    : null,
+                },
+                order: r.messageRoot.order,
                 createdAt: r.messageRoot.createdAt,
                 updatedAt: r.messageRoot.updatedAt
                   ? r.messageRoot.updatedAt
@@ -5235,16 +8134,29 @@ export class Chat
                   ? r.messageRoot.deletedAt
                   : null,
                 client: this._client!,
+                realtimeClient: this._realtimeClient!,
+                chatParent: this,
               })
             : null,
           messageRootId: r.messageRootId ? r.messageRootId : null,
           type: r.type
             ? (r.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
             : null,
+          user: {
+            id: r.user!.id,
+            username: r.user!.username ? r.user!.username : "",
+            avatarURL: r.user!.avatarUrl ? r.user!.avatarUrl : "",
+            imageSettings: r.user!.imageSettings
+              ? JSON.parse(r.user!.imageSettings)
+              : null,
+          },
+          order: r.order,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -5263,17 +8175,29 @@ export class Chat
         SubscriptionOnUpdateConversationGroupArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onUpdateConversationGroup"
-    const metasubcription = this._subscription<
+    const metasubscription = this._subscription<
       SubscriptionOnUpdateConversationGroupArgs,
       { onUpdateConversationGroup: ConversationGraphQL }
     >(onUpdateConversationGroup, key, { id })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -5282,6 +8206,15 @@ export class Chat
       >("onUpdateConversationGroup", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -5305,6 +8238,8 @@ export class Chat
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -5329,17 +8264,29 @@ export class Chat
         SubscriptionOnEjectMemberArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onEjectMember"
-    const metasubcription = this._subscription<
+    const metasubscription = this._subscription<
       SubscriptionOnEjectMemberArgs,
       { onEjectMember: MemberOutResultGraphQL }
     >(onEjectMember, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -5348,6 +8295,15 @@ export class Chat
       >("onEjectMember", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -5387,6 +8343,8 @@ export class Chat
               ? r.conversation.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this,
           }),
           memberOut: new User({
             ...this._parentConfig!,
@@ -5398,6 +8356,9 @@ export class Chat
             bio: r.memberOut.bio ? r.memberOut.bio : null,
             avatarUrl: r.memberOut.avatarUrl
               ? new URL(r.memberOut.avatarUrl)
+              : null,
+            imageSettings: r.memberOut.imageSettings
+              ? r.memberOut.imageSettings
               : null,
             isVerified: r.memberOut.isVerified ? r.memberOut.isVerified : false,
             isPfpNft: r.memberOut.isPfpNft ? r.memberOut.isPfpNft : false,
@@ -5441,6 +8402,7 @@ export class Chat
               ? new Date(r.memberOut.updatedAt)
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
           }),
         },
         result,
@@ -5466,17 +8428,29 @@ export class Chat
         SubscriptionOnLeaveConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onLeaveConversation"
-    const metasubcription = this._subscription<
+    const metasubscription = this._subscription<
       SubscriptionOnLeaveConversationArgs,
       { onLeaveConversation: MemberOutResultGraphQL }
     >(onLeaveConversation, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -5485,6 +8459,15 @@ export class Chat
       >("onLeaveConversation", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -5524,6 +8507,8 @@ export class Chat
               ? r.conversation.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this,
           }),
           memberOut: new User({
             ...this._parentConfig!,
@@ -5535,6 +8520,9 @@ export class Chat
             bio: r.memberOut.bio ? r.memberOut.bio : null,
             avatarUrl: r.memberOut.avatarUrl
               ? new URL(r.memberOut.avatarUrl)
+              : null,
+            imageSettings: r.memberOut.imageSettings
+              ? r.memberOut.imageSettings
               : null,
             isVerified: r.memberOut.isVerified ? r.memberOut.isVerified : false,
             isPfpNft: r.memberOut.isPfpNft ? r.memberOut.isPfpNft : false,
@@ -5578,6 +8566,7 @@ export class Chat
               ? new Date(r.memberOut.updatedAt)
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
           }),
         },
         result,
@@ -5597,17 +8586,29 @@ export class Chat
         SubscriptionOnAddPinConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onAddPinConversation"
-    const metasubcription = this._subscription<
+    const metasubscription = this._subscription<
       SubscriptionOnAddPinConversationArgs,
       { onAddPinConversation: ConversationGraphQL }
     >(onAddPinConversation, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -5616,6 +8617,15 @@ export class Chat
       >("onAddPinConversation", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -5639,6 +8649,8 @@ export class Chat
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -5657,17 +8669,29 @@ export class Chat
         SubscriptionOnRemovePinConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onRemovePinConversation"
-    const metasubcription = this._subscription<
+    const metasubscription = this._subscription<
       SubscriptionOnRemovePinConversationArgs,
       { onRemovePinConversation: ConversationGraphQL }
     >(onRemovePinConversation, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -5676,6 +8700,15 @@ export class Chat
       >("onRemovePinConversation", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -5699,6 +8732,8 @@ export class Chat
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -5717,17 +8752,29 @@ export class Chat
         SubscriptionOnMuteConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onMuteConversation"
-    const metasubcription = this._subscription<
+    const metasubscription = this._subscription<
       SubscriptionOnMuteConversationArgs,
       { onMuteConversation: ConversationGraphQL }
     >(onMuteConversation, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -5736,6 +8783,15 @@ export class Chat
       >("onMuteConversation", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -5759,6 +8815,8 @@ export class Chat
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -5777,17 +8835,29 @@ export class Chat
         SubscriptionOnUnmuteConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onUnmuteConversation"
-    const metasubcription = this._subscription<
+    const metasubscription = this._subscription<
       SubscriptionOnUnmuteConversationArgs,
       { onUnmuteConversation: ConversationGraphQL }
     >(onUnmuteConversation, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -5796,6 +8866,15 @@ export class Chat
       >("onUnmuteConversation", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -5819,6 +8898,8 @@ export class Chat
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
+          chatParent: this,
         }),
         result,
         uuid
@@ -5829,27 +8910,42 @@ export class Chat
   }
 
   onAddMembersToConversation(
-    conversationId: string,
     callback: (
       response:
         | QIError
-        | { conversationId: string; items: ConversationMember[] },
+        | {
+            conversationId: string
+            items: ConversationMember[]
+            membersIds: Array<string>
+          },
       source: OperationResult<
         { onAddMembersToConversation: ListConversationMembersGraphQL },
-        SubscriptionOnAddMembersToConversationArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onAddMembersToConversation"
-    const metasubcription = this._subscription<
-      SubscriptionOnAddMembersToConversationArgs,
+    const metasubscription = this._subscription<
+      null,
       { onAddMembersToConversation: ListConversationMembersGraphQL }
-    >(onAddMembersToConversation, key, { conversationId })
+    >(onAddMembersToConversation, key, null)
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -5858,6 +8954,15 @@ export class Chat
       >("onAddMembersToConversation", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -5872,80 +8977,15 @@ export class Chat
               conversationId: item.conversationId,
               userId: item.userId,
               type: item.type,
-              encryptedConversationPublicKey:
-                item.encryptedConversationPublicKey,
-              encryptedConversationPrivateKey:
-                item.encryptedConversationPrivateKey,
+              encryptedConversationAESKey: item.encryptedConversationAESKey,
+              encryptedConversationIVKey: item.encryptedConversationIVKey,
               createdAt: item.createdAt,
               updatedAt: item.updatedAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           }),
-        },
-        result,
-        uuid
-      )
-    })
-
-    return { unsubscribe, uuid }
-  }
-
-  onAddMemberToConversation(
-    memberId: string,
-    callback: (
-      response:
-        | QIError
-        | {
-            conversationId: string
-            memberId: string
-            item: ConversationMember
-          },
-      source: OperationResult<
-        { onAddMemberToConversation: AddMemberToConversationResultGraphQL },
-        SubscriptionOnAddMemberToConversationArgs & { jwt: string }
-      >,
-      uuid: string
-    ) => void
-  ): QIError | SubscriptionGarbage {
-    const key = "onAddMemberToConversation"
-    const metasubcription = this._subscription<
-      SubscriptionOnAddMemberToConversationArgs,
-      { onAddMemberToConversation: AddMemberToConversationResultGraphQL }
-    >(onAddMemberToConversation, key, { memberId })
-
-    if (metasubcription instanceof QIError) return metasubcription
-
-    const { subscribe, uuid } = metasubcription
-    const { unsubscribe } = subscribe((result) => {
-      const r = this._handleResponse<
-        typeof key,
-        { onAddMemberToConversation: AddMemberToConversationResultGraphQL },
-        AddMemberToConversationResultGraphQL
-      >("onAddMemberToConversation", result)
-
-      if (r instanceof QIError) {
-        callback(r, result, uuid)
-        return
-      }
-
-      callback(
-        {
-          conversationId: r.conversationId,
-          memberId: r.memberId,
-          item: new ConversationMember({
-            ...this._parentConfig!,
-            id: r.item.id,
-            conversationId: r.item.conversationId,
-            userId: r.item.userId,
-            type: r.item.type,
-            encryptedConversationPublicKey:
-              r.item.encryptedConversationPublicKey,
-            encryptedConversationPrivateKey:
-              r.item.encryptedConversationPrivateKey,
-            createdAt: r.item.createdAt,
-            updatedAt: r.item.updatedAt,
-            client: this._client!,
-          }),
+          membersIds: r.membersIds,
         },
         result,
         uuid
@@ -5964,17 +9004,29 @@ export class Chat
         SubscriptionOnUpdateUserArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onUpdateUser"
-    const metasubcription = this._subscription<
+    const metasubscription = this._subscription<
       SubscriptionOnUpdateUserArgs,
       { onUpdateUser: UserGraphQL }
     >(onUpdateUser, key, { id })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -5983,6 +9035,15 @@ export class Chat
       >("onUpdateUser", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -5997,6 +9058,7 @@ export class Chat
           email: r.email ? r.email : null,
           bio: r.bio ? r.bio : null,
           avatarUrl: r.avatarUrl ? new URL(r.avatarUrl) : null,
+          imageSettings: r.imageSettings ? r.imageSettings : null,
           isVerified: r.isVerified ? r.isVerified : false,
           isPfpNft: r.isPfpNft ? r.isPfpNft : false,
           blacklistIds: r.blacklistIds ? r.blacklistIds : null,
@@ -6025,6 +9087,7 @@ export class Chat
           createdAt: new Date(r.createdAt),
           updatedAt: r.updatedAt ? new Date(r.updatedAt) : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
         }),
         result,
         uuid
@@ -6043,17 +9106,29 @@ export class Chat
         SubscriptionOnRequestTradeArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onRequestTrade"
-    const metasubcription = this._subscription<
+    const metasubscription = this._subscription<
       SubscriptionOnRequestTradeArgs,
       { onRequestTrade: ConversationTradingPoolGraphQL }
     >(onRequestTrade, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -6062,6 +9137,15 @@ export class Chat
       >("onRequestTrade", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -6080,6 +9164,7 @@ export class Chat
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
         }),
         result,
         uuid
@@ -6098,17 +9183,29 @@ export class Chat
         SubscriptionOnDeleteRequestTradeArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onDeleteRequestTrade"
-    const metasubcription = this._subscription<
+    const metasubscription = this._subscription<
       SubscriptionOnDeleteRequestTradeArgs,
       { onDeleteRequestTrade: ConversationTradingPoolGraphQL }
     >(onDeleteRequestTrade, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -6117,6 +9214,15 @@ export class Chat
       >("onDeleteRequestTrade", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -6135,6 +9241,7 @@ export class Chat
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
         }),
         result,
         uuid
@@ -6153,17 +9260,29 @@ export class Chat
         SubscriptionOnUpdateRequestTradeArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onUpdateRequestTrade"
-    const metasubcription = this._subscription<
+    const metasubscription = this._subscription<
       SubscriptionOnUpdateRequestTradeArgs,
       { onUpdateRequestTrade: ConversationTradingPoolGraphQL }
     >(onUpdateRequestTrade, key, { conversationId })
 
-    if (metasubcription instanceof QIError) return metasubcription
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
 
-    const { subscribe, uuid } = metasubcription
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
     const { unsubscribe } = subscribe((result) => {
       const r = this._handleResponse<
         typeof key,
@@ -6172,6 +9291,15 @@ export class Chat
       >("onUpdateRequestTrade", result)
 
       if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
         callback(r, result, uuid)
         return
       }
@@ -6190,6 +9318,7 @@ export class Chat
           updatedAt: r.updatedAt ? r.updatedAt : null,
           deletedAt: r.deletedAt ? r.deletedAt : null,
           client: this._client!,
+          realtimeClient: this._realtimeClient!,
         }),
         result,
         uuid
@@ -6199,47 +9328,320 @@ export class Chat
     return { unsubscribe, uuid }
   }
 
+  /** Chat shortcut methods */
+
+  async createConversation(
+    type: "ONE_TO_ONE" | "GROUP",
+    args: CreateConversationOneToOneArgs | CreateConversationGroupArgs,
+    members: Array<User>
+  ): Promise<QIError | Conversation> {
+    if (!Auth.account)
+      throw new Error("You must be logged in order to use this method.")
+    if (type === "ONE_TO_ONE" && "bannerImageX" in args.imageSettings)
+      throw new Error(
+        "If you specific a type 'ONE_TO_ONE' the param 'args' can not be a CreateConversationGroupArgs."
+      )
+    else if (type === "GROUP" && !("bannerImageX" in args.imageSettings))
+      throw new Error(
+        "If you specific a type 'GROUP' the param 'args' can not be a CreateConversationOneToOneArgs."
+      )
+    if (type === "ONE_TO_ONE" && members.length !== 2)
+      throw new Error("A 'ONE_TO_ONE' conversation must have two members.")
+    if (
+      members.findIndex(
+        (member) => member.id === Auth.account!.dynamoDBUserID
+      ) === -1
+    )
+      throw new Error(
+        "The current user must be included in the 'members' array param."
+      )
+
+    //after we have checked the arguments properly, we need to perform the following operations:
+    //1) we need to get the public key of every member we want to add in the conversation
+    //2) we need to create the conversation (so the relative mutation) and obtain a public/private key pair of the conversation
+    //3) we need to encrypt the public/private key of the conversation with the public key of each member we want to add in the conversation
+    //4) we need to call the addmemberstoconversation mutation in order to add the members
+
+    //let's go
+
+    //1)
+    //this is an array of public keys in .pem format
+    const membersPublicKeys = members.map((member) => {
+      return {
+        publicKeyPem: member.e2ePublicKey,
+        memberId: member.id,
+        encryptedConversationAESKey: null,
+        encrypteConversationIVKey: null,
+      }
+    })
+
+    //2)
+    //we create the conversation. Please to take note of the variable this._syncRunning. We use this variable (a boolean) to override the standard behavior of the 401 handling.
+    //If the sync() is running, means we need to handle the 401 in a particular way because in case of that we need to reset silently the sync
+    //If instead we are not in that scenario, we can not override this behavior, and in fact the this._syncRunning value in that case will be 'false'.
+    const newConversation =
+      type === "ONE_TO_ONE"
+        ? await this.createConversationOneToOne(
+            args as CreateConversationOneToOneArgs,
+            this._syncRunning
+          )
+        : await this.createConversationGroup(
+            args as CreateConversationGroupArgs,
+            this._syncRunning
+          )
+
+    //handling of QIError in case we are running sync()
+    if (this._syncRunning && newConversation instanceof QIError) {
+      const error = this._handleUnauthorizedQIError(newConversation)
+      if (error) {
+        await Auth.fetchAuthToken()
+        this.silentReset()
+      }
+
+      return newConversation
+    } else if (newConversation instanceof QIError) return newConversation
+
+    //3)
+    //we need to obtain the key/pair of the conversation, convert them to .pem format and encrypt these keys using the public key of every member we want to add
+
+    const conversationKeyPairItem = newConversation.keypairItem
+    const conversation = newConversation.conversation
+
+    const membersToAdd = membersPublicKeys.map((member) => {
+      const memberPublicKey = Crypto.convertPublicKeyPemToRSA(
+        member.publicKeyPem!
+      )
+
+      return {
+        memberId: member.memberId,
+        encryptedConversationIVKey: Crypto.encryptStringOrFail(
+          memberPublicKey,
+          conversationKeyPairItem.iv
+        ),
+        encryptedConversationAESKey: Crypto.encryptStringOrFail(
+          memberPublicKey,
+          conversationKeyPairItem.AES
+        ),
+      }
+    })
+
+    //4)
+    //let's add the members to the conversation
+
+    const addMembersToConversation = await this.addMembersToConversation(
+      {
+        id: conversation.id,
+        members: membersToAdd,
+      },
+      this._syncRunning
+    )
+
+    //handling of QIError in case we are running sync()
+    if (this._syncRunning && addMembersToConversation instanceof QIError) {
+      const error = this._handleUnauthorizedQIError(addMembersToConversation)
+      if (error) {
+        await Auth.fetchAuthToken()
+        this.silentReset()
+      }
+
+      return addMembersToConversation
+    } else if (addMembersToConversation instanceof QIError)
+      return addMembersToConversation
+
+    return conversation
+  }
+
+  /** Chat events methods */
+
+  /**
+   * Add a new event and the associated callback.
+   * @param {AuthEvents} event - The event to listen.
+   * @param {Function} callback - The callback related to this event.
+   * @param {boolean} onlyOnce - An optional flag, it allows the adding of only one callback associated to this event.
+   * @returns None
+   */
+  on(event: ChatEvents, callback: Function, onlyOnce?: boolean) {
+    const index = this._eventsCallbacks.findIndex((item) => {
+      return item.event === event
+    })
+
+    if (index < 0)
+      this._eventsCallbacks.push({
+        event,
+        callbacks: [callback],
+      })
+    else {
+      if (onlyOnce) return
+      this._eventsCallbacks[index].callbacks.push(callback)
+    }
+  }
+
+  /**
+   * Remove an event and the associated callback or all the callbacks associated to that event.
+   * @param {AuthEvents} event - The event to unlisten.
+   * @param {Function} callback - The callback related to this event.
+   * @returns None
+   */
+  off(event: ChatEvents, callback?: Function) {
+    const index = this._eventsCallbacks.findIndex((item) => {
+      return item.event === event
+    })
+
+    if (index < 0) return
+
+    this._eventsCallbacks[index].callbacks = callback
+      ? this._eventsCallbacks[index].callbacks.filter((cb) => cb !== callback)
+      : []
+  }
+
+  /** Override connect() */
+
+  async connect(force = false): Promise<void> {
+    //let's take all the information related to our keys into _userKeyPair object. These are the public and private key of the current user.
+    //To do that, let's do a query on the local user table. If the _userKeyPair is already set, we skip this operation.
+    if (!this._userKeyPair) {
+      let user = (await this._storage.get("user", "[did+organizationId]", [
+        Auth.account!.did,
+        Auth.account!.organizationId,
+      ])) as LocalDBUser
+
+      const { e2eEncryptedPrivateKey, e2ePublicKey: e2ePublicKeyPem } = user!
+      const { e2eSecret } = Auth.account!
+      const { e2eSecretIV } = Auth.account!
+
+      const e2ePrivateKeyPem = Crypto.decryptAES_CBC(
+        e2eEncryptedPrivateKey,
+        Buffer.from(e2eSecret, "hex").toString("base64"),
+        Buffer.from(e2eSecretIV, "hex").toString("base64")
+      )
+
+      const userKeyPair = await Crypto.generateKeyPairFromPem(
+        e2ePublicKeyPem,
+        e2ePrivateKeyPem
+      )
+
+      if (!userKeyPair)
+        throw new Error("Impossible to recover the user key pair.")
+
+      this.setUserKeyPair(userKeyPair)
+    }
+
+    return super.connect(force)
+  }
+
+  disconnect() {
+    super.disconnect()
+
+    //disabling all the hooks of Dexie - IndexedDB
+    if (this._hookMessageCreatingFn)
+      this._storage.message
+        .hook("creating")
+        .unsubscribe(this._hookMessageCreatingFn)
+
+    if (this._hookMessageUpdatingFn)
+      this._storage.message
+        .hook("updating")
+        .unsubscribe(this._hookMessageUpdatingFn)
+
+    if (this._hookConversationCreatingFn)
+      this._storage.conversation
+        .hook("creating")
+        .unsubscribe(this._hookConversationCreatingFn)
+
+    if (this._hookConversationUpdatingFn)
+      this._storage.conversation
+        .hook("updating")
+        .unsubscribe(this._hookConversationUpdatingFn)
+
+    this._hookMessageCreated = false
+    this._hookMessageUpdated = false
+    this._hookConversationCreated = false
+    this._hookConversationUpdated = false
+
+    this._emit("disconnect")
+  }
+
   /** Syncing methods */
 
-  async sync(callback: Function) {
-    if (!this._account)
+  /**
+   * Sync the current client with the backend.
+   * @returns {Promise<void>}
+   */
+  async sync(): Promise<void> {
+    if (!Auth.account)
       throw new Error("You must be authenticated before to sync.")
     if (!this._storage.isStorageEnabled())
       throw new Error("sync() is available only if you enable the storage.")
-    if (
-      this._eventsCallback.findIndex((item) => {
-        return item.event === "sync"
-      }) > -1
-    )
-      throw new Error("You have already launched sync().")
+    if (this._syncRunning) throw new Error("You have already launched sync().")
+    if (!this._isConnected)
+      throw new Error(
+        "You must be connected in order to call sync(). Call connect() first..."
+      )
     if (!this._canChat)
       throw new Error(
         "This client cannot start to chat. Are you missing to pairing the keys?"
       )
 
-    this._on("sync", () => {
-      this._isSyncing = false
-      callback()
-    })
+    //we're running sync
+    this._syncRunning = true
 
-    await this._sync(this._syncingCounter)
+    //let's call the detective message scan method
+    Chat._detectiveMessage.scan()
 
     //add member to conversation. This event is global, basically the user is always listening if
     //someone wants to add him into a conversation.
-    const onAddMemberToConversation = this.onAddMemberToConversation(
-      this._account!.dynamoDBUserID,
-      this._onAddMemberToConversationSync
+    const onAddMembersToConversation = this.onAddMembersToConversation(
+      (
+        response:
+          | QIError
+          | {
+              conversationId: string
+              membersIds: Array<string>
+              items: Array<ConversationMember>
+            },
+        source: OperationResult<
+          {
+            onAddMembersToConversation: ListConversationMembersGraphQL
+          },
+          {
+            jwt: string
+          }
+        >,
+        uuid: string
+      ) => {
+        this._onAddMembersToConversationSync(response, source, uuid)
+      },
+
+      true
     )
 
-    if (!(onAddMemberToConversation instanceof QIError)) {
-      const { unsubscribe, uuid } = onAddMemberToConversation
+    if (!(onAddMembersToConversation instanceof QIError)) {
+      const { unsubscribe, uuid } = onAddMembersToConversation
       this._unsubscribeSyncSet.push({
-        type: "onAddMemberToConversation",
+        type: "onAddMembersToConversation",
         unsubscribe,
         uuid,
         conversationId: "", //this value is updated inside the callback fired by the subscription
       })
+    } else {
+      const error = this._handleUnauthorizedQIError(onAddMembersToConversation)
+      if (error) {
+        await Auth.fetchAuthToken()
+        this.silentReset()
+
+        return
+      }
+
+      this._emit("syncError", {
+        error: onAddMembersToConversation,
+      })
+      this.unsync()
+
+      return
     }
+
+    //let's call all the logics
+    await this._sync(this._syncingCounter)
 
     //now that we have a _conversationsMap array filled, we can add subscription for every conversation that is currently active
     for (const { conversationId } of this._conversationsMap.filter(
@@ -6249,560 +9651,373 @@ export class Chat
     }
   }
 
+  /**
+   * An utility event method that allows the client to track the activity of the Chat object, while it's syncing with the backend.
+   * @param {Function} callback - the callback that will run once the Chat object is syncing with the backend
+   * @returns none
+   */
   syncing(callback: (isSyncing: boolean, syncingCounter: number) => void) {
-    this._on("syncing", (syncingCounter: number) => {
+    this.on("syncing", (syncingCounter: number) => {
       callback(this._isSyncing, syncingCounter)
     })
   }
 
+  /**
+   * An utility event method that allows the client to track the activity of the Chat object, once it's performed a new sync with the backend.
+   * @param {Function} callback - the callback that will run once the Chat object has performed another sync with the backend
+   * @returns none
+   */
   syncUpdate(callback: (syncingCounter: number) => void) {
-    this._on("syncUpdate", (syncingCounter: number) => {
+    this.on("syncUpdate", (syncingCounter: number) => {
       callback(syncingCounter)
     })
   }
 
-  /** local database events */
-
-  onLocalDBNewMessage(
-    conversationId: string,
-    callback: (message: LocalDBMessage) => void,
-    callbackError: (error: unknown) => void
-  ) {
-    try {
-      this._storage.query(
-        (db: Dexie, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
-          message.hook("creating", (primaryKey, record) => {
-            const _message = {
-              ...record,
-              content: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(conversationId),
-                record.content
-              ),
-              reactions: record.reactions
-                ? record.reactions.map((reaction) => {
-                    return {
-                      ...reaction,
-                      content: Crypto.decryptStringOrFail(
-                        this.findPrivateKeyById(conversationId),
-                        reaction.content
-                      ),
-                    }
-                  })
-                : null,
-            }
-
-            _message.messageRoot = record.messageRoot
-              ? {
-                  ...record.messageRoot,
-                  content: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(conversationId),
-                    record.messageRoot.content
-                  ),
-                  reactions: record.messageRoot.reactions
-                    ? record.messageRoot.reactions.map((reaction) => {
-                        return {
-                          ...reaction,
-                          content: Crypto.decryptStringOrFail(
-                            this.findPrivateKeyById(conversationId),
-                            reaction.content
-                          ),
-                        }
-                      })
-                    : null,
-                }
-              : null
-
-            callback(_message)
-          })
-        },
-        "message"
-      )
-    } catch (error) {
-      callbackError(error)
-    }
+  /**
+   * Unsync the client.
+   * @returns none
+   */
+  unsync(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        if (this._syncTimeout) clearTimeout(this._syncTimeout)
+        this._isSyncing = false
+        this._syncingCounter = 0
+        for (const { conversationId } of this._conversationsMap.filter(
+          (conversation) => conversation.type === "ACTIVE"
+        )) {
+          this._removeSubscriptionsSync(conversationId)
+        }
+        this._unsubscribeSyncSet = [] //subscription mapping array
+        this._conversationsMap = [] //conversations array
+        this._keyPairsMap = [] //conversations public/private keys
+        this._userKeyPair = null //user private/public key
+        this._syncRunning = false
+        Chat._detectiveMessage.clear()
+        resolve()
+      } catch (error) {
+        console.log("unsync() error:", error)
+        reject(error)
+      }
+    })
   }
 
-  onLocalDBDeleteMessage(
-    conversationId: string,
-    callback: (message: LocalDBMessage) => void,
-    callbackError: (error: unknown) => void
-  ) {
-    try {
-      this._storage.query(
-        (db: Dexie, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
-          message.hook("deleting", (primaryKey, record) => {
-            const _message = {
-              ...record,
-              content: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(conversationId),
-                record.content
-              ),
-              reactions: record.reactions
-                ? record.reactions.map((reaction) => {
-                    return {
-                      ...reaction,
-                      content: Crypto.decryptStringOrFail(
-                        this.findPrivateKeyById(conversationId),
-                        reaction.content
-                      ),
-                    }
-                  })
-                : null,
-            }
-
-            _message.messageRoot = record.messageRoot
-              ? {
-                  ...record.messageRoot,
-                  content: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(conversationId),
-                    record.messageRoot.content
-                  ),
-                  reactions: record.messageRoot.reactions
-                    ? record.messageRoot.reactions.map((reaction) => {
-                        return {
-                          ...reaction,
-                          content: Crypto.decryptStringOrFail(
-                            this.findPrivateKeyById(conversationId),
-                            reaction.content
-                          ),
-                        }
-                      })
-                    : null,
-                }
-              : null
-
-            callback(_message)
-          })
-        },
-        "message"
-      )
-    } catch (error) {
-      callbackError(error)
-    }
-  }
-
-  onLocalDBUpdateMessage(
-    conversationId: string,
-    callback: (message: LocalDBMessage) => void,
-    callbackError: (error: unknown) => void
-  ) {
-    try {
-      this._storage.query(
-        (db: Dexie, message: Table<LocalDBMessage, string, LocalDBMessage>) => {
-          message.hook("updating", (modifications, primaryKey, record) => {
-            const _message = {
-              ...record,
-              content: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(conversationId),
-                record.content
-              ),
-              reactions: record.reactions
-                ? record.reactions.map((reaction) => {
-                    return {
-                      ...reaction,
-                      content: Crypto.decryptStringOrFail(
-                        this.findPrivateKeyById(conversationId),
-                        reaction.content
-                      ),
-                    }
-                  })
-                : null,
-            }
-
-            _message.messageRoot = record.messageRoot
-              ? {
-                  ...record.messageRoot,
-                  content: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(conversationId),
-                    record.messageRoot.content
-                  ),
-                  reactions: record.messageRoot.reactions
-                    ? record.messageRoot.reactions.map((reaction) => {
-                        return {
-                          ...reaction,
-                          content: Crypto.decryptStringOrFail(
-                            this.findPrivateKeyById(conversationId),
-                            reaction.content
-                          ),
-                        }
-                      })
-                    : null,
-                }
-              : null
-
-            callback(_message)
-          })
-        },
-        "message"
-      )
-    } catch (error) {
-      callbackError(error)
-    }
-  }
-
-  onLocalDBNewConversation(
-    callback: (conversation: LocalDBConversation) => void,
-    callbackError: (error: unknown) => void
-  ) {
-    try {
-      this._storage.query(
-        (
-          db: Dexie,
-          conversation: Table<LocalDBConversation, string, LocalDBConversation>
-        ) => {
-          conversation.hook("creating", (primaryKey, record) => {
-            const _conversation = {
-              ...record,
-              name: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(record.id),
-                record.name
-              ),
-              description: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(record.id),
-                record.description
-              ),
-              imageURL: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(record.id),
-                record.imageURL
-              ),
-              bannerImageURL: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(record.id),
-                record.bannerImageURL
-              ),
-              settings: JSON.parse(
-                Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(record.id),
-                  record.settings
-                )
-              ),
-            }
-
-            callback(_conversation)
-          })
-        },
-        "conversation"
-      )
-    } catch (error) {
-      callbackError(error)
-    }
-  }
-
-  onLocalDBUpdateConversation(
-    callback: (conversation: LocalDBConversation) => void,
-    callbackError: (error: unknown) => void
-  ) {
-    try {
-      this._storage.query(
-        (
-          db: Dexie,
-          conversation: Table<LocalDBConversation, string, LocalDBConversation>
-        ) => {
-          conversation.hook("updating", (modifications, primaryKey, record) => {
-            const _conversation = {
-              ...record,
-              name: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(record.id),
-                record.name
-              ),
-              description: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(record.id),
-                record.description
-              ),
-              imageURL: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(record.id),
-                record.imageURL
-              ),
-              bannerImageURL: Crypto.decryptStringOrFail(
-                this.findPrivateKeyById(record.id),
-                record.bannerImageURL
-              ),
-              settings: JSON.parse(
-                Crypto.decryptStringOrFail(
-                  this.findPrivateKeyById(record.id),
-                  record.settings
-                )
-              ),
-            }
-
-            callback(_conversation)
-          })
-        },
-        "conversation"
-      )
-    } catch (error) {
-      callbackError(error)
-    }
+  /**
+   * Check if the current Chat object is currently syncing with the backend.
+   * @returns {boolean} isSyncing
+   */
+  isSyncing(): boolean {
+    return this._isSyncing
   }
 
   /** read local database */
 
-  fetchLocalDBMessages(
+  async fetchLocalDBMessages(
     conversationId: string,
     page: number,
     numberElements: number
   ): Promise<LocalDBMessage[]> {
-    if (!this._account) throw new Error("Account must be initialized.")
+    if (!Auth.account) throw new Error("Account must be initialized.")
+    if (page < 0 || numberElements <= 0) return []
 
-    return new Promise((resolve, reject) => {
-      try {
-        if (page < 0 || numberElements <= 0) resolve([])
+    const offset = (page - 1) * numberElements
 
-        const offset = (page - 1) * numberElements
-
-        this._storage.query(
-          async (
-            db: Dexie,
-            message: Table<LocalDBMessage, string, LocalDBMessage>
-          ) => {
-            const messages = await message
+    try {
+      const messages: LocalDBMessage[] = []
+      const allMessages = await new Promise<LocalDBMessage[]>(
+        (resolve, reject) => {
+          Serpens.addAction(() =>
+            this._storage.message
               .orderBy("createdAt")
-              .reverse()
               .offset(offset)
               .limit(numberElements)
               .filter(
                 (element) =>
                   element.conversationId === conversationId &&
-                  element.userDid === this._account!.did &&
+                  element.userDid === Auth.account!.did &&
                   typeof element.deletedAt !== "undefined" &&
-                  !!element.deletedAt
+                  !element.deletedAt
               )
               .toArray()
+              .then(resolve)
+              .catch(reject)
+          )
+        }
+      )
 
-            if (!messages) reject([])
+      for (let message of allMessages) {
+        try {
+          const _message = {
+            ...message,
+            content: Crypto.decryptAESorFail(
+              message.content,
+              this.findKeyPairById(conversationId)
+            ),
+            reactions: message.reactions
+              ? message.reactions.map((reaction) => {
+                  return {
+                    ...reaction,
+                    content: Crypto.decryptAESorFail(
+                      reaction.content,
+                      this.findKeyPairById(conversationId)
+                    ),
+                  }
+                })
+              : null,
+            createdAt: new Date(message.createdAt),
+            updatedAt: message.updatedAt ? new Date(message.updatedAt) : null,
+            deletedAt: message.deletedAt ? new Date(message.deletedAt) : null,
+          }
 
-            resolve(
-              messages.map((message) => {
-                const _message = {
-                  ...message,
-                  content: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(conversationId),
-                    message.content
-                  ),
-                  reactions: message.reactions
-                    ? message.reactions.map((reaction) => {
-                        return {
-                          ...reaction,
-                          content: Crypto.decryptStringOrFail(
-                            this.findPrivateKeyById(conversationId),
-                            reaction.content
-                          ),
-                        }
-                      })
-                    : null,
-                }
+          _message.messageRoot = message.messageRoot
+            ? {
+                ...message.messageRoot,
+                content: Crypto.decryptAESorFail(
+                  message.messageRoot.content,
+                  this.findKeyPairById(conversationId)
+                ),
+                reactions: message.messageRoot.reactions
+                  ? message.messageRoot.reactions.map((reaction) => {
+                      return {
+                        ...reaction,
+                        content: Crypto.decryptAESorFail(
+                          reaction.content,
+                          this.findKeyPairById(conversationId)
+                        ),
+                      }
+                    })
+                  : null,
+                createdAt: new Date(message.messageRoot.createdAt),
+                updatedAt: message.messageRoot.updatedAt
+                  ? new Date(message.messageRoot.updatedAt)
+                  : null,
+                deletedAt: message.messageRoot.deletedAt
+                  ? new Date(message.messageRoot.deletedAt)
+                  : null,
+              }
+            : null
 
-                _message.messageRoot = message.messageRoot
-                  ? {
-                      ...message.messageRoot,
-                      content: Crypto.decryptStringOrFail(
-                        this.findPrivateKeyById(conversationId),
-                        message.messageRoot.content
-                      ),
-                      reactions: message.messageRoot.reactions
-                        ? message.messageRoot.reactions.map((reaction) => {
-                            return {
-                              ...reaction,
-                              content: Crypto.decryptStringOrFail(
-                                this.findPrivateKeyById(conversationId),
-                                reaction.content
-                              ),
-                            }
-                          })
-                        : null,
-                    }
-                  : null
-
-                return _message
-              })
-            )
-          },
-          "message"
-        )
-      } catch (error) {
-        console.log("[ERROR]: fetchLocalDBMessages() -> ", error)
-        reject([])
+          messages.push(_message)
+        } catch (error) {
+          console.log(
+            "[ERROR]: fetchLocalDBMessages() item -> ",
+            message,
+            error
+          )
+          continue
+        }
       }
-    })
+
+      return messages
+    } catch (error) {
+      console.log("[ERROR]: fetchLocalDBMessages() -> ", error)
+      return []
+    }
   }
 
-  fetchLocalDBConversations(
+  async fetchLocalDBConversations(
     page: number,
     numberElements: number
   ): Promise<LocalDBConversation[]> {
-    if (!this._account) throw new Error("Account must be initialized.")
+    if (!Auth.account) throw new Error("Account must be initialized.")
+    if (page < 0 || numberElements <= 0) return []
 
-    return new Promise((resolve, reject) => {
-      try {
-        if (page < 0 || numberElements <= 0) resolve([])
+    const offset = (page - 1) * numberElements
+    const conversations: LocalDBConversation[] = []
 
-        const offset = (page - 1) * numberElements
-
-        this._storage.query(
-          async (
-            db: Dexie,
-            conversation: Table<
-              LocalDBConversation,
-              string,
-              LocalDBConversation
-            >
-          ) => {
-            const conversations = await conversation
-              .orderBy("createdAt")
+    try {
+      const allConversations = await new Promise<LocalDBConversation[]>(
+        (resolve, reject) => {
+          Serpens.addAction(() =>
+            this._storage.conversation
+              .orderBy("lastMessageSentAt")
               .reverse()
               .offset(offset)
               .limit(numberElements)
               .filter(
                 (element) =>
-                  element.userDid === this._account!.did &&
+                  element.userDid === Auth.account!.did &&
                   typeof element.deletedAt !== "undefined" &&
-                  !!element.deletedAt
+                  !element.deletedAt
               )
               .toArray()
+              .then(resolve)
+              .catch(reject)
+          )
+        }
+      )
 
-            if (!conversations) reject([])
+      for (let conversation of allConversations) {
+        try {
+          const keyPair = this.findKeyPairById(conversation.id)
+          if (!keyPair) continue
 
-            resolve(
-              conversations.map((conversation) => {
-                return {
-                  ...conversation,
-                  name: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(conversation.id),
-                    conversation.name
-                  ),
-                  description: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(conversation.id),
-                    conversation.description
-                  ),
-                  imageURL: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(conversation.id),
-                    conversation.imageURL
-                  ),
-                  bannerImageURL: Crypto.decryptStringOrFail(
-                    this.findPrivateKeyById(conversation.id),
-                    conversation.bannerImageURL
-                  ),
-                }
-              })
-            )
-          },
-          "conversation"
-        )
-      } catch (error) {
-        console.log("[ERROR]: fetchLocalDBMessages() -> ", error)
-        reject([])
+          conversations.push({
+            ...conversation,
+            name: Crypto.decryptAESorFail(conversation.name, keyPair),
+            description: Crypto.decryptAESorFail(
+              conversation.description,
+              keyPair
+            ),
+            imageURL: Crypto.decryptAESorFail(conversation.imageURL, keyPair),
+            bannerImageURL: Crypto.decryptAESorFail(
+              conversation.bannerImageURL,
+              keyPair
+            ),
+            lastMessageText: conversation.lastMessageText
+              ? Crypto.decryptAESorFail(conversation.lastMessageText, keyPair)
+              : null,
+          })
+        } catch (error) {
+          console.log(
+            "[ERROR]: fetchLocalDBConversations() item -> ",
+            conversation,
+            error
+          )
+          continue
+        }
       }
-    })
+    } catch (error) {
+      console.log("[ERROR]: fetchLocalDBConversations() -> ", error)
+      return []
+    }
+
+    return conversations
   }
 
   async searchTermsOnLocalDB(
-    terms: Array<string>
-  ): Promise<Array<{ conversationId: string; messageId: string }>> {
-    if (!this._account) throw new Error("Account must be initialized.")
-    return new Promise((resolve, reject) => {
-      try {
-        this._storage.query(
-          async (
-            db: Dexie,
-            message: Table<LocalDBMessage, string, LocalDBMessage>
-          ) => {
-            const results = await Dexie.Promise.all(
-              terms.map((prefix) =>
-                message
-                  .where("content")
-                  .startsWith(prefix)
-                  .and((m) => {
-                    return m.userDid === this._account!.did
-                  })
-                  .primaryKeys()
-              )
-            )
+    query: string,
+    options?: Partial<{ conversationId: string }>
+  ): Promise<Array<LocalDBMessage>> {
+    if (!Auth.account) throw new Error("Account must be initialized.")
 
-            // Intersect result set of primary keys
-            const reduced = results.reduce((a, b) => {
-              const set = new Set(b)
-              return a.filter((k) => set.has(k))
-            })
+    try {
+      const searchResult: LocalDBMessage[] = []
 
-            const messages = (
-              await message.where(":id").anyOf(reduced).toArray()
-            ).map((message) => {
-              return {
-                messageId: message.id,
-                conversationId: message.conversationId,
+      await this._storage.message
+        .filter((message) => {
+          const isInConversation = options?.conversationId
+            ? message.conversationId === options.conversationId
+            : true
+          const isFromUser = message.origin === "USER"
+          const isTextual = message.type === "TEXTUAL"
+          const isNotDeleted = !!!message.deletedAt
+
+          return isInConversation && isFromUser && isTextual && isNotDeleted
+        })
+        .each((message) => {
+          const conversaitionKeyPair = this.findKeyPairById(
+            message.conversationId
+          )
+          if (!conversaitionKeyPair) return
+
+          const decryptedMessage = {
+            ...message,
+            content: Crypto.decryptAESorFail(
+              message.content,
+              conversaitionKeyPair
+            ),
+            reactions: message.reactions
+              ? message.reactions.map((reaction) => ({
+                  ...reaction,
+                  content: Crypto.decryptAESorFail(
+                    reaction.content,
+                    conversaitionKeyPair
+                  ),
+                }))
+              : null,
+            createdAt: new Date(message.createdAt),
+            updatedAt: message.updatedAt ? new Date(message.updatedAt) : null,
+            deletedAt: message.deletedAt ? new Date(message.deletedAt) : null,
+          }
+
+          if (!decryptedMessage.content.includes(query)) return
+
+          decryptedMessage.messageRoot = message.messageRoot
+            ? {
+                ...message.messageRoot,
+                content: Crypto.decryptAESorFail(
+                  message.messageRoot.content,
+                  conversaitionKeyPair
+                ),
+                reactions: message.messageRoot.reactions
+                  ? message.messageRoot.reactions.map((reaction) => ({
+                      ...reaction,
+                      content: Crypto.decryptAESorFail(
+                        reaction.content,
+                        conversaitionKeyPair
+                      ),
+                    }))
+                  : null,
+                createdAt: new Date(message.messageRoot.createdAt),
+                updatedAt: message.messageRoot.updatedAt
+                  ? new Date(message.messageRoot.updatedAt)
+                  : null,
+                deletedAt: message.messageRoot.deletedAt
+                  ? new Date(message.messageRoot.deletedAt)
+                  : null,
               }
-            })
+            : null
 
-            resolve(messages)
-          },
-          "message"
-        )
-      } catch (error) {
-        reject(error)
-      }
-    })
+          searchResult.push(decryptedMessage)
+        })
+
+      return searchResult
+    } catch (e) {
+      throw e
+    }
   }
 
   /** delete operations local database */
 
-  softDeleteConversationOnLocalDB(conversationId: string): Promise<void> {
-    if (!this._account) throw new Error("Account must be initialized.")
-    return new Promise((resolve, reject) => {
-      try {
-        this._storage.query(
-          async (
-            db: Dexie,
-            table: Table<LocalDBConversation, string, LocalDBConversation>
-          ) => {
-            await table
-              .where("[id+userDid]")
-              .equals([conversationId, this._account!.did])
-              .modify((conversation: LocalDBConversation) => {
-                conversation.deletedAt = new Date()
-              })
-          },
-          "conversation"
-        )
+  async softDeleteConversationOnLocalDB(conversationId: string): Promise<void> {
+    if (!Auth.account) throw new Error("Account must be initialized.")
 
-        resolve()
-      } catch (error) {
-        reject(error)
-      }
-    })
+    try {
+      await new Promise((resolve, reject) => {
+        Serpens.addAction(() =>
+          this._storage.conversation
+            .where("[id+userDid]")
+            .equals([conversationId, Auth.account!.did])
+            .modify((conversation: LocalDBConversation) => {
+              conversation.deletedAt = new Date()
+            })
+            .then(resolve)
+            .catch(reject)
+        )
+      })
+    } catch (error) {
+      throw error
+    }
   }
 
   async truncateTableOnLocalDB(tableName: "message" | "user" | "conversation") {
-    if (!this._account) throw new Error("Account must be initialized.")
+    if (!Auth.account) throw new Error("Account must be initialized.")
 
     await this._storage.truncate(tableName)
   }
 
   /** update operations local database */
 
-  readMessage(conversationId: string): Promise<void> {
-    if (!this._account) throw new Error("Account must be initialized.")
+  async readMessage(conversationId: string): Promise<void> {
+    if (!Auth.account) throw new Error("Account must be initialized.")
 
-    return new Promise((resolve, reject) => {
-      try {
-        this._storage.query(
-          async (
-            db: Dexie,
-            table: Table<LocalDBConversation, string, LocalDBConversation>
-          ) => {
-            await table
-              .where("[id+userDid]")
-              .equals([conversationId, this._account!.did])
-              .modify((conversation: LocalDBConversation) => {
-                conversation.lastMessageRead = new Date()
-              })
-          },
-          "conversation"
+    try {
+      await new Promise((resolve, reject) => {
+        Serpens.addAction(() =>
+          this._storage.conversation
+            .where("[id+userDid]")
+            .equals([conversationId, Auth.account!.did])
+            .modify((conversation: LocalDBConversation) => {
+              conversation.lastMessageRead = new Date()
+            })
+            .then(resolve)
+            .catch(reject)
         )
-
-        resolve()
-      } catch (error) {
-        reject(error)
-      }
-    })
+      })
+    } catch (error) {
+      throw error
+    }
   }
 
   /** transfer keys logic */
@@ -6813,50 +10028,74 @@ export class Chat
       throw new Error(
         "Pairing is possible only if the user has generated a personal keys pair."
       )
-    if (!this._authToken) throw new Error("JWT is not setup correctly.")
-    if (!this._apiKey) throw new Error("API key is not setup correctly.")
 
-    const mnemonic = bip39.generateMnemonic()
+    //WARNING!
+    //old code was the following:
+    /**
+     *
+     * const mnemonic = bip39.generateMnemonic()
+     * const seed = bip39.mnemonicToSeedSync(mnemonic)
+     * const hex = seed.toString("hex")
+     *
+     * bip39 was imported with another npm package and not @scure/bip39
+     * so, the convertion in hex is not supported directly because seed now is an UInt8Array instead to be a Buffer
+     * we need to verify if adding the buffer convertion has the same effect.
+     *
+     */
+
+    const mnemonic = bip39.generateMnemonic(wordlist)
     const seed = bip39.mnemonicToSeedSync(mnemonic)
-    const hex = seed.toString("hex")
+    const buffer = Buffer.from(seed)
+    const hex = buffer.toString("hex")
 
     try {
-      const { response } = await this._fetch<ApiResponse<{ status: number }>>(
-        `${this.backendUrl()}/pair/device/init`,
-        {
-          method: "POST",
-          body: {
-            pairingIdentity: hex,
-          },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        }
-      )
-
+      const { response } = await this._clientEngine.fetch<
+        ApiResponse<{ status: number }>
+      >(this._clientEngine.backendUrl("/pair/device/init"), {
+        method: "POST",
+        body: {
+          pairingIdentity: hex,
+        },
+      })
       if (!response || !response.data) throw new Error("Response is invalid.")
-    } catch (error) {
-      console.log(error)
+
+      return mnemonic
+    } catch (error: any) {
+      console.error(error)
+
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
       return null
     }
-
-    return mnemonic
   }
 
   //this action is performed by device B
   async startPairing(mnemonic: string): Promise<Maybe<{ status: number }>> {
-    if (!this._authToken) throw new Error("JWT is not setup correctly.")
-    if (!this._apiKey) throw new Error("API key is not setup correctly.")
-
     try {
       const keyPair = await Crypto.generateKeys("STANDARD")
 
       if (!keyPair)
         throw new Error("It was not possible to generate a valid key pair.")
 
+      //WARNING!
+      //old code was the following:
+      /**
+       *
+       * const mnemonic = bip39.generateMnemonic()
+       * const seed = bip39.mnemonicToSeedSync(mnemonic)
+       * const hex = seed.toString("hex")
+       *
+       * bip39 was imported with another npm package and not @scure/bip39
+       * so, the convertion in hex is not supported directly because seed now is an UInt8Array instead to be a Buffer
+       * we need to verify if adding the buffer convertion has the same effect.
+       *
+       */
+
       const seed = bip39.mnemonicToSeedSync(mnemonic)
-      const hex = seed.toString("hex")
+      const buffer = Buffer.from(seed)
+      const hex = buffer.toString("hex")
       const _md = md.sha256.create()
 
       _md.update(hex)
@@ -6868,248 +10107,253 @@ export class Chat
         mgf1: mgf.mgf1.create(_md),
       }
 
-      const { response } = await this._fetch<ApiResponse<{ status: number }>>(
-        `${this.backendUrl()}/pair/device/knowledge`,
-        {
-          method: "POST",
-          body: {
-            pairingIdentity: hex,
-            publicKey: Crypto.convertRSAPublicKeyToPem(
-              this._keyPairingObject.publicKey!
-            ),
-          },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        }
-      )
+      const { response } = await this._clientEngine.fetch<
+        ApiResponse<{ status: number }>
+      >(this._clientEngine.backendUrl("/pair/device/knowledge"), {
+        method: "POST",
+        body: {
+          pairingIdentity: hex,
+          publicKey: Crypto.convertRSAPublicKeyToPem(
+            this._keyPairingObject.publicKey!
+          ),
+        },
+      })
 
       if (!response || !response.data) throw new Error("Response is invalid.")
 
       return response.data[0]
-    } catch (error) {
-      console.log(error)
+    } catch (error: any) {
+      console.error(error)
+
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
       return null
     }
   }
 
   //this is called by device A
-  async transferKeysWhenReady(mnemonic: string): Promise<{ status: number }> {
+  async transferKeysWhenReady(mnemonic: string) {
     if (!this._userKeyPair)
       throw new Error(
         "Pairing is possible only if the user has generated a personal keys pair."
       )
-    if (!this._authToken) throw new Error("JWT is not setup correctly.")
-    if (!this._apiKey) throw new Error("API key is not setup correctly.")
 
-    return new Promise(async (resolve, reject) => {
-      try {
-        console.log("trying to transfer keys...")
+    try {
+      console.log("trying to transfer keys...")
 
-        const seed = bip39.mnemonicToSeedSync(mnemonic)
-        const hex = seed.toString("hex")
+      //WARNING!
+      //old code was the following:
+      /**
+       *
+       * const seed = bip39.mnemonicToSeedSync(mnemonic)
+       * const hex = seed.toString("hex")
+       *
+       * bip39 was imported with another npm package and not @scure/bip39
+       * so, the convertion in hex is not supported directly because seed now is an UInt8Array instead to be a Buffer
+       * we need to verify if adding the buffer convertion has the same effect.
+       *
+       */
 
-        const { response } = await this._fetch<
-          ApiResponse<{ status: number; publicKey: string }>
-        >(`${this.backendUrl()}/pair/device/check`, {
+      const seed = bip39.mnemonicToSeedSync(mnemonic)
+      const buffer = Buffer.from(seed)
+      const hex = buffer.toString("hex")
+
+      const { response } = await this._clientEngine.fetch<
+        ApiResponse<{ status: number; publicKey: string }>
+      >(this._clientEngine.backendUrl("/pair/device/check"), {
+        method: "POST",
+        body: {
+          pairingIdentity: hex,
+        },
+      })
+
+      if (!response || !response.data) throw new Error("Response is invalid.")
+
+      const status = response.data[0].status
+      const publicKeyPem = response.data[0].publicKey
+
+      if (status === 1) setTimeout(this.transferKeysWhenReady.bind(this), 2000)
+      else {
+        //let's encrypt the personal key pair of the current user
+        const personalPublicKey = this._userKeyPair!.publicKey
+        const personalPrivateKey = this._userKeyPair!.privateKey
+        const publicKey = pki.publicKeyFromPem(publicKeyPem)
+        const personalPublicKeyPem =
+          Crypto.convertRSAPublicKeyToPem(personalPublicKey)
+        const personalPrivateKeyPem =
+          Crypto.convertRSAPrivateKeyToPem(personalPrivateKey)
+        const _md = md.sha256.create()
+        _md.update(hex)
+        const mgf1 = mgf.mgf1.create(_md)
+
+        const encryptedPublicKey = publicKey.encrypt(
+          personalPublicKeyPem,
+          "RSA-OAEP",
+          {
+            md: _md,
+            mgf1,
+          }
+        )
+        const encryptedPrivateKey = publicKey.encrypt(
+          personalPrivateKeyPem,
+          "RSA-OAEP",
+          {
+            md: _md,
+            mgf1,
+          }
+        )
+
+        const encryptedPublicKeyBase64 = Crypto.toBase64(encryptedPublicKey)
+        const encryptedPrivateKeyBase64 = Crypto.toBase64(encryptedPrivateKey)
+
+        const { response } = await this._clientEngine.fetch<
+          ApiResponse<{ status: number }>
+        >(this._clientEngine.backendUrl("/pair/device/transfer/keys"), {
           method: "POST",
           body: {
             pairingIdentity: hex,
-          },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
+            encryptedPublicKey: encryptedPublicKeyBase64,
+            encryptedPrivateKey: encryptedPrivateKeyBase64,
           },
         })
 
-        if (!response || !response.data) {
-          reject("Response is invalid.")
-          return
-        }
+        if (!response || !response.data) throw new Error("Response is invalid.")
 
-        const status = response.data[0].status
-        const publicKeyPem = response.data[0].publicKey
-
-        if (status === 1) setTimeout(this.transferKeysWhenReady, 2000)
-        else {
-          //let's encrypt the personal key pair of the current user
-          const personalPublicKey = this._userKeyPair!.publicKey
-          const personalPrivateKey = this._userKeyPair!.privateKey
-          const publicKey = pki.publicKeyFromPem(publicKeyPem)
-          const personalPublicKeyPem =
-            Crypto.convertRSAPublicKeyToPem(personalPublicKey)
-          const personalPrivateKeyPem =
-            Crypto.convertRSAPrivateKeyToPem(personalPrivateKey)
-          const _md = md.sha256.create()
-          _md.update(hex)
-          const mgf1 = mgf.mgf1.create(_md)
-
-          const encryptedPublicKey = publicKey.encrypt(
-            personalPublicKeyPem,
-            "RSA-OAEP",
-            {
-              md: _md,
-              mgf1,
-            }
-          )
-          const encryptedPrivateKey = publicKey.encrypt(
-            personalPrivateKeyPem,
-            "RSA-OAEP",
-            {
-              md: _md,
-              mgf1,
-            }
-          )
-
-          const encryptedPublicKeyBase64 = Crypto.toBase64(encryptedPublicKey)
-          const encryptedPrivateKeyBase64 = Crypto.toBase64(encryptedPrivateKey)
-
-          const { response } = await this._fetch<
-            ApiResponse<{ status: number }>
-          >(`${this.backendUrl()}/pair/device/transfer/keys`, {
-            method: "POST",
-            body: {
-              pairingIdentity: hex,
-              encryptedPublicKey: encryptedPublicKeyBase64,
-              encryptedPrivateKey: encryptedPrivateKeyBase64,
-            },
-            headers: {
-              "x-api-key": `${this._apiKey}`,
-              Authorization: `Bearer ${this._authToken}`,
-            },
-          })
-
-          if (!response || !response.data) {
-            reject("Response is invalid.")
-            return
-          }
-
-          resolve(response.data[0])
-        }
-      } catch (error) {
-        console.log(error)
-        reject(error)
+        return response.data[0]
       }
-    })
+    } catch (error: any) {
+      console.error(error)
+
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      throw error
+    }
   }
 
   //called by device B
-  async downloadKeysWhenReady(mnemonic: string): Promise<pki.rsa.KeyPair> {
-    if (!this._account)
+  async downloadKeysWhenReady(mnemonic: string) {
+    if (!Auth.account)
       throw new Error(
         "Account is not setup correctly. Authenticate to the platform first."
       )
-    if (!this._authToken) throw new Error("JWT is not setup correctly.")
-    if (!this._apiKey) throw new Error("API key is not setup correctly.")
 
-    return new Promise(async (resolve, reject) => {
-      try {
-        console.log("trying to download keys...")
+    try {
+      console.log("trying to download keys...")
 
-        const seed = bip39.mnemonicToSeedSync(mnemonic)
-        const hex = seed.toString("hex")
+      //WARNING!
+      //old code was the following:
+      /**
+       *
+       * const seed = bip39.mnemonicToSeedSync(mnemonic)
+       * const hex = seed.toString("hex")
+       *
+       * bip39 was imported with another npm package and not @scure/bip39
+       * so, the convertion in hex is not supported directly because seed now is an UInt8Array instead to be a Buffer
+       * we need to verify if adding the buffer convertion has the same effect.
+       *
+       */
 
-        const { response } = await this._fetch<
-          ApiResponse<{
-            status: number
-            encryptedPrivateKey?: string
-            encryptedPublicKey?: string
-          }>
-        >(`${this.backendUrl()}/pair/device/download/keys`, {
-          method: "POST",
-          body: {
-            pairingIdentity: hex,
-          },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        })
+      const seed = bip39.mnemonicToSeedSync(mnemonic)
+      const buffer = Buffer.from(seed)
+      const hex = buffer.toString("hex")
 
-        if (!response || !response.data) {
-          reject("Response is invalid.")
-          return
-        }
+      const { response } = await this._clientEngine.fetch<
+        ApiResponse<{
+          status: number
+          encryptedPrivateKey?: string
+          encryptedPublicKey?: string
+        }>
+      >(this._clientEngine.backendUrl("/pair/device/download/keys"), {
+        method: "POST",
+        body: {
+          pairingIdentity: hex,
+        },
+      })
 
-        const status = response.data[0].status
-        const encryptedPrivateKey = response.data[0].encryptedPrivateKey
-        const encryptedPublicKey = response.data[0].encryptedPublicKey
+      if (!response || !response.data) throw new Error("Response is invalid.")
 
-        if (status === 3) setTimeout(this.downloadKeysWhenReady, 2000)
-        else {
-          //let's decrypt the personal key pair for the current user
-          const personalEncryptedPublicKeyBase64 = encryptedPublicKey!
-          const personalEncryptedPrivateKeyBase64 = encryptedPrivateKey!
-          const personalEncryptedPublicKey = Crypto.fromBase64(
-            personalEncryptedPublicKeyBase64
+      const status = response.data[0].status
+      const encryptedPrivateKey = response.data[0].encryptedPrivateKey
+      const encryptedPublicKey = response.data[0].encryptedPublicKey
+
+      if (status === 3) setTimeout(this.downloadKeysWhenReady.bind(this), 2000)
+      else {
+        //let's decrypt the personal key pair for the current user
+        const personalEncryptedPublicKeyBase64 = encryptedPublicKey!
+        const personalEncryptedPrivateKeyBase64 = encryptedPrivateKey!
+        const personalEncryptedPublicKey = Crypto.fromBase64(
+          personalEncryptedPublicKeyBase64
+        )
+        const personalEncryptedPrivateKey = Crypto.fromBase64(
+          personalEncryptedPrivateKeyBase64
+        )
+        const personalPublicKeyPem =
+          this._keyPairingObject!.privateKey!.decrypt(
+            personalEncryptedPublicKey,
+            "RSA-OAEP",
+            {
+              md: this._keyPairingObject!.md,
+              mgf1: this._keyPairingObject!.mgf1,
+            }
           )
-          const personalEncryptedPrivateKey = Crypto.fromBase64(
-            personalEncryptedPrivateKeyBase64
-          )
-          const personalPublicKeyPem =
-            this._keyPairingObject!.privateKey!.decrypt(
-              personalEncryptedPublicKey,
-              "RSA-OAEP",
-              {
-                md: this._keyPairingObject!.md,
-                mgf1: this._keyPairingObject!.mgf1,
-              }
-            )
-          const personalPrivateKeyPem =
-            this._keyPairingObject!.privateKey!.decrypt(
-              personalEncryptedPrivateKey,
-              "RSA-OAEP",
-              {
-                md: this._keyPairingObject!.md,
-                mgf1: this._keyPairingObject!.mgf1,
-              }
-            )
-
-          this._userKeyPair = await Crypto.generateKeyPairFromPem(
-            personalPublicKeyPem,
-            personalPrivateKeyPem
-          )
-
-          if (!this._userKeyPair) {
-            reject("Key pair generated is not valid.")
-            return
-          }
-
-          //let's update the current user on our local database
-          const privateKeyForLocalDB = Crypto.encryptAES_CBC(
-            personalPrivateKeyPem,
-            Buffer.from(this._account!.e2eSecret, "hex").toString("base64"),
-            Buffer.from(this._account!.e2eSecretIV, "hex").toString("base64")
-          )
-
-          await this._storage.transaction(
-            "rw",
-            this._storage.user,
-            async () => {
-              let user = await this._storage.get(
-                "user",
-                "[did+organizationId]",
-                [this._account!.did, this._account!.organizationId]
-              )
-
-              await this._storage.user.update(user, {
-                e2eEncryptedPrivateKey: privateKeyForLocalDB,
-                e2ePublicKey: personalPublicKeyPem,
-              })
-
-              return true
+        const personalPrivateKeyPem =
+          this._keyPairingObject!.privateKey!.decrypt(
+            personalEncryptedPrivateKey,
+            "RSA-OAEP",
+            {
+              md: this._keyPairingObject!.md,
+              mgf1: this._keyPairingObject!.mgf1,
             }
           )
 
-          this._canChat = true
-          resolve(this._userKeyPair)
-        }
-      } catch (error) {
-        console.log(error)
-        reject(error)
+        this._userKeyPair = await Crypto.generateKeyPairFromPem(
+          personalPublicKeyPem,
+          personalPrivateKeyPem
+        )
+
+        if (!this._userKeyPair)
+          throw new Error("Key pair generated is not valid.")
+
+        //let's update the current user on our local database
+        const privateKeyForLocalDB = Crypto.encryptAES_CBC(
+          personalPrivateKeyPem,
+          Buffer.from(Auth.account!.e2eSecret, "hex").toString("base64"),
+          Buffer.from(Auth.account!.e2eSecretIV, "hex").toString("base64")
+        )
+
+        let user = await this._storage.get("user", "[did+organizationId]", [
+          Auth.account!.did,
+          Auth.account!.organizationId,
+        ])
+
+        await new Promise((resolve, reject) => {
+          Serpens.addAction(() => {
+            this._storage.user
+              .update(user, {
+                e2eEncryptedPrivateKey: privateKeyForLocalDB,
+                e2ePublicKey: personalPublicKeyPem,
+              })
+              .then(resolve)
+              .catch(reject)
+          })
+        })
+
+        this._canChat = true
+        return this._userKeyPair
       }
-    })
+    } catch (error: any) {
+      console.error(error)
+
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      throw error
+    }
   }
 
   /** handling of "ability to chat" based on _canChat, a property that becomes false if the system notices the current user has done another signin in another device */
@@ -7140,7 +10384,7 @@ export class Chat
       throw new Error(
         "This client chat cannot combine messages. Are you missing to pairing the keys?"
       )
-    if (!this._account) throw new Error("Account is not setup correctly.")
+    if (!Auth.account) throw new Error("Account is not setup correctly.")
     if (messageInitializator.type !== "TRADE_PROPOSAL")
       throw new Error("messageInitializator is not of type `TRADE_PROPOSAL`.")
     if (messageCounterparty.type !== "TRADE_PROPOSAL")
@@ -7151,7 +10395,7 @@ export class Chat
       throw new Error("Messages must be of the same conversation.")
     if (
       [messageCounterparty.userId, messageInitializator.userId].indexOf(
-        this._account.dynamoDBUserID
+        Auth.account.dynamoDBUserID
       ) === -1
     )
       throw new Error(
@@ -7215,8 +10459,8 @@ export class Chat
         counterpartyDid: "",
         creatorAddress: "",
         counterpartyAddress: "",
-        organizationId: this._account.organizationId,
-        networkId: this._account.getCurrentNetwork(false),
+        organizationId: Auth.account.organizationId,
+        networkId: Auth.account.getCurrentNetwork(false),
         participantOneId: initializator.id,
         participantTwoId: counterparty.id,
         participantOneAddress: initializator.address,
@@ -7255,7 +10499,7 @@ export class Chat
       throw new Error(
         "This client chat cannot perform order. Are you missing to pairing the keys?"
       )
-    if (!this._account) throw new Error("Account is not setup correctly.")
+    if (!Auth.account) throw new Error("Account is not setup correctly.")
     if (!orderRef.isInitialized())
       throw new Error(
         "Order referece must be initialized in order to use this method."
@@ -7295,7 +10539,7 @@ export class Chat
         let counterpartyDid
 
         //in this way we understand who is the creator and who is the counterparty
-        if (this._account.dynamoDBUserID === operation.participantOneId) {
+        if (Auth.account.dynamoDBUserID === operation.participantOneId) {
           participantOne = {
             assets: assetsParticipantOne,
             address: operation.participantOneAddress,

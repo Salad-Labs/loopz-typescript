@@ -1,5 +1,5 @@
 import { Client } from "@urql/core"
-import { Maybe } from "../../../../types/base"
+import UUIDSubscriptionClient from "../../../../core/chat/uuidsubscriptionclient"
 
 /**
  * Represents the initialization configuration for a conversation member.
@@ -23,13 +23,13 @@ export type ConversationMemberInitConfig = {
    */
   type: "USER" | "ADMINISTRATOR"
   /**
-   * @property {string} encryptedConversationPublicKey - The public key used for encryption in the conversation.
+   * @property {string} encryptedConversationAESKey - The AES key used for encryption in the conversation.
    */
-  encryptedConversationPublicKey: string
+  encryptedConversationAESKey: string
   /**
-   * @property {string} encryptedConversationPrivateKey - The private key used for encryption in the conversation.
+   * @property {string} encryptedConversationIVKey - The IV key used for encryption in the conversation.
    */
-  encryptedConversationPrivateKey: string
+  encryptedConversationIVKey: string
   /**
    * @property {Date} createdAt - The optional creation date of the client.
    */
@@ -42,4 +42,8 @@ export type ConversationMemberInitConfig = {
    * @property {Client} client - The client object.
    */
   client: Client
+  /**
+   * @property {UUIDSubscriptionClient} realtimeClient - The real time client associated with the entry.
+   */
+  realtimeClient: UUIDSubscriptionClient
 }

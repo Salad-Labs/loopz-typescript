@@ -1,11 +1,9 @@
+import { Network } from "../../base"
+
 /**
  * Represents the parameters for searching collections.
  */
-type GetCollectionsArgs = {
-  /**
-   * @property {string} userAddress - The address of the user performing the search.
-   */
-  userDid: string
+type ListCollectionsArgs = {
   /**
    * @property {"NFT" | "TKN" | "ALL"} searchType - The type of search to perform ("NFT", "TKN", or "ALL").
    */
@@ -21,11 +19,11 @@ type GetCollectionsArgs = {
   /**
    * @property {string} [networkId] - Optional network ID for the search.
    */
-  networkId?: string
+  networkId?: Network
   /**
    * @property {string} [queryString] - Optional query string for additional search parameters.
    */
   queryString?: string
 }
 
-export { GetCollectionsArgs }
+export { ListCollectionsArgs }

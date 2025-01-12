@@ -1,4 +1,4 @@
-import { IOrder } from "@src/index"
+import { IOrder } from "../../index"
 
 /**
  * Represents the response object for the global orders list.
@@ -8,9 +8,9 @@ export interface OrderListResponse {
   /**
    * @property {Array<IOrder>} orderList - An array of IOrder objects representing the orders.
    */
-  orderList: Array<IOrder>
+  orders: Array<IOrder>
   /**
    * @property {number} count - The total count of orders in the list.
    */
-  count: number
+  total: number
 }

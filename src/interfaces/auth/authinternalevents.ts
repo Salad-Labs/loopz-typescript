@@ -1,6 +1,6 @@
-import { AuthEvents } from "@src/types"
+import { AuthEvents } from "../../types"
 
 export interface AuthInternalEvents {
   on(eventName: AuthEvents, callback: Function): void
-  _emit(eventName: AuthEvents, params?: any): void
+  off(eventName: AuthEvents, callback?: Function): void
 }

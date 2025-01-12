@@ -1,4 +1,4 @@
-import { ApiKeyAuthorized, Maybe } from "./types/base"
+import { Maybe } from "./types/base"
 import {
   IProposal,
   ListProposalsFilters,
@@ -11,13 +11,19 @@ import { PROPOSAL_STATUS } from "./constants/proposal/proposalstatus"
 import { PROPOSAL_TYPE } from "./constants/proposal/proposaltype"
 import { Client } from "./core/client"
 import { ApiResponse } from "./types/base/apiresponse"
+import { Auth } from "."
 
 /**
  * Represents a class for interacting with proposals through HTTP requests.
  * @class Proposal
  * @extends Client
  */
-export class Proposal extends Client {
+export class Proposal {
+  private static _config: Maybe<{ devMode: boolean }> = null
+
+  private static _instance: Maybe<Proposal> = null
+  private static _client: Maybe<Client>
+
   /**
    * Get the PROPOSAL_STATUS constant object.
    * @returns {ProposalStatus} The constant object PROPOSAL_STATUS.
@@ -34,22 +40,24 @@ export class Proposal extends Client {
     return { ...PROPOSAL_TYPE }
   }
 
-  /**
-   * Returns the message that needs to be signed, which is used by nfttrader.io for verification.
-   * @returns {string} The message to sign powered by nfttrader.io
-   */
-  static get _MESSAGE_TO_SIGN(): string {
-    return `This is the message to sign powered by nfttrader.io`
+  /** static methods */
+
+  static config(config: { devMode: boolean }) {
+    if (!!Proposal._config) throw new Error("Proposal already configured")
+
+    Proposal._config = config
   }
 
-  /**
-   * Constructor for creating an instance of a class that requires an API key for authorization.
-   * @param {ApiKeyAuthorized} config - The configuration object containing the API key.
-   * @returns None
-   */
-  constructor(config: ApiKeyAuthorized) {
-    super(config.devMode)
-    this._apiKey = config.apiKey
+  static getInstance() {
+    return Proposal._instance ?? new Proposal()
+  }
+
+  private constructor() {
+    if (!!!Proposal._config)
+      throw new Error("Proposal must be configured before getting the instance")
+
+    Proposal._client = new Client(Proposal._config.devMode)
+    Proposal._instance = this
   }
 
   /**
@@ -59,28 +67,32 @@ export class Proposal extends Client {
    * @throws {Error} If signedMessage is required but not provided.
    */
   private async _createProposal(proposal: CreateProposal): Promise<boolean> {
+    if (!!!Proposal._config || !!!Proposal._instance || !!!Proposal._client)
+      throw new Error("Proposal has not been configured")
+
     try {
-      const { response, statusCode } = await this._fetch<ApiResponse<boolean>>(
-        `${this.backendUrl()}/proposal/insert`,
-        {
-          method: "POST",
-          body: proposal,
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        }
-      )
+      const { response, statusCode } = await Proposal._client.fetch<
+        ApiResponse<boolean>
+      >(Proposal._client.backendUrl("/proposal/insert"), {
+        method: "POST",
+        body: proposal,
+      })
 
       if (statusCode !== 200 || !response || !response.data) return false
 
       return true
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return false
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return false
+    }
   }
+
+  /** public instance methods */
 
   /**
    * Retrieves a proposal instance with the given ID and optional creator address.
@@ -90,17 +102,13 @@ export class Proposal extends Client {
    * @throws {Error} If the "id" parameter is invalid or if an error occurs during the retrieval process.
    */
   async get(id: string, did?: string): Promise<Maybe<IProposal>> {
+    if (!!!Proposal._config || !!!Proposal._instance || !!!Proposal._client)
+      throw new Error("Proposal has not been configured")
     if (!id) throw new Error('Invalid parameter "id".')
 
     try {
-      const { response } = await this._fetch<ApiResponse<IProposal>>(
-        `${this.backendUrl()}/proposal/${id}` + `${did ? `/${did}` : ``}`,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-          },
-        }
+      const { response } = await Proposal._client.fetch<ApiResponse<IProposal>>(
+        Proposal._client.backendUrl(`/proposal/${id}${did ? `/${did}` : ``}`)
       )
 
       if (!response || !response.data) return null
@@ -108,11 +116,15 @@ export class Proposal extends Client {
       const { data } = response
 
       return data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -131,9 +143,12 @@ export class Proposal extends Client {
     take?: number,
     did?: string
   ): Promise<Maybe<ListProposalsResponse>> {
+    if (!!!Proposal._config || !!!Proposal._instance || !!!Proposal._client)
+      throw new Error("Proposal has not been configured")
+
     const filtersInput = filtersOptions ? { ...filtersOptions } : null
 
-    let filters = null
+    let filters: any = null
     if (filtersInput) {
       try {
         validateListProposalsFilters(filtersInput)
@@ -182,18 +197,15 @@ export class Proposal extends Client {
     }
 
     try {
-      const { response } = await this._fetch<
+      const { response } = await Proposal._client.fetch<
         ApiResponse<ListProposalsResponse>
       >(
-        `${this.backendUrl()}/proposals/${skipUrl}/${takeUrl}${
-          did ? `/${did}` : ``
-        }`,
+        Proposal._client.backendUrl(
+          `/proposals/${skipUrl}/${takeUrl}${did ? `/${did}` : ``}`
+        ),
         {
           method: "POST",
           body,
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-          },
         }
       )
 
@@ -202,11 +214,15 @@ export class Proposal extends Client {
       const { data } = response
 
       return data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -226,19 +242,25 @@ export class Proposal extends Client {
    * @throws {Error} If the signedMessage is required but not provided.
    */
   async delete(id: string, creatorAddress: string): Promise<void> {
+    if (!!!Proposal._config || !!!Proposal._instance || !!!Proposal._client)
+      throw new Error("Proposal has not been configured")
+
     try {
-      await this._fetch(`${this.backendUrl()}/proposal/${id}/delete`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${this._authToken}`,
-          "x-api-key": `${this._apiKey}`,
-        },
-        body: {
-          creatorAddress,
-        },
-      })
-    } catch (error) {
+      await Proposal._client.fetch(
+        Proposal._client.backendUrl(`/proposal/${id}/delete`),
+        {
+          method: "DELETE",
+          body: {
+            creatorAddress,
+          },
+        }
+      )
+    } catch (error: any) {
       console.warn(error)
+
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
     }
   }
 }

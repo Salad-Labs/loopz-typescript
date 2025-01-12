@@ -1,7 +1,9 @@
 import { Client } from "@urql/core"
 import { Maybe } from "../../../../types/base"
-import { Reaction } from "@src/core/chat/reaction"
-import { Message } from "@src/core"
+import { Reaction } from "../../../../core/chat/reaction"
+import { Message } from "../../../../core"
+import UUIDSubscriptionClient from "../../../../core/chat/uuidsubscriptionclient"
+import { Chat } from "../../../../"
 
 /**
  * Represents the configuration for initializing a message.
@@ -41,6 +43,23 @@ export type MessageInitConfig = {
    */
   type: Maybe<"TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT">
   /**
+   * @property {id: string; username: string} user - The user, author of the message
+   */
+  user: {
+    id: string
+    username: string
+    avatarURL: string
+    imageSettings: Maybe<{
+      imageX: number
+      imageY: number
+      imageZoom: number
+    }>
+  }
+  /**
+   * @property {number} order - The order of the message.
+   */
+  order: number
+  /**
    * @property {Date} createdAt - the creation date of the message.
    */
   createdAt: Date
@@ -56,4 +75,12 @@ export type MessageInitConfig = {
    * @property {Client} client - Represents a client object.
    */
   client: Client
+  /**
+   * @property {UUIDSubscriptionClient} realtimeClient - The real time client associated with the entry.
+   */
+  realtimeClient: UUIDSubscriptionClient
+  /**
+   * @property {Chat} chatParent -The chat parent object that has generated this object.
+   */
+  chatParent: Chat
 }

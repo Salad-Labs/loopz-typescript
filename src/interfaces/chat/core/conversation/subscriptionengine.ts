@@ -9,8 +9,6 @@ import { SubscriptionGarbage } from "../../../../types/chat/subscriptiongarbage"
 import {
   Conversation as ConversationGraphQL,
   ListConversationMembers as ListConversationMembersGraphQL,
-  SubscriptionOnAddMembersToConversationArgs,
-  SubscriptionOnAddMemberToConversationArgs,
   SubscriptionOnAddPinConversationArgs,
   SubscriptionOnEjectMemberArgs,
   SubscriptionOnLeaveConversationArgs,
@@ -18,7 +16,6 @@ import {
   SubscriptionOnRemovePinConversationArgs,
   SubscriptionOnUnmuteConversationArgs,
   SubscriptionOnUpdateConversationGroupArgs,
-  AddMemberToConversationResult as AddMemberToConversationResultGraphQL,
   MemberOutResult as MemberOutResultGraphQL,
 } from "../../../../graphql/generated/graphql"
 
@@ -36,7 +33,8 @@ export interface ConversationSubscriptionEngine {
         SubscriptionOnUpdateConversationGroupArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onEjectMember(
     conversationId: string,
@@ -53,7 +51,8 @@ export interface ConversationSubscriptionEngine {
         SubscriptionOnEjectMemberArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onLeaveConversation(
     conversationId: string,
@@ -70,7 +69,8 @@ export interface ConversationSubscriptionEngine {
         SubscriptionOnLeaveConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onMuteConversation(
     conversationId: string,
@@ -81,7 +81,8 @@ export interface ConversationSubscriptionEngine {
         SubscriptionOnMuteConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onUnmuteConversation(
     conversationId: string,
@@ -92,7 +93,8 @@ export interface ConversationSubscriptionEngine {
         SubscriptionOnUnmuteConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onAddPinConversation(
     conversationId: string,
@@ -103,7 +105,8 @@ export interface ConversationSubscriptionEngine {
         SubscriptionOnAddPinConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onRemovePinConversation(
     conversationId: string,
@@ -114,36 +117,24 @@ export interface ConversationSubscriptionEngine {
         SubscriptionOnRemovePinConversationArgs & { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onAddMembersToConversation(
-    conversationId: string,
-    callback: (
-      response:
-        | QIError
-        | { conversationId: string; items: Array<ConversationMember> },
-      source: OperationResult<
-        { onAddMembersToConversation: ListConversationMembersGraphQL },
-        SubscriptionOnAddMembersToConversationArgs & { jwt: string }
-      >,
-      uuid: string
-    ) => void
-  ): QIError | SubscriptionGarbage
-  onAddMemberToConversation(
-    conversationId: string,
     callback: (
       response:
         | QIError
         | {
             conversationId: string
-            memberId: string
-            item: ConversationMember
+            items: Array<ConversationMember>
+            membersIds: Array<string>
           },
       source: OperationResult<
-        { onAddMemberToConversation: AddMemberToConversationResultGraphQL },
-        SubscriptionOnAddMemberToConversationArgs & { jwt: string }
+        { onAddMembersToConversation: ListConversationMembersGraphQL },
+        { jwt: string }
       >,
       uuid: string
-    ) => void
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
 }

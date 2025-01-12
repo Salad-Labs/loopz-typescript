@@ -1,6 +1,7 @@
 import { Client } from "@urql/core"
 import { Maybe } from "../../../../types/base"
 import { User } from "../../../../core/chat"
+import UUIDSubscriptionClient from "../../../../core/chat/uuidsubscriptionclient"
 
 /**
  * Represents the initial configuration for a Blacklist User Entry.
@@ -31,4 +32,8 @@ export type BlacklistUserEntryInitConfig = {
    * @property {Client} client - The client associated with the entry.
    */
   client: Client
+  /**
+   * @property {UUIDSubscriptionClient} realtimeClient - The real time client associated with the entry.
+   */
+  realtimeClient: UUIDSubscriptionClient
 }

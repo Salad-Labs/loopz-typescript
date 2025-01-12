@@ -1,6 +1,10 @@
 import { ConnectedWallet } from "@privy-io/react-auth"
-import { AddGroupFrom, ReceiveMessageFrom, UserOnlineStatus } from "@src/enums"
-import { Maybe, Network } from "@src/types"
+import {
+  AddGroupFrom,
+  ReceiveMessageFrom,
+  UserOnlineStatus,
+} from "../../../enums"
+import { Maybe, Network } from "../../../types"
 
 export interface AccountEngine {
   destroyLastUserLoggedKey(): void
@@ -17,6 +21,7 @@ export interface AccountEngine {
     avatarUrl,
     bio,
     pfp: { networkId, collectionAddress, tokenId },
+    imageSettings: { imageX, imageY, imageZoom },
   }: {
     username: string
     avatarUrl: URL
@@ -26,6 +31,7 @@ export interface AccountEngine {
       collectionAddress: string
       tokenId: string
     }
+    imageSettings: { imageX: number; imageY: number; imageZoom: number }
   }): Promise<void>
   updateSettings(
     setting:

@@ -1,4 +1,4 @@
-import { NotificationActionType } from "@src/enums/notification"
+import { NotificationActionType } from "../../enums/notification"
 
 export type NotificationOperation = {
   type: NotificationActionType

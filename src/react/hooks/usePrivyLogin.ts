@@ -1,10 +1,11 @@
 import { useLogin, usePrivy } from "@privy-io/react-auth"
-import { Auth } from "@src/auth"
+import { Auth } from "../../auth"
 import { useEffect, useRef } from "react"
 import { useFundWallet } from "@privy-io/react-auth"
 import { Chain } from "viem"
 
-export const usePrivyLogin = (auth: Auth) => {
+export const usePrivyLogin = () => {
+  const auth = Auth.getInstance()
   const initialized = useRef<boolean>(false)
   const { ready, authenticated, getAccessToken } = usePrivy()
   const disableLogin = !ready || (ready && authenticated)
@@ -45,7 +46,7 @@ export const usePrivyLogin = (auth: Auth) => {
         loginMethod === "telegram"
       )
         //these services brings the user out of the current web page, so we should listen this event when the Auth object boots
-        auth._emit("__onOAuthAuthenticatedDesktop", {
+        Auth._emit("__onOAuthAuthenticatedDesktop", {
           user,
           isNewUser,
           wasAlreadyAuthenticated,
@@ -54,7 +55,7 @@ export const usePrivyLogin = (auth: Auth) => {
           authToken,
         })
       else
-        auth._emit("__onLoginComplete", {
+        Auth._emit("__onLoginComplete", {
           user,
           isNewUser,
           wasAlreadyAuthenticated,
@@ -64,7 +65,7 @@ export const usePrivyLogin = (auth: Auth) => {
         })
     },
     onError: (error) => {
-      auth._emit("__onLoginError", error)
+      Auth._emit("__onLoginError", error)
     },
   })
 
@@ -77,7 +78,7 @@ export const usePrivyLogin = (auth: Auth) => {
       auth.on("__authenticate", () => {
         login()
       })
-      auth._emit("__onPrivyReady")
+      Auth._emit("__onPrivyReady")
     }
 
     //account is setup when the client did the login or after the refresh of the page it has rebuilt the account
@@ -87,20 +88,24 @@ export const usePrivyLogin = (auth: Auth) => {
         "__onAccountReady",
         () => {
           console.log("emitting auth...")
-          auth._emit("auth")
+          Auth._emit("auth")
         },
         true
       )
 
-      auth._emit("__tryRebuildAccountOnRefresh")
+      Auth._emit("__tryRebuildAccountOnRefresh")
     } else if (!authenticated && ready) {
-      //to prevent loop
-      ;(async () => {
-        if (auth.isAuthenticated()) {
-          console.log("client logout...")
-          await auth.logout()
-        }
-      })()
+      auth.logout()
+      /**
+       * //to prevent loop
+          (async () => {
+            if (auth.isAuthenticated()) {
+              console.log("client logout...");
+              await auth.logout();
+            }
+          })();
+       * 
+       */
     } else if (!ready) {
       console.log("client is not ready at all!")
     }

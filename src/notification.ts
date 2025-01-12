@@ -1,35 +1,66 @@
-import { Client } from "./core"
-import { ApiKeyAuthorized, Maybe } from "./types"
+import { Auth } from "."
+import { Client } from "./core/client"
+import { Maybe } from "./types"
 import { NotificationMessage } from "./types/notification"
 import { v4 as uuid } from "uuid"
 
-export class Notification extends Client {
+export class Notification {
+  private static _config: Maybe<{ devMode: boolean }> = null
+
+  private static _instance: Maybe<Notification> = null
+  private static _client: Maybe<Client> = null
+
   private _socket: Maybe<WebSocket> = null
+
   private _socketInitialized: boolean = false
+
   private _onOpenConnectionFunctions: Array<{
     key: string
     fn: (this: WebSocket, ev: Event) => any
   }> = []
+
   private _onCloseConnectionFunctions: Array<{
     key: string
     fn: (this: WebSocket, ev: CloseEvent) => any
   }> = []
+
   private _onMessageFunctions: Array<{
     key: string
     fn: (message: NotificationMessage) => any
   }> = []
 
-  constructor(config: ApiKeyAuthorized) {
-    super(config.devMode)
+  private constructor() {
+    if (!!!Notification._config)
+      throw new Error(
+        "Notification must be configured before getting the instance"
+      )
+
+    Notification._client = new Client(Notification._config.devMode)
+    Notification._instance = this
   }
 
+  /** static methods */
+
+  static config(config: { devMode: boolean }) {
+    if (!!Notification._config)
+      throw new Error("Notification already configured")
+
+    Notification._config = config
+  }
+
+  static getInstance() {
+    return Notification._instance ?? new Notification()
+  }
+
+  /** public instance methods */
+
   init() {
-    if (!this._authToken) return
+    if (!Auth.authToken || !Notification._client) return
     try {
       this._socket = new WebSocket(
-        `${this.backendNotificationUrl()}?jwt=${
-          this._authToken
-        }&organizationId=${this._apiKey}`
+        Notification._client.backendNotificationUrl(
+          `?jwt=${Auth.authToken}&organizationId=${Auth.apiKey}`
+        )
       )
       this._socketInitialized = true
     } catch (error) {

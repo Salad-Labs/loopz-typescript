@@ -43,3 +43,4 @@ export type AuthEvents =
   | "onLinkError"
   | "auth"
   | "onAuthError"
+  | "logout"

@@ -1,12 +1,11 @@
 import React from "react"
-import { Maybe } from "@src/types"
-import { PrivyAdapterOptions } from "@src/types/adapter"
+import { Maybe } from "../types"
+import { PrivyAdapterOptions } from "../types/adapter"
 import { createRoot, Root } from "react-dom/client"
 import { v4 as uuid } from "uuid"
 import { PrivyClientConfig } from "@privy-io/react-auth"
-import { Auth } from "@src/auth"
-import { Order } from "@src/order"
-import { PrivyContext } from "../react/components"
+import { Auth, Order } from ".."
+import { PrivyContext } from "../react/components/privycontext"
 
 export class PrivyAdapter {
   private _container: Maybe<HTMLElement> = null
@@ -29,10 +28,13 @@ export class PrivyAdapter {
     this._privyConfig = privyAdapterOptions.options!
   }
 
-  render(auth: Auth, order: Order) {
+  render() {
     if (!this._root) throw new Error("Root object must be initializated.")
     if (!this._privyConfig)
       throw new Error("Privy configuration must be setup.")
+
+    const auth = Auth.getInstance()
+    const order = Order.getInstance()
 
     this._root.render(
       <PrivyContext

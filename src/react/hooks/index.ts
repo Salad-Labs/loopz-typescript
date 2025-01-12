@@ -1,5 +1,3 @@
 export * from "./useLoopz"
-export * from "./usePrivyLinkAccount"
-export * from "./usePrivyLogin"
-export * from "./usePrivyLogout"
-export * from "./usePrivyUnlinkAccount"
+export * from "./useLoopzAuth"
+export * from "./useLoopzChat"

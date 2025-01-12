@@ -1,4 +1,4 @@
-import { Asset } from "@src/types/base"
+import { Asset } from "../../../../types/base"
 import { MessageType } from "../../../../enums/chat/messagetype"
 
 /**
@@ -18,4 +18,6 @@ export type SendMessageArgs = {
    * @property {MessageType} type - The type of message being sent.
    */
   type: MessageType
+
+  messageRootId?: string
 }

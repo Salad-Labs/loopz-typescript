@@ -2,7 +2,7 @@ import { Network } from "../../base"
 /**
  * Defines the parameters required to search for an NFT.
  */
-type GetNFTArgs = {
+type GetCollectibleMetadataArgs = {
   /**
    * @property {Network} networkId - The network ID on which the NFT exists.
    */
@@ -21,4 +21,4 @@ type GetNFTArgs = {
   address?: string
 }
 
-export { GetNFTArgs }
+export { GetCollectibleMetadataArgs }

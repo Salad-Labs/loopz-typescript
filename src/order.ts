@@ -3,7 +3,7 @@ import { ItemType } from "@opensea/seaport-js/lib/constants"
 import { CreateOrderInput } from "@opensea/seaport-js/lib/types"
 import { TOKEN_CONSTANTS } from "./constants/base/tokenconstants"
 import { Client } from "./core/client"
-import { ApiKeyAuthorized, Asset, Maybe, Network } from "./types/base"
+import { Asset, Maybe, Network } from "./types/base"
 import {
   SeaportFee,
   MultiSigWallet,
@@ -12,13 +12,13 @@ import {
   OrderConfig,
   PartialOrder,
   OrderListResponse,
+  OrderEvents,
 } from "./types/order"
 import { ApiResponse } from "./types/base/apiresponse"
-import { Account } from "./core"
 import { ethers } from "ethers"
 import { Web3Provider } from "@ethersproject/providers"
 import { ConnectedWallet } from "@privy-io/react-auth"
-import { IOrder } from "."
+import { Auth, IOrder } from "."
 
 /**
  * Order class that handles interactions with the OpenSea trading platform.
@@ -26,7 +26,11 @@ import { IOrder } from "."
  * @extends Client
  */
 
-export class Order extends Client {
+export class Order {
+  private static _config: Maybe<{ devMode: boolean }>
+  private static _instance: Maybe<Order>
+  private static _client: Maybe<Client>
+
   /**
    * @property {Maybe<ethers.providers.Web3Provider | ethers.providers.JsonRpcProvider>} _provider - The provider instance.
    */
@@ -45,35 +49,35 @@ export class Order extends Client {
   private _MIN_BLOCKS_REQUIRED: number = 3
 
   private _eventsCallbacks: Array<{
-    eventName:
-      | "__onAccountReady"
-      | "ready"
-      | "onFinalizeError"
-      | "onFulfillOrder"
-      | "onExecuteAllActions"
-      | "onExecuteAllActionsError"
-      | "onFulfillOrderError"
-      | "onCancelOrders"
-      | "onCancelOrdersMined"
-      | "onCancelOrdersError"
+    eventName: OrderEvents
     callbacks: Array<Function>
   }> = []
 
   private _initialized: boolean = false
 
-  /**
-   * Constructor for a class that requires an API key and optionally a number of blocks for confirmation.
-   * @param {object} config - Configuration object containing API key and optional blocks number confirmation.
-   * @param {string} config.apiKey - The API key for authorization.
-   * @param {number} [config.blocksNumberConfirmationRequired] - The number of blocks required for confirmation.
-   * @throws {Error} Throws an error if blocksNumberConfirmationRequired is less than 1 or if apiKey is missing or invalid.
-   */
-  constructor(config: ApiKeyAuthorized) {
-    super(config.devMode)
+  private constructor() {
+    if (!!!Order._config)
+      throw new Error("Order must be configured before getting the instance")
+
+    Order._client = new Client(Order._config.devMode)
 
     this._blocksNumberConfirmationRequired = this._MIN_BLOCKS_REQUIRED
-    this._apiKey = config.apiKey
+    Order._instance = this
   }
+
+  /** static methods */
+
+  static config(config: { devMode: boolean }) {
+    if (!!Order._config) throw new Error("Order already configured")
+
+    Order._config = config
+  }
+
+  static getInstance() {
+    return Order._instance ?? new Order()
+  }
+
+  /** private instance methods */
 
   /**
    * Asynchronously fetches the platform Gnosis multisig wallet from the backend API.
@@ -81,20 +85,17 @@ export class Order extends Client {
    * or null if there was an error or no data was returned in the response.
    */
   private async _getGnosis(): Promise<Maybe<MultiSigWallet>> {
-    if (!this._account) return null
+    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+      throw new Error("Order has not been configured")
+    if (!!!Auth.account) return null
 
     try {
-      const { response } = await this._fetch<ApiResponse<MultiSigWallet>>(
-        `${this.backendUrl()}/wallet/multisig/${this._account.getCurrentNetwork(
-          false
-        )}`,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        }
+      const { response } = await Order._client.fetch<
+        ApiResponse<MultiSigWallet>
+      >(
+        Order._client.backendUrl(
+          `/wallet/multisig/${Auth.account.getCurrentNetwork(false)}`
+        )
       )
 
       if (!response) return null
@@ -102,8 +103,12 @@ export class Order extends Client {
       const { data } = response
 
       return data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
+
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
     }
 
     return null
@@ -114,20 +119,15 @@ export class Order extends Client {
    * @returns A Promise that resolves to a Maybe<Fee> object.
    */
   private async _getMasterFee(): Promise<Maybe<Fee>> {
-    if (!this._account) return null
+    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+      throw new Error("Order has not been configured")
+    if (!Auth.account) return null
 
     try {
-      const { response } = await this._fetch<ApiResponse<Fee>>(
-        `${this.backendUrl()}/fee/platform/${this._account.getCurrentNetwork(
-          false
-        )}`,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        }
+      const { response } = await Order._client.fetch<ApiResponse<Fee>>(
+        Order._client.backendUrl(
+          `/fee/platform/${Auth.account.getCurrentNetwork(false)}`
+        )
       )
 
       if (!response) return null
@@ -135,11 +135,15 @@ export class Order extends Client {
       const { data } = response
 
       return data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -306,13 +310,15 @@ export class Order extends Client {
     return orderInit
   }
 
+  /** public instance methods */
+
   isInitialized(): boolean {
     return this._initialized === true
   }
 
   async init(wallet: ConnectedWallet) {
     try {
-      if (!this._account) throw new Error("Account is not initialized.")
+      if (!Auth.account) throw new Error("Account is not initialized.")
 
       this._provider = await wallet.getEthersProvider()
       this._seaport = new Seaport(this._provider, { seaportVersion: "1.5" })
@@ -329,20 +335,7 @@ export class Order extends Client {
    * @param {any} [params] - The parameters to pass to the event callbacks.
    * @returns None
    */
-  _emit(
-    event:
-      | "__onAccountReady"
-      | "ready"
-      | "onFinalizeError"
-      | "onFulfillOrder"
-      | "onExecuteAllActions"
-      | "onExecuteAllActionsError"
-      | "onFulfillOrderError"
-      | "onCancelOrders"
-      | "onCancelOrdersMined"
-      | "onCancelOrdersError",
-    params?: any
-  ) {
+  _emit(event: OrderEvents, params?: any) {
     const item = this._eventsCallbacks.find((item) => {
       return item.eventName === event
     })
@@ -350,21 +343,7 @@ export class Order extends Client {
     if (item) for (const cb of item.callbacks) cb(params as any)
   }
 
-  on(
-    eventName:
-      | "__onAccountReady"
-      | "ready"
-      | "onFinalizeError"
-      | "onFulfillOrder"
-      | "onExecuteAllActions"
-      | "onExecuteAllActionsError"
-      | "onFulfillOrderError"
-      | "onCancelOrders"
-      | "onCancelOrdersMined"
-      | "onCancelOrdersError",
-    callback: Function,
-    onlyOnce?: boolean
-  ) {
+  on(eventName: OrderEvents, callback: Function, onlyOnce?: boolean) {
     const index = this._eventsCallbacks.findIndex((item) => {
       return item.eventName === eventName
     })
@@ -382,11 +361,11 @@ export class Order extends Client {
 
   /**
    * Unsubscribes a callback function from a specific event.
-   * @param {"__onAccountReady" | "onFinalizeError"} eventName - The name of the event to unsubscribe from.
+   * @param {"onFinalizeError"} eventName - The name of the event to unsubscribe from.
    * @returns None
    * @throws {Error} If the event is not supported or the callback is not a function.
    */
-  off(eventName: "__onAccountReady" | "onFinalizeError") {
+  off(eventName: OrderEvents) {
     const item = this._eventsCallbacks.find((eventItem) => {
       return eventItem.eventName === eventName
     })
@@ -425,8 +404,11 @@ export class Order extends Client {
     fees: Array<SeaportFee> = [],
     proposalId?: string
   ): Promise<Maybe<OrderCreated>> {
+    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+      throw new Error("Order has not been configured")
+
     try {
-      if (!this._account) throw new Error("An account must be initialized.")
+      if (!Auth.account) throw new Error("An account must be initialized.")
       if (!this._provider || !this._seaport)
         throw new Error("init() must be called to initialize the client.")
       if (end < 0) throw new Error("end cannot be lower than zero.")
@@ -509,26 +491,21 @@ export class Order extends Client {
       const order = await executeAllActions()
       const orderHash = this._seaport.getOrderHash(order.parameters)
 
-      const { response } = await this._fetch<ApiResponse<{ orderId: number }>>(
-        `${this.backendUrl()}/order/create`,
-        {
-          method: "POST",
-          body: {
-            network: `${this._account.getCurrentNetwork(false)}`,
-            orderInit,
-            order: {
-              orderHash,
-              orderType: order.parameters.orderType,
-              ...order,
-            },
-            proposalId,
+      const { response } = await Order._client.fetch<
+        ApiResponse<{ orderId: number }>
+      >(Order._client.backendUrl("/order/create"), {
+        method: "POST",
+        body: {
+          network: Auth.account.getCurrentNetwork(false),
+          orderInit,
+          order: {
+            orderHash,
+            orderType: order.parameters.orderType,
+            ...order,
           },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        }
-      )
+          proposalId,
+        },
+      })
 
       if (!response || !response.data)
         throw new Error(
@@ -538,8 +515,13 @@ export class Order extends Client {
       const { orderId } = response.data[0]
 
       return { hash: orderHash, orderId, ...order }
-    } catch (error) {
-      console.log(error)
+    } catch (error: any) {
+      console.warn(error)
+
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
       return null
     }
   }
@@ -550,22 +532,18 @@ export class Order extends Client {
    * @returns None
    */
   async finalize(orderId: string) {
+    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+      throw new Error("Order has not been configured")
+
     try {
-      if (!this._account) throw new Error("Account must be initialized.")
+      if (!Auth.account) throw new Error("Account must be initialized.")
       if (!this._seaport)
         throw new Error("init() must be called to initialize the client.")
 
-      const { response } = await this._fetch<ApiResponse<IOrder>>(
-        `${this.backendUrl()}/order/${this._account.getCurrentNetwork(
-          false
-        )}/${orderId}`,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        }
+      const { response } = await Order._client.fetch<ApiResponse<IOrder>>(
+        Order._client.backendUrl(
+          `/order/${Auth.account.getCurrentNetwork(false)}/${orderId}`
+        )
       )
 
       if (!response || !response.data) throw new Error("response data is empty")
@@ -624,22 +602,18 @@ export class Order extends Client {
     gasLimit: number = 2000000,
     gasPrice: Maybe<string> = null
   ) {
+    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+      throw new Error("Order has not been configured")
+
     try {
-      if (!this._account) throw new Error("network must be defined.")
+      if (!Auth.account) throw new Error("network must be defined.")
       if (!this._seaport)
         throw new Error("init() must be called to initialize the client.")
 
-      const { response } = await this._fetch<ApiResponse<IOrder>>(
-        `${this.backendUrl()}/order/${this._account.getCurrentNetwork(
-          false
-        )}/${orderId}`,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        }
+      const { response } = await Order._client.fetch<ApiResponse<IOrder>>(
+        Order._client.backendUrl(
+          `/order/${Auth.account.getCurrentNetwork(false)}/${orderId}`
+        )
       )
 
       if (!response || !response.data) throw new Error("response data is empty")
@@ -662,10 +636,14 @@ export class Order extends Client {
       )
 
       this._emit("onCancelOrdersMined", { receipt })
-    } catch (error) {
+    } catch (error: any) {
       this._emit("onCancelOrdersError", {
         error,
       })
+
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
     }
   }
 
@@ -676,16 +654,12 @@ export class Order extends Client {
    * @returns {Promise<Maybe<OrderDetail>>} A Promise that resolves to the order detail information, or null if an error occurs.
    */
   async get(networkId: string, id: string): Promise<Maybe<IOrder>> {
+    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+      throw new Error("Order has not been configured")
+
     try {
-      const { response } = await this._fetch<ApiResponse<IOrder>>(
-        `${this.backendUrl()}/order/${networkId}/${id}`,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
-        }
+      const { response } = await Order._client.fetch<ApiResponse<IOrder>>(
+        Order._client.backendUrl(`/order/${networkId}/${id}`)
       )
 
       if (!response) return null
@@ -693,11 +667,15 @@ export class Order extends Client {
       const { data } = response
 
       return data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -715,7 +693,7 @@ export class Order extends Client {
    * @param {string} order.direction - The direction of ordering, either "ASC" for ascending or "DESC" for descending.
    * @param {string} order.field - The field to order results by.
    */
-  async getOrders({
+  async listOrders({
     networkId,
     status,
     skip,
@@ -739,14 +717,17 @@ export class Order extends Client {
       field: string
     }
   }): Promise<Maybe<OrderListResponse>> {
+    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+      throw new Error("Order has not been configured")
+
     try {
-      const { response } = await this._fetch<ApiResponse<OrderListResponse>>(
-        `${this.backendUrl()}/order/get/all/${networkId}/${status}/${skip}/${take}`,
+      const { response } = await Order._client.fetch<
+        ApiResponse<OrderListResponse>
+      >(
+        Order._client.backendUrl(
+          `/order/get/all/${networkId}/${status}/${skip}/${take}`
+        ),
         {
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
           method: "POST",
           body: {
             collections: typeof collections !== "undefined" ? collections : [],
@@ -763,11 +744,15 @@ export class Order extends Client {
       const { data } = response
 
       return data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -786,7 +771,7 @@ export class Order extends Client {
    * @param {string} order.direction - The direction of ordering, either "ASC" for ascending or "DESC" for descending.
    * @param {string} order.field - The field to order results by.
    */
-  async getUserOrders({
+  async listUserOrders({
     networkId,
     did,
     status,
@@ -812,18 +797,19 @@ export class Order extends Client {
       field: string
     }
   }): Promise<Maybe<OrderListResponse>> {
+    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+      throw new Error("Order has not been configured")
+
     try {
-      const { response } = await this._fetch<ApiResponse<OrderListResponse>>(
-        `${this.backendUrl()}/order/user/all/${networkId}/${did}/${status}/${skip}/${take}${
-          typeof searchAddress !== "undefined" && searchAddress !== null
-            ? `/${searchAddress}`
-            : ""
-        }`,
+      const { response } = await Order._client.fetch<
+        ApiResponse<OrderListResponse>
+      >(
+        Order._client.backendUrl(
+          `/order/user/all/${networkId}/${did}/${status}/${skip}/${take}${
+            !!searchAddress ? `/${searchAddress}` : ""
+          }`
+        ),
         {
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this._authToken}`,
-          },
           method: "POST",
           body: {
             collections: typeof collections !== "undefined" ? collections : [],
@@ -839,11 +825,15 @@ export class Order extends Client {
       const { data } = response
 
       return data[0]
-    } catch (error) {
+    } catch (error: any) {
       console.warn(error)
-    }
 
-    return null
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return null
+    }
   }
 
   /**
@@ -854,10 +844,5 @@ export class Order extends Client {
   config(config: OrderConfig) {
     if (config.minBlocksRequired)
       this._MIN_BLOCKS_REQUIRED = config.minBlocksRequired
-  }
-
-  setCurrentAccount(account: Account): void {
-    super.setCurrentAccount(account)
-    this._emit("__onAccountReady", account)
   }
 }

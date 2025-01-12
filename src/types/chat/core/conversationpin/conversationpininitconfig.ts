@@ -1,5 +1,6 @@
 import { Client } from "@urql/core"
 import { Conversation } from "../../../../core/chat"
+import UUIDSubscriptionClient from "../../../../core/chat/uuidsubscriptionclient"
 
 /**
  * Interface for Conversation Pin Initialization Configuration.
@@ -34,4 +35,8 @@ export type ConversationPinInitConfig = {
    * @property {Client} client - The client associated with the conversation pin.
    */
   client: Client
+  /**
+   * @property {UUIDSubscriptionClient} realtimeClient - The real time client associated with the entry.
+   */
+  realtimeClient: UUIDSubscriptionClient
 }

@@ -1,6 +1,7 @@
-import { Reaction } from "@src/core/chat/reaction"
+import { Reaction } from "../../../core/chat/reaction"
 import { Maybe } from "../../../types/base"
-import { Message } from "@src/core"
+import { Message } from "../../../core"
+import { Chat } from "../../../"
 
 /**
  * Represents the schema for a message in a conversation.
@@ -40,6 +41,23 @@ export interface MessageSchema {
    */
   type: Maybe<"TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT">
   /**
+   * @property {id: string; username: string} user - The user, author of the message
+   */
+  user: {
+    id: string
+    username: string
+    avatarURL: string
+    imageSettings: Maybe<{
+      imageX: number
+      imageY: number
+      imageZoom: number
+    }>
+  }
+  /**
+   * @property {number} order - The order of the message.
+   */
+  order: number
+  /**
    * @property {Date} createdAt - Represents a timestamp for when an entity was created.
    */
   createdAt: Date
@@ -51,4 +69,8 @@ export interface MessageSchema {
    * @property {Date} deletedAt - Represents a timestamp for when an entity was deleted.
    */
   deletedAt: Maybe<Date>
+  /**
+   * @property {Chat} chatParent -The chat parent object that has generated this object.
+   */
+  readonly chatParent: Chat
 }

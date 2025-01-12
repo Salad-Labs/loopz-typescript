@@ -67,7 +67,6 @@ export class ConversationTradingPool
    */
   constructor(config: ConversationTradingPoolInitConfig & EngineInitConfig) {
     super({
-      apiKey: config.apiKey,
       storage: config.storage,
       devMode: config.devMode,
     })
@@ -82,6 +81,8 @@ export class ConversationTradingPool
     this.type = config.type
     this.updatedAt = config.updatedAt
     this.userId = config.userId
+
     this._client = config.client
+    this._realtimeClient = config.realtimeClient
   }
 }

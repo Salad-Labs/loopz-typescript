@@ -7,15 +7,12 @@
     "sourceMap": true,
     "strict": true,
     "alwaysStrict": true,
-    "noImplicitAny": true,
+    "noImplicitAny": false,
     "strictPropertyInitialization": true,
     "noImplicitThis": true,
     "allowUnreachableCode": true,
     "moduleResolution": "node",
     "baseUrl": ".",
-    "paths": {
-      "@src/*": ["src/*"]
-    },
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "jsx": "react",

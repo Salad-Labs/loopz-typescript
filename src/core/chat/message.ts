@@ -42,6 +42,7 @@ import { Reaction } from "./reaction"
 import { User } from "./user"
 import { Crypto } from "./crypto"
 import { Converter } from "../utilities"
+import { Auth, Chat } from "../.."
 
 /**
  * Represents a Message object that can be used to interact with messages in a chat application.
@@ -87,6 +88,23 @@ export class Message
    */
   readonly type: Maybe<"TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT">
   /**
+   * @property {id: string; username: string; avatarURL: string; imageSettings: Maybe<string>} user - The user, author of the message
+   */
+  readonly user: {
+    id: string
+    username: string
+    avatarURL: string
+    imageSettings: Maybe<{
+      imageX: number
+      imageY: number
+      imageZoom: number
+    }>
+  }
+  /**
+   * @property {Maybe<number>} order - The order of the message.
+   */
+  readonly order: number
+  /**
    * @property {Date} createdAt - The creation date
    */
   readonly createdAt: Date
@@ -98,6 +116,10 @@ export class Message
    * @property {Date} createdAt - The deletion's date of the message
    */
   readonly deletedAt: Maybe<Date>
+  /**
+   * @property {Chat} chatParent -The chat parent object that has generated this object.
+   */
+  readonly chatParent: Chat
 
   /**
    * Constructor for creating a new message instance with the provided configuration.
@@ -106,7 +128,6 @@ export class Message
    */
   constructor(config: MessageInitConfig & EngineInitConfig) {
     super({
-      apiKey: config.apiKey,
       storage: config.storage,
       devMode: config.devMode,
     })
@@ -119,10 +140,15 @@ export class Message
     this.messageRoot = config.messageRoot
     this.messageRootId = config.messageRootId
     this.type = config.type
+    this.user = config.user
+    this.order = config.order
     this.createdAt = config.createdAt
     this.updatedAt = config.updatedAt
     this.deletedAt = config.deletedAt
+
     this._client = config.client
+    this._realtimeClient = config.realtimeClient
+    this.chatParent = config.chatParent
   }
 
   /**
@@ -130,9 +156,17 @@ export class Message
    * If id is provided, it throws an error.
    * @returns {Promise<Message | QIError>} A promise that resolves to the pinned message or an error.
    */
-  async pinMessage(): Promise<Message | QIError>
-  async pinMessage(id: string): Promise<Message | QIError>
-  async pinMessage(id?: unknown): Promise<Message | QIError> {
+  async pinMessage(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Message | QIError>
+  async pinMessage(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Message | QIError>
+  async pinMessage(
+    id?: unknown,
+    overrideHandlingUnauthorizedQIError?: unknown
+  ): Promise<Message | QIError> {
     if (id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use pinMessage() instead."
@@ -146,7 +180,14 @@ export class Message
       messageId: this.id,
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -161,6 +202,7 @@ export class Message
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -179,6 +221,7 @@ export class Message
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -192,6 +235,19 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
+            },
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -200,6 +256,8 @@ export class Message
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this.chatParent,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -210,10 +268,21 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
+      },
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
   }
 
@@ -223,7 +292,8 @@ export class Message
    * @returns {Promise<Message | QIError>} A promise that resolves to a Message object if successful, or a QIError object if there was an error.
    */
   async addReactionToMessage(
-    args: Pick<AddReactionToMessageArgs, "reaction" | "conversationId">
+    args: Pick<AddReactionToMessageArgs, "reaction" | "conversationId">,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError> {
     const response = await this._mutation<
       MutationAddReactionToMessageArgs,
@@ -236,16 +306,23 @@ export class Message
       {
         input: {
           messageId: this.id,
-          reactionContent: Crypto.encryptStringOrFail(
-            this.findPublicKeyById(args.conversationId),
-            args.reaction
+          reactionContent: Crypto.encryptAESorFail(
+            args.reaction,
+            this.chatParent.findKeyPairById(args.conversationId)
           ),
           conversationId: args.conversationId,
         },
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -260,6 +337,7 @@ export class Message
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -278,6 +356,7 @@ export class Message
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -291,6 +370,19 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
+            },
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -299,6 +391,8 @@ export class Message
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this.chatParent,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -309,10 +403,21 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
+      },
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
   }
 
@@ -322,7 +427,8 @@ export class Message
    * @returns {Promise<QIError | MessageReport>} A promise that resolves to a QIError if an error occurs, or a MessageReport object if successful.
    */
   async addReportToMessage(
-    args: Pick<AddReportToMessageArgs, "description">
+    args: Pick<AddReportToMessageArgs, "description">,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | MessageReport> {
     const response = await this._mutation<
       MutationAddReportToMessageArgs,
@@ -340,7 +446,14 @@ export class Message
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new MessageReport({
       ...this._parentConfig!,
@@ -350,6 +463,7 @@ export class Message
       createdAt: response.createdAt,
       updatedAt: response.updatedAt,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
@@ -359,7 +473,8 @@ export class Message
    * @returns {Promise<Message | QIError>} - A promise that resolves to the edited message or an error.
    */
   async editMessage(
-    args: Pick<EditMessageArgs, "content" | "conversationId">
+    args: Pick<EditMessageArgs, "content" | "conversationId">,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError> {
     const response = await this._mutation<
       MutationEditMessageArgs,
@@ -368,15 +483,22 @@ export class Message
     >("editMessage", editMessage, "_mutation() -> editMessage()", {
       input: {
         messageId: this.id,
-        content: Crypto.encryptStringOrFail(
-          this.findPublicKeyById(args.conversationId),
-          args.content
+        content: Crypto.encryptAESorFail(
+          args.content,
+          this.chatParent.findKeyPairById(args.conversationId)
         ),
         conversationId: args.conversationId,
       },
     })
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -391,6 +513,7 @@ export class Message
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -409,6 +532,7 @@ export class Message
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -422,6 +546,19 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
+            },
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -430,6 +567,8 @@ export class Message
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this.chatParent,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -440,10 +579,21 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
+      },
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
   }
 
@@ -452,9 +602,17 @@ export class Message
    * If id is provided, it throws an error.
    * @returns {Promise<Message | QIError>} A promise that resolves to the unpinned message or an error.
    */
-  async unpinMessage(): Promise<Message | QIError>
-  async unpinMessage(id: string): Promise<Message | QIError>
-  async unpinMessage(id?: unknown): Promise<Message | QIError> {
+  async unpinMessage(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Message | QIError>
+  async unpinMessage(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Message | QIError>
+  async unpinMessage(
+    id?: unknown,
+    overrideHandlingUnauthorizedQIError?: unknown
+  ): Promise<Message | QIError> {
     if (id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unpinMessage() instead."
@@ -473,7 +631,14 @@ export class Message
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -488,6 +653,7 @@ export class Message
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -506,10 +672,23 @@ export class Message
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
             userId: response.messageRoot.userId,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.user!.imageSettings
+                ? JSON.parse(response.user!.imageSettings)
+                : null,
+            },
             messageRoot: null,
             messageRootId: null,
             type: response.messageRoot.type
@@ -519,6 +698,7 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -527,6 +707,8 @@ export class Message
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this.chatParent,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -537,10 +719,21 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
+      },
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
   }
 
@@ -550,7 +743,8 @@ export class Message
    * @returns {Promise<Message | QIError>} A promise that resolves with the updated message after removing the reaction, or a QIError if an error occurs.
    */
   async removeReactionFromMessage(
-    args: Pick<RemoveReactionFromMessageArgs, "reaction" | "conversationId">
+    args: Pick<RemoveReactionFromMessageArgs, "reaction" | "conversationId">,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Message | QIError> {
     const response = await this._mutation<
       MutationRemoveReactionFromMessageArgs,
@@ -562,9 +756,9 @@ export class Message
       "_mutation() -> removeReactionFromMessage()",
       {
         input: {
-          reactionContent: Crypto.encryptStringOrFail(
-            this.findPublicKeyById(args.conversationId),
-            args.reaction
+          reactionContent: Crypto.encryptAESorFail(
+            args.reaction,
+            this.chatParent.findKeyPairById(args.conversationId)
           ),
           messageId: this.id,
           conversationId: args.conversationId,
@@ -572,7 +766,14 @@ export class Message
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Message({
       ...this._parentConfig!,
@@ -587,6 +788,7 @@ export class Message
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -605,6 +807,7 @@ export class Message
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -618,6 +821,19 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
+            },
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -626,6 +842,8 @@ export class Message
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this.chatParent,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -636,10 +854,21 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
+      },
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
   }
 
@@ -648,9 +877,17 @@ export class Message
    * If id is provided, it throws an error.
    * @returns {Promise<Message | QIError>} A promise that resolves to the marked message or an error.
    */
-  async markImportantMessage(): Promise<Message | QIError>
-  async markImportantMessage(id: string): Promise<Message | QIError>
-  async markImportantMessage(id?: unknown): Promise<Message | QIError> {
+  async markImportantMessage(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Message | QIError>
+  async markImportantMessage(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Message | QIError>
+  async markImportantMessage(
+    id?: unknown,
+    overrideHandlingUnauthorizedQIError?: unknown
+  ): Promise<Message | QIError> {
     if (id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use markImportantMessage() instead."
@@ -669,7 +906,14 @@ export class Message
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const message = new Message({
       ...this._parentConfig!,
@@ -684,6 +928,7 @@ export class Message
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -702,6 +947,7 @@ export class Message
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -715,6 +961,19 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+              avatarURL: response.messageRoot.user!.avatarUrl
+                ? response.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: response.messageRoot.user!.imageSettings
+                ? JSON.parse(response.messageRoot.user!.imageSettings)
+                : null,
+            },
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -723,6 +982,8 @@ export class Message
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this.chatParent,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -733,17 +994,28 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
+      },
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
 
     this._storage.insertBulkSafe("message", [
       Converter.fromMessageToLocalDBMessage(
         message,
-        this._account!.did,
-        this._account!.organizationId,
+        Auth.account!.did,
+        Auth.account!.organizationId,
         true,
         "USER"
       ),
@@ -758,9 +1030,17 @@ export class Message
    * @param {string | unknown} [id] - The id of the message to unmark as important.
    * @returns {Promise<Message | QIError>} A promise that resolves to the unmarked message or an error.
    */
-  async unmarkImportantMessage(): Promise<Message | QIError>
-  async unmarkImportantMessage(id: string): Promise<Message | QIError>
-  async unmarkImportantMessage(id?: unknown): Promise<Message | QIError> {
+  async unmarkImportantMessage(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Message | QIError>
+  async unmarkImportantMessage(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Message | QIError>
+  async unmarkImportantMessage(
+    id?: unknown,
+    overrideHandlingUnauthorizedQIError?: unknown
+  ): Promise<Message | QIError> {
     if (id)
       throw new Error(
         "id argument can not be null or undefined. Consider to use unmarkImportantMessage() instead."
@@ -779,7 +1059,14 @@ export class Message
       }
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     const message = new Message({
       ...this._parentConfig!,
@@ -794,6 +1081,7 @@ export class Message
               content: reaction.content,
               createdAt: reaction.createdAt,
               client: this._client!,
+              realtimeClient: this._realtimeClient!,
             })
           })
         : null,
@@ -812,6 +1100,7 @@ export class Message
                     content: reaction.content,
                     createdAt: reaction.createdAt,
                     client: this._client!,
+                    realtimeClient: this._realtimeClient!,
                   })
                 })
               : null,
@@ -825,6 +1114,19 @@ export class Message
                   | "TRADE_PROPOSAL"
                   | "RENT")
               : null,
+            user: {
+              id: response.messageRoot.user!.id,
+              username: response.messageRoot.user!.username
+                ? response.messageRoot.user!.username
+                : "",
+              avatarURL: response.user!.avatarUrl
+                ? response.user!.avatarUrl
+                : "",
+              imageSettings: response.user!.imageSettings
+                ? JSON.parse(response.user!.imageSettings)
+                : null,
+            },
+            order: response.messageRoot.order,
             createdAt: response.messageRoot.createdAt,
             updatedAt: response.messageRoot.updatedAt
               ? response.messageRoot.updatedAt
@@ -833,6 +1135,8 @@ export class Message
               ? response.messageRoot.deletedAt
               : null,
             client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this.chatParent,
           })
         : null,
       messageRootId: response.messageRootId ? response.messageRootId : null,
@@ -843,17 +1147,28 @@ export class Message
             | "TRADE_PROPOSAL"
             | "RENT")
         : null,
+      user: {
+        id: response.user!.id,
+        username: response.user!.username ? response.user!.username : "",
+        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
+        imageSettings: response.user!.imageSettings
+          ? JSON.parse(response.user!.imageSettings)
+          : null,
+      },
+      order: response.order,
       createdAt: response.createdAt,
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
 
     this._storage.insertBulkSafe("message", [
       Converter.fromMessageToLocalDBMessage(
         message,
-        this._account!.did,
-        this._account!.organizationId,
+        Auth.account!.did,
+        Auth.account!.organizationId,
         false,
         "USER"
       ),
@@ -866,7 +1181,9 @@ export class Message
    * Asynchronously fetches a conversation from the server based on the message ID.
    * @returns A Promise that resolves to a Conversation object if successful, or a QIError object if there was an error.
    */
-  async conversation(): Promise<Conversation | QIError> {
+  async conversation(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Conversation | QIError> {
     const response = await this._query<
       null,
       {
@@ -880,7 +1197,14 @@ export class Message
       null
     )
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new Conversation({
       ...this._parentConfig!,
@@ -894,6 +1218,9 @@ export class Message
         : null,
       bannerImageURL: response.conversation!.bannerImageURL
         ? response.conversation!.bannerImageURL
+        : null,
+      imageSettings: response.conversation!.imageSettings
+        ? response.conversation!.imageSettings
         : null,
       settings: response.conversation!.settings
         ? JSON.parse(response.conversation!.settings)
@@ -915,6 +1242,8 @@ export class Message
       updatedAt: response.updatedAt ? response.updatedAt : null,
       deletedAt: response.deletedAt ? response.deletedAt : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
     })
   }
 
@@ -922,7 +1251,9 @@ export class Message
    * Retrieves user information from the server and returns a User object.
    * @returns {Promise<User | QIError>} A promise that resolves to a User object if successful, or a QIError object if there was an error.
    */
-  async user(): Promise<User | QIError> {
+  async author(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError> {
     const response = await this._query<
       null,
       {
@@ -931,7 +1262,14 @@ export class Message
       MessageGraphQL
     >("getMessageById", getUserFromMessageById, "_query() -> user()", null)
 
-    if (response instanceof QIError) return response
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
 
     return new User({
       ...this._parentConfig!,
@@ -943,6 +1281,9 @@ export class Message
       bio: response.user!.bio ? response.user!.bio : null,
       avatarUrl: response.user!.avatarUrl
         ? new URL(response.user!.avatarUrl)
+        : null,
+      imageSettings: response.user!.imageSettings
+        ? response.user!.imageSettings
         : null,
       isVerified: response.user!.isVerified ? response.user!.isVerified : false,
       isPfpNft: response.user!.isPfpNft ? response.user!.isPfpNft : false,
@@ -986,14 +1327,15 @@ export class Message
         ? new Date(response.user!.updatedAt)
         : null,
       client: this._client!,
+      realtimeClient: this._realtimeClient!,
     })
   }
 
   getContentDecrypted(): Maybe<string> {
     if (!this.conversationId) return null
-    return Crypto.decryptStringOrFail(
-      this.findPrivateKeyById(this.conversationId),
-      this.content
+    return Crypto.decryptAESorFail(
+      this.content,
+      this.chatParent.findKeyPairById(this.conversationId)
     )
   }
 }

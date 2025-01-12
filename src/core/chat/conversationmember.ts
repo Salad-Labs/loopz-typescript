@@ -1,6 +1,5 @@
 import { ConversationMemberInitConfig } from "../../types/chat/core/conversationmember"
 import { ConversationMemberSchema } from "../../interfaces/chat/schema"
-import { Maybe } from "../../types/base"
 import { Engine } from "./engine"
 import { EngineInitConfig } from "../../types"
 
@@ -32,13 +31,13 @@ export class ConversationMember
    */
   readonly type: "USER" | "ADMINISTRATOR"
   /**
-   * @property {string} encryptedConversationPublicKey - The public key used for encryption in the conversation.
+   * @property {string} encryptedConversationAESKey - The AES key used for encryption in the conversation.
    */
-  readonly encryptedConversationPublicKey: string
+  readonly encryptedConversationAESKey: string
   /**
-   * @property {string} encryptedConversationPrivateKey - The private key used for encryption in the conversation.
+   * @property {string} encryptedConversationIVeKey - The IV key used for encryption in the conversation.
    */
-  readonly encryptedConversationPrivateKey: string
+  readonly encryptedConversationIVKey: string
   /**
    * @property {Date} createdAt - The date and time when the conversation was
    */
@@ -55,7 +54,6 @@ export class ConversationMember
    */
   constructor(config: ConversationMemberInitConfig & EngineInitConfig) {
     super({
-      apiKey: config.apiKey,
       storage: config.storage,
       devMode: config.devMode,
     })
@@ -64,11 +62,12 @@ export class ConversationMember
     this.conversationId = config.conversationId
     this.userId = config.userId
     this.type = config.type
-    this.encryptedConversationPrivateKey =
-      config.encryptedConversationPrivateKey
-    this.encryptedConversationPublicKey = config.encryptedConversationPublicKey
+    this.encryptedConversationIVKey = config.encryptedConversationIVKey
+    this.encryptedConversationAESKey = config.encryptedConversationAESKey
     this.createdAt = config.createdAt
     this.updatedAt = config.updatedAt
+
     this._client = config.client
+    this._realtimeClient = config.realtimeClient
   }
 }

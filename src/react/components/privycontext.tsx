@@ -1,25 +1,24 @@
-import { PrivyProvider } from "@privy-io/react-auth"
-import { PrivyAdapterProps } from "@src/interfaces"
-import { PrivyWrapper } from "./privywrapper"
-import React from "react"
+"use client"
 
-export const PrivyContext: React.FC<PrivyAdapterProps> = ({
-  auth,
-  order,
-  appId,
-  config,
-}) => {
+import React, { FC, useMemo } from "react"
+import { PrivyClientConfig, PrivyProvider } from "@privy-io/react-auth"
+import { PrivyAdapterProps } from "../../interfaces/adapter/privyadapterprops"
+import { PrivyWrapper } from "./privywrapper"
+
+export const PrivyContext: FC<PrivyAdapterProps> = ({ appId, config }) => {
+  const privyConfig: PrivyClientConfig = useMemo(
+    () => ({
+      embeddedWallets: {
+        createOnLogin: "users-without-wallets",
+      },
+      ...config,
+    }),
+    [config]
+  )
+
   return (
-    <PrivyProvider
-      appId={appId}
-      config={{
-        embeddedWallets: {
-          createOnLogin: "users-without-wallets",
-        },
-        ...config,
-      }}
-    >
-      <PrivyWrapper auth={auth} order={order}>
+    <PrivyProvider appId={appId} config={privyConfig}>
+      <PrivyWrapper>
         <></>
       </PrivyWrapper>
     </PrivyProvider>

@@ -1,2 +1,3 @@
 export * from "./dexiestorage"
-export * from "../auth/account"
+export * from "./basestorage"
+export * from "./database"

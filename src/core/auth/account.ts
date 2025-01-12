@@ -1,17 +1,19 @@
-import { AccountEngine, AccountSchema } from "@src/interfaces/auth"
+import { AccountEngine, AccountSchema } from "../../interfaces/auth"
 import { Maybe, Network } from "../../types"
 import { AccountInitConfig } from "../../types/auth/account"
 import { ConnectedWallet, EIP1193Provider } from "@privy-io/react-auth"
 import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "../../constants/app"
 import { encodeFunctionData } from "viem"
 import { erc1155Abi, erc20Abi, erc721Abi } from "../../constants"
-import { Client, QIError } from ".."
-import { ApiResponse } from "@src/types/base/apiresponse"
+import { Client } from "../client"
+import { QIError } from ".."
+import { ApiResponse } from "../../types/base/apiresponse"
 import { DexieStorage } from "../app"
-import { Chat } from "@src/chat"
-import { AddGroupFrom, ReceiveMessageFrom, UserOnlineStatus } from "@src/enums"
+import { Auth, Chat, Loopz, Serpens, User } from "../.."
+import { AddGroupFrom, ReceiveMessageFrom, UserOnlineStatus } from "../../enums"
+import { LocalDBUser } from "../app/database"
 
-export class Account extends Client implements AccountSchema, AccountEngine {
+export class Account implements AccountSchema, AccountEngine {
   readonly did: string
   readonly organizationId: string
   readonly walletAddress: string
@@ -65,6 +67,11 @@ export class Account extends Client implements AccountSchema, AccountEngine {
   readonly bio: string
   readonly firstLogin: boolean
   readonly avatarUrl: string
+  readonly imageSettings: Maybe<{
+    imageX: number
+    imageY: number
+    imageZoom: number
+  }>
   readonly phone: Maybe<string>
   readonly isVerified: boolean
   readonly isPfpNft: boolean
@@ -100,32 +107,31 @@ export class Account extends Client implements AccountSchema, AccountEngine {
   readonly allowAddToGroupsFrom: "ONLY_FOLLOWED" | "EVERYONE"
   readonly allowGroupsSuggestion: boolean
 
+  private _client: Client
+  private _storage: DexieStorage
   private _activeWallets: Array<ConnectedWallet> = []
-
   private _embeddedWallet: Maybe<ConnectedWallet> = null
-
   private _eventsCallbacks: Array<{
     eventName: "onFundExit"
     callbacks: Array<Function>
   }> = []
 
-  private _storage: DexieStorage
-
-  private _chatRef: Chat
+  set setE2EPublicKeyOnce(e2ePublicKey: string) {
+    if (this.e2ePublicKey)
+      throw new Error("You cannot override the e2e public key")
+    ;(this as any).e2ePublicKey = e2ePublicKey
+  }
 
   constructor(
     config: AccountInitConfig & {
       enableDevMode: boolean
-      apiKey: string
       storage: DexieStorage
-      chatRef: Chat
     }
   ) {
-    super(config.enableDevMode)
+    this._client = new Client(config.enableDevMode)
 
-    this._chatRef = config.chatRef
     this._storage = config.storage
-    this._apiKey = config.apiKey
+
     this.did = config.did
     this.organizationId = config.organizationId
     this.token = config.token
@@ -180,6 +186,7 @@ export class Account extends Client implements AccountSchema, AccountEngine {
     this.bio = config.bio
     this.firstLogin = config.firstLogin
     this.avatarUrl = config.avatarUrl
+    this.imageSettings = config.imageSettings
     this.phone = config.phone
     this.isVerified = config.isVerified
     this.isPfpNft = config.isPfpNft
@@ -331,7 +338,7 @@ export class Account extends Client implements AccountSchema, AccountEngine {
     this._activeWallets = []
   }
 
-  getCurrentNetwork(caip?: boolean): string {
+  getCurrentNetwork(caip?: boolean): string | Network {
     return caip
       ? this._activeWallets[0].chainId
       : this._activeWallets[0].chainId.replace("eip155:", "")
@@ -346,29 +353,27 @@ export class Account extends Client implements AccountSchema, AccountEngine {
       return item.eventName === eventName
     })
 
-    if (index > -1 && onlyOnce === true) return
-
-    if (index > -1 && !onlyOnce)
+    if (index < 0)
+      this._eventsCallbacks.push({
+        eventName,
+        callbacks: [callback],
+      })
+    else {
+      if (onlyOnce) return
       this._eventsCallbacks[index].callbacks.push(callback)
-
-    this._eventsCallbacks.push({
-      eventName,
-      callbacks: [callback],
-    })
+    }
   }
 
-  /**
-   * Unsubscribes a callback function from a specific event.
-   * @param {"onFundExit"} eventName - The name of the event to unsubscribe from.
-   * @returns None
-   * @throws {Error} If the event is not supported or the callback is not a function.
-   */
-  off(eventName: "onFundExit") {
-    const item = this._eventsCallbacks.find((eventItem) => {
-      return eventItem.eventName === eventName
+  off(eventName: "onFundExit", callback?: Function) {
+    const index = this._eventsCallbacks.findIndex((item) => {
+      return item.eventName === eventName
     })
 
-    if (item) item.callbacks = []
+    if (index < 0) return
+
+    this._eventsCallbacks[index].callbacks = callback
+      ? this._eventsCallbacks[index].callbacks.filter((cb) => cb !== callback)
+      : []
   }
 
   /**
@@ -390,6 +395,7 @@ export class Account extends Client implements AccountSchema, AccountEngine {
     avatarUrl,
     bio,
     pfp = null,
+    imageSettings = null,
   }: {
     username: Maybe<string>
     avatarUrl: Maybe<URL>
@@ -399,10 +405,15 @@ export class Account extends Client implements AccountSchema, AccountEngine {
       collectionAddress: string
       tokenId: string
     }>
+    imageSettings: Maybe<{
+      imageX: number
+      imageY: number
+      imageZoom: number
+    }>
   }) {
     try {
-      const { response } = await this._fetch<ApiResponse<{}>>(
-        `${this.backendUrl()}/user/update`,
+      const { response } = await this._client.fetch<ApiResponse<{}>>(
+        this._client.backendUrl("/user/update"),
         {
           method: "POST",
           body: {
@@ -416,10 +427,13 @@ export class Account extends Client implements AccountSchema, AccountEngine {
                   tokenId: pfp.tokenId,
                 }
               : null,
-          },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this.token}`,
+            imageSettings: imageSettings
+              ? {
+                  imageX: imageSettings.imageX,
+                  imageY: imageSettings.imageY,
+                  imageZoom: imageSettings.imageZoom,
+                }
+              : null,
           },
         }
       )
@@ -435,23 +449,47 @@ export class Account extends Client implements AccountSchema, AccountEngine {
         ;(this as any).pfp.tokenId = pfp.tokenId
         ;(this as any).pfp.networkId = pfp.networkId
       }
+      if (imageSettings) {
+        ;(this as any).imageSettings.imageX = imageSettings.imageX
+        ;(this as any).imageSettings.imageY = imageSettings.imageY
+        ;(this as any).imageSettings.imageZoom = imageSettings.imageZoom
+      }
 
-      await this._storage.transaction("rw", this._storage.user, async () => {
-        const user = await this._storage.user
-          .where("[did+organizationId]")
-          .equals([this.did, this.organizationId])
-          .first()
-        if (!user) return
+      const user = await new Promise<LocalDBUser | undefined>(
+        (resolve, reject) => {
+          Serpens.addAction(() => {
+            this._storage.user
+              .where("[did+organizationId]")
+              .equals([this.did, this.organizationId])
+              .first()
+              .then(resolve)
+              .catch(reject)
+          })
+        }
+      )
 
-        await this._storage.user.update(user, {
-          username: username ? username : undefined,
-          avatarUrl: avatarUrl ? avatarUrl.toString() : undefined,
-          bio: bio ? bio : undefined,
-          pfp: pfp ? pfp : undefined,
+      if (!user) return
+
+      await new Promise((resolve, reject) => {
+        Serpens.addAction(() => {
+          this._storage.user
+            .update(user, {
+              username: username ? username : undefined,
+              avatarUrl: avatarUrl ? avatarUrl.toString() : undefined,
+              bio: bio ? bio : undefined,
+              pfp: pfp ? pfp : undefined,
+              imageSettings: imageSettings ? imageSettings : undefined,
+            })
+            .then(resolve)
+            .catch(reject)
         })
       })
-    } catch (error) {
-      console.log(error)
+    } catch (error: any) {
+      console.error(error)
+      if ("statusCode" in error && error.statusCode === 401)
+        await Auth.getInstance().logout()
+
+      throw error
     }
   }
 
@@ -470,17 +508,13 @@ export class Account extends Client implements AccountSchema, AccountEngine {
     enabled: boolean
   ) {
     try {
-      const { response } = await this._fetch<ApiResponse<{}>>(
-        `${this.backendUrl()}/user/update/settings`,
+      const { response } = await this._client.fetch<ApiResponse<{}>>(
+        this._client.backendUrl("/user/update/settings"),
         {
           method: "POST",
           body: {
             setting,
             enabled,
-          },
-          headers: {
-            "x-api-key": `${this._apiKey}`,
-            Authorization: `Bearer ${this.token}`,
           },
         }
       )
@@ -488,38 +522,57 @@ export class Account extends Client implements AccountSchema, AccountEngine {
       if (!response) throw new Error("Response is invalid.")
       if (response!.code !== 200) throw new Error("Error")
 
-      await this._storage.transaction("rw", this._storage.user, async () => {
-        const user = await this._storage.user
-          .where("[did+organizationId]")
-          .equals([this.did, this.organizationId])
-          .first()
-        if (!user) return
+      const user = await new Promise<LocalDBUser | undefined>(
+        (resolve, reject) => {
+          Serpens.addAction(() => {
+            this._storage.user
+              .where("[did+organizationId]")
+              .equals([this.did, this.organizationId])
+              .first()
+              .then(resolve)
+              .catch(reject)
+          })
+        }
+      )
 
-        await this._storage.user.update(user, {
-          proposalNotificationPush:
-            setting === "proposalNotificationPush" ? enabled : undefined,
-          proposalNotificationSystem:
-            setting === "proposalNotificationSystem" ? enabled : undefined,
-          orderNotificationPush:
-            setting === "orderNotificationPush" ? enabled : undefined,
-          orderNotificationSystem:
-            setting === "orderNotificationSystem" ? enabled : undefined,
-          followNotificationPush:
-            setting === "followNotificationSystem" ? enabled : undefined,
-          followNotificationSystem:
-            setting === "followNotificationSystem" ? enabled : undefined,
-          collectionNotificationPush:
-            setting === "collectionNotificationPush" ? enabled : undefined,
-          collectionNotificationSystem:
-            setting === "collectionNotificationSystem" ? enabled : undefined,
-          generalNotificationPush:
-            setting === "generalNotificationPush" ? enabled : undefined,
-          generalNotificationSystem:
-            setting === "generalNotificationSystem" ? enabled : undefined,
+      if (!user) return
+
+      await new Promise((resolve, reject) => {
+        Serpens.addAction(() => {
+          this._storage.user
+            .update(user, {
+              proposalNotificationPush:
+                setting === "proposalNotificationPush" ? enabled : undefined,
+              proposalNotificationSystem:
+                setting === "proposalNotificationSystem" ? enabled : undefined,
+              orderNotificationPush:
+                setting === "orderNotificationPush" ? enabled : undefined,
+              orderNotificationSystem:
+                setting === "orderNotificationSystem" ? enabled : undefined,
+              followNotificationPush:
+                setting === "followNotificationSystem" ? enabled : undefined,
+              followNotificationSystem:
+                setting === "followNotificationSystem" ? enabled : undefined,
+              collectionNotificationPush:
+                setting === "collectionNotificationPush" ? enabled : undefined,
+              collectionNotificationSystem:
+                setting === "collectionNotificationSystem"
+                  ? enabled
+                  : undefined,
+              generalNotificationPush:
+                setting === "generalNotificationPush" ? enabled : undefined,
+              generalNotificationSystem:
+                setting === "generalNotificationSystem" ? enabled : undefined,
+            })
+            .then(resolve)
+            .catch(reject)
         })
       })
-    } catch (error) {
-      console.log(error)
+    } catch (error: any) {
+      console.error(error)
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
     }
   }
 
@@ -534,30 +587,39 @@ export class Account extends Client implements AccountSchema, AccountEngine {
     allowGroupsSuggestion: boolean
   }) {
     try {
-      const response = await this._chatRef.updateUser(settings)
+      // Chat.getInstance().updateUser()
+      const response = await Chat.getInstance().updateUser(settings)
 
-      if (response instanceof QIError) throw new Error(response.toString())
+      if (response instanceof QIError) throw response
 
-      await this._storage.transaction("rw", this._storage.user, async () => {
-        const user = await this._storage.user
-          .where("[did+organizationId]")
-          .equals([this.did, this.organizationId])
-          .first()
-        if (!user) return
+      const user = await new Promise<LocalDBUser | undefined>(
+        (resolve, reject) => {
+          Serpens.addAction(() => {
+            this._storage.user
+              .where("[did+organizationId]")
+              .equals([this.did, this.organizationId])
+              .first()
+              .then(resolve)
+              .catch(reject)
+          })
+        }
+      )
 
-        await this._storage.user.update(user, {
-          ...settings,
+      if (!user) return
+
+      await new Promise((resolve, reject) => {
+        Serpens.addAction(() => {
+          this._storage.user.update(user, settings).then(resolve).catch(reject)
         })
       })
     } catch (error) {
-      console.log(error)
+      console.error(error)
     }
   }
 
-  async exportPersonalKeys(
-    download: boolean = true,
-    callback?: (fileContent: string) => any
-  ) {
+  async exportPersonalKeys(download: true): Promise<undefined>
+  async exportPersonalKeys(download: false): Promise<string>
+  async exportPersonalKeys(download: boolean = true) {
     try {
       const items = await this._storage.get("user", "[did+organizationId]", [
         this.did,
@@ -565,22 +627,56 @@ export class Account extends Client implements AccountSchema, AccountEngine {
       ])
 
       const fileContent = JSON.stringify(items, null, 2)
+      if (!download) return fileContent
 
-      if (download) {
-        const blob = new Blob([fileContent], { type: "application/json" })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = "user.json"
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-      } else {
-        if (callback) callback(fileContent)
-      }
+      const blob = new Blob([fileContent], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "user.json"
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
     } catch (error) {
       console.error(error)
+      throw error
     }
+  }
+
+  toUser() {
+    return new User({
+      devMode: Loopz.devMode,
+      id: this.dynamoDBUserID,
+      did: this.did,
+      address: this.walletAddress,
+      username: this.username,
+      bio: this.bio,
+      email: this.email,
+      avatarUrl: this.avatarUrl ? new URL(this.avatarUrl) : null,
+      imageSettings: this.imageSettings
+        ? JSON.stringify(this.imageSettings)
+        : null,
+      isVerified: this.isVerified,
+      isPfpNft: this.isPfpNft,
+      blacklistIds: [],
+      allowNotification: this.allowNotification,
+      allowNotificationSound: this.allowNotificationSound,
+      allowAddToGroupsFrom: this.allowAddToGroupsFrom,
+      allowGroupsSuggestion: this.allowGroupsSuggestion,
+      allowReadReceipt: this.allowReadReceipt,
+      allowReceiveMessageFrom: this.allowReceiveMessageFrom,
+      visibility: this.visibility,
+      archivedConversations: [],
+      onlineStatus: this.onlineStatus,
+      e2ePublicKey: this.e2ePublicKey,
+      e2eSecret: this.e2eSecret,
+      e2eSecretIV: this.e2eSecretIV,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+      client: {} as any,
+      realtimeClient: {} as any,
+      storage: this._storage,
+    })
   }
 }

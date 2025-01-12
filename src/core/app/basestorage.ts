@@ -5,24 +5,50 @@ export interface BaseStorage {
   getDBName(): string
   getDBVersion(): number
   typeOf(): string
-  insertBulkSafe<T>(
-    tableName: "user" | "conversation" | "message",
-    items: T[]
+  insertBulkSafe(
+    tableName:
+      | "user"
+      | "conversation"
+      | "message"
+      | "detectivemessagecollector"
+      | "detectivemessagequeue",
+    items: unknown[]
   ): Promise<void>
   deleteItem(
-    tableName: "user" | "conversation" | "message",
+    tableName:
+      | "user"
+      | "conversation"
+      | "message"
+      | "detectivemessagecollector"
+      | "detectivemessagequeue",
     key: string,
     value: string | string[]
-  ): Promise<void>
+  ): Promise<number>
   deleteBulk(
-    tableName: "user" | "conversation" | "message",
+    tableName:
+      | "user"
+      | "conversation"
+      | "message"
+      | "detectivemessagecollector"
+      | "detectivemessagequeue",
     ids: string[]
   ): Promise<void>
   get(
-    tableName: "user" | "conversation" | "message",
+    tableName:
+      | "user"
+      | "conversation"
+      | "message"
+      | "detectivemessagecollector"
+      | "detectivemessagequeue",
     key: string,
-    value: string
+    value: string | string[]
   ): Promise<any>
-  getTable<T>(tableName: "user" | "conversation" | "message"): T
-  truncate(tableName: "user" | "conversation" | "message"): Promise<void>
+  truncate(
+    tableName:
+      | "user"
+      | "conversation"
+      | "message"
+      | "detectivemessagecollector"
+      | "detectivemessagequeue"
+  ): Promise<void>
 }

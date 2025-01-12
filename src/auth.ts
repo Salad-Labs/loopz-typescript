@@ -1,6 +1,5 @@
 import { Client } from "./core/client"
 import {
-  AuthClientConfig,
   AuthConfig,
   AuthEvents,
   AuthInfo,
@@ -10,410 +9,436 @@ import {
 import { ApiResponse } from "./types/base/apiresponse"
 import { ApiKeyAuthorized, Maybe } from "./types/base"
 import { Crypto } from "./core"
-import { Account, DexieStorage } from "./core/app"
-import { PrivyClientConfig } from "@privy-io/react-auth"
+import { DexieStorage } from "./core/app"
 import { AuthInternalEvents } from "./interfaces/auth/authinternalevents"
-import { PrivyErrorCode } from "@src/enums/adapter/auth/privyerrorcode"
+import { PrivyErrorCode } from "./enums/adapter/auth/privyerrorcode"
 import { PrivyAuthInfo } from "./types/adapter"
-import { Order } from "./order"
-import { Proposal } from "./proposal"
-import { Oracle } from "./oracle"
-import forge from "node-forge"
 import { AccountInitConfig } from "./types/auth/account"
-import { Chat } from "./chat"
 import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "./constants/app"
-import { Notification } from "./notification"
+import { AuthLinkMethod } from "./types/auth/authlinkmethod"
+import { getAccessToken } from "@privy-io/react-auth"
+import { Account, Chat, Serpens } from "."
+import { LocalDBUser } from "./core/app/database"
 
 /**
  * Represents an authentication client that interacts with a backend server for user authentication.
- * @class Auth
- * @extends Client
  */
-export class Auth extends Client implements AuthInternalEvents {
-  private _storage?: DexieStorage
-  private _privyAppId: string
-  private _privyConfig?: PrivyClientConfig
-  private _eventsCallbacks: Array<{
+export class Auth implements AuthInternalEvents {
+  private static _config: Maybe<AuthConfig & ApiKeyAuthorized> = null
+  private static _instance: Maybe<Auth> = null
+  private static _client: Maybe<Client> = null
+
+  private static _realtimeAuthorizationToken: Maybe<string> = null
+  private static _authToken: Maybe<string> = null
+  private static _apiKey: string
+  private static _account: Maybe<Account> = null
+  private static _authInfo: Maybe<AuthInfo> = null
+
+  private static _storage: DexieStorage
+  private static _eventsCallbacks: Array<{
     callbacks: Function[]
-    eventName: AuthEvents
+    event: AuthEvents
   }> = []
-  private _orderRef: Order
-  private _proposalRef: Proposal
-  private _oracleRef: Oracle
-  private _chatRef: Chat
-  private _notificationRef: Notification
-  private _isLoggingOut: boolean = false
-  private _isAuthenticated: boolean = false
-  private _isDevMode: boolean = false
+  private static _isLoggingOut: boolean = false
+  private static _isAuthenticated: boolean = false
 
-  /**
-   * Constructs a new instance of Auth with the provided configuration.
-   * @param {AuthConfig} config - The configuration object for authentication.
-   * @returns None
-   */
-  constructor(config: AuthConfig & ApiKeyAuthorized) {
-    super(config.devMode)
+  private static set authToken(authToken: Maybe<string>) {
+    Auth._authToken = authToken
+    Auth._realtimeAuthorizationToken = authToken
+      ? `${Auth._apiKey}##${authToken}`
+      : null
+  }
 
-    this._isDevMode = config.devMode
-    this._storage = config.storage
-    this._apiKey = config.apiKey
-    this._privyAppId = config.privyAppId
-    this._privyConfig = config.privyConfig
-    this._orderRef = config.order
-    this._oracleRef = config.oracle
-    this._proposalRef = config.proposal
-    this._chatRef = config.chat
-    this._notificationRef = config.notification
+  private static set account(account: Maybe<Account>) {
+    Auth._account = account
+    if (!!account) Auth._emit("__onAccountReady")
+  }
+
+  static get realtimeAuthorizationToken() {
+    return Auth._realtimeAuthorizationToken
+  }
+
+  static get apiKey() {
+    return Auth._apiKey
+  }
+
+  static get authToken() {
+    return Auth._authToken
+  }
+
+  static get account() {
+    return Auth._account
+  }
+
+  static fetchTokenAttemptsRealtime: number = 0
+
+  static prevToken: Maybe<string> = null
+
+  static get MAX_ATTEMPTS_REALTIME_FETCH_AUTH_TOKEN(): number {
+    return 2
+  }
+
+  private constructor() {
+    if (!!!Auth._config)
+      throw new Error("Auth must be configured before getting the instance")
+
+    Auth._storage = Auth._config.storage
+    Auth._apiKey = Auth._config.apiKey
+    Auth._client = new Client(Auth._config.devMode)
 
     //OAuth providers like Google, Instagram etc bring the user from the current web application page to
     //their authentication pages. When the user is redirect from their auth pages to the web application page again
     //this event is fired.
     this.on(
       "__onOAuthAuthenticatedDesktop",
-      async (authInfo: PrivyAuthInfo) => {
-        await this._callBackendAuthAfterOAuthRedirect(authInfo)
-      }
+      Auth._callBackendAuthAfterOAuthRedirect
     )
 
     // same but for linking an account to a user already registered
     this.on(
       "__onOAuthLinkAuthenticatedDesktop",
-      async (authInfo: PrivyAuthInfo) => {
-        await this._callBackendLinkAfterOAuthRedirect(authInfo)
-      }
+      Auth._callBackendLinkAfterOAuthRedirect
     )
 
     //OAuth providers login error handling
     this.on("__onLoginError", (error: PrivyErrorCode) => {
-      this._emit("onAuthError", error)
+      Auth._emit("onAuthError", error)
     })
+
     this.on("__onLinkAccountError", (error: PrivyErrorCode) => {
-      this._emit("onLinkError", error)
+      Auth._emit("onLinkError", error)
     })
+
+    Auth._instance = this
   }
 
-  private async _generateKeys(): Promise<boolean | forge.pki.rsa.KeyPair> {
-    const keys = await Crypto.generateKeys("HIGH")
+  /** static methods */
 
-    if (!keys) return false
-
-    return keys
-  }
-
-  private async _getUserE2EPublicKey(
-    did: string,
-    organizationId: string
-  ): Promise<Maybe<string | "error">> {
+  private static async _generateKeys() {
     try {
-      const storage = this._storage as DexieStorage
-      const e2ePublicKey = await storage.transaction(
-        "rw",
-        storage.user,
-        async () => {
-          const existingUser = await storage.user
-            .where("[did+organizationId]")
-            .equals([did, organizationId])
-            .first()
+      const keys = await Crypto.generateKeys("HIGH")
+      if (!keys)
+        throw new Error("Error during generation of public/private keys.")
 
-          if (!existingUser) return null
-
-          return existingUser!.e2ePublicKey
-        }
-      )
-
-      return e2ePublicKey
+      return keys
     } catch (error) {
-      console.log(error)
-      return "error"
+      throw error
     }
   }
 
-  private async _handleDexie(account: Account) {
-    const storage = this._storage as DexieStorage
+  private static async _getUserE2EPublicKey(
+    did: string,
+    organizationId: string
+  ): Promise<Maybe<string>> {
+    return new Promise<Maybe<string>>((resolve, reject) => {
+      Serpens.addAction(() => {
+        Auth._storage.user
+          .where("[did+organizationId]")
+          .equals([did, organizationId])
+          .first()
+          .then((existingUser) => {
+            resolve(existingUser ? existingUser.e2ePublicKey : null)
+          })
+          .catch(reject)
+      })
+    })
+  }
+
+  private static async _storeUserLocalDB(): Promise<Maybe<string>> {
     try {
-      const keys = await this._generateKeys()
-      if (!keys || typeof keys === "boolean")
-        throw new Error("Error during generation of public/private keys.")
+      if (!Auth._account) throw new Error("Account is not set")
+      const keys = await Auth._generateKeys()
 
       //let's encrypt first the private key. Private key will be always calculated runtime.
       const encryptedPrivateKey = Crypto.encryptAES_CBC(
         Crypto.convertRSAPrivateKeyToPem(keys.privateKey),
-        Buffer.from(account.e2eSecret, "hex").toString("base64"),
-        Buffer.from(account.e2eSecretIV, "hex").toString("base64")
+        Buffer.from(Auth._account.e2eSecret, "hex").toString("base64"),
+        Buffer.from(Auth._account.e2eSecretIV, "hex").toString("base64")
       )
       const publicKey = Crypto.convertRSAPublicKeyToPem(keys.publicKey)
 
-      //save all the data related to this user into the db
-      await storage.transaction("rw", storage.user, async () => {
-        const existingUser = await storage.user
-          .where("[did+organizationId]")
-          .equals([account.did, account.organizationId])
-          .first()
+      const existingUser = await new Promise<LocalDBUser | undefined>(
+        (resolve, reject) => {
+          Serpens.addAction(() => {
+            if (!Auth._account)
+              throw new Error("Account is not setup correctly.")
 
-        if (!existingUser)
-          await storage.user.add({
-            did: account.did,
-            organizationId: account.organizationId,
-            username: account.username,
-            email: account.email,
-            bio: account.bio,
-            avatarUrl: account.avatarUrl,
-            isVerified: account.isVerified,
-            isPfpNft: account.isPfpNft,
-            pfp: account.pfp ? account.pfp : null,
-            wallet: {
-              address: account.walletAddress,
-              connectorType: account.walletConnectorType,
-              imported: account.walletImported,
-              recoveryMethod: account.walletRecoveryMethod,
-              clientType: account.walletClientType,
-            },
-            apple: account.appleSubject
-              ? {
-                  subject: account.appleSubject,
-                  email: account.email,
-                }
-              : null,
-            discord: account.discordSubject
-              ? {
-                  subject: account.discordSubject,
-                  email: account.discordEmail,
-                  username: account.username,
-                }
-              : null,
-            farcaster: account.farcasterFid
-              ? {
-                  fid: account.farcasterFid,
-                  displayName: account.farcasterDisplayName,
-                  ownerAddress: account.farcasterOwnerAddress,
-                  pfp: account.farcasterPfp,
-                  username: account.farcasterUsername,
-                  signerPublicKey: account.farcasterSignerPublicKey,
-                }
-              : null,
-            github: account.githubSubject
-              ? {
-                  subject: account.githubSubject,
-                  email: account.githubEmail,
-                  name: account.githubName,
-                  username: account.githubUsername,
-                }
-              : null,
-            google: account.googleSubject
-              ? {
-                  subject: account.googleSubject,
-                  email: account.googleEmail,
-                  name: account.googleName,
-                }
-              : null,
-            instagram: account.instagramSubject
-              ? {
-                  subject: account.instagramSubject,
-                  username: account.instagramUsername,
-                }
-              : null,
-            linkedin: account.linkedinSubject
-              ? {
-                  subject: account.linkedinSubject,
-                  email: account.linkedinEmail,
-                  name: account.linkedinName,
-                  vanityName: account.linkedinVanityName,
-                }
-              : null,
-            spotify: account.spotifySubject
-              ? {
-                  subject: account.spotifySubject,
-                  email: account.spotifyEmail,
-                  name: account.spotifyName,
-                }
-              : null,
-            telegram: account.telegramUserId
-              ? {
-                  firstName: account.telegramFirstName,
-                  lastName: account.telegramLastName,
-                  photoUrl: account.telegramPhotoUrl,
-                  userId: account.telegramUserId,
-                  username: account.telegramUsername,
-                }
-              : null,
-            tiktok: account.tiktokSubject
-              ? {
-                  name: account.tiktokName,
-                  subject: account.tiktokSubject,
-                  username: account.tiktokUsername,
-                }
-              : null,
-            twitter: account.twitterSubject
-              ? {
-                  name: account.twitterName,
-                  subject: account.twitterSubject,
-                  profilePictureUrl: account.twitterProfilePictureUrl,
-                  username: account.twitterUsername,
-                }
-              : null,
-            proposalNotificationPush: account.proposalNotificationPush,
-            proposalNotificationSystem: account.proposalNotificationSystem,
-            orderNotificationPush: account.orderNotificationPush,
-            orderNotificationSystem: account.orderNotificationSystem,
-            followNotificationPush: account.followNotificationPush,
-            followNotificationSystem: account.followNotificationSystem,
-            collectionNotificationPush: account.collectionNotificationPush,
-            collectionNotificationSystem: account.collectionNotificationSystem,
-            generalNotificationPush: account.generalNotificationPush,
-            generalNotificationSystem: account.generalNotificationSystem,
-            accountSuspended: account.accountSuspended,
-            allowNotification: account.allowNotification,
-            allowNotificationSound: account.allowNotificationSound,
-            visibility: account.visibility,
-            onlineStatus: account.onlineStatus,
-            allowReadReceipt: account.allowReadReceipt,
-            allowReceiveMessageFrom: account.allowReceiveMessageFrom,
-            allowAddToGroupsFrom: account.allowAddToGroupsFrom,
-            allowGroupsSuggestion: account.allowGroupsSuggestion,
-            e2ePublicKey: publicKey,
-            e2eEncryptedPrivateKey: encryptedPrivateKey,
-            createdAt: account.createdAt,
-            updatedAt: account.updatedAt,
+            Auth._storage.user
+              .where("[did+organizationId]")
+              .equals([Auth._account!.did, Auth._account!.organizationId])
+              .first()
+              .then(resolve)
+              .catch(reject)
           })
+        }
+      )
+
+      if (existingUser) return null
+
+      //save all the data related to this user into the db
+
+      await new Promise((resolve, reject) => {
+        Serpens.addAction(() => {
+          if (!Auth._account) throw new Error("Account is not setup correctly.")
+
+          Auth._storage.user
+            .add({
+              did: Auth._account.did,
+              organizationId: Auth._account.organizationId,
+              dynamoDBUserID: Auth._account.dynamoDBUserID,
+              username: Auth._account.username,
+              email: Auth._account.email,
+              bio: Auth._account.bio,
+              avatarUrl: Auth._account.avatarUrl,
+              imageSettings: Auth._account.imageSettings
+                ? Auth._account.imageSettings
+                : null,
+              isVerified: Auth._account.isVerified,
+              isPfpNft: Auth._account.isPfpNft,
+              pfp: Auth._account.pfp ? Auth._account.pfp : null,
+              wallet: {
+                address: Auth._account.walletAddress,
+                connectorType: Auth._account.walletConnectorType,
+                imported: Auth._account.walletImported,
+                recoveryMethod: Auth._account.walletRecoveryMethod,
+                clientType: Auth._account.walletClientType,
+              },
+              apple: Auth._account.appleSubject
+                ? {
+                    subject: Auth._account.appleSubject,
+                    email: Auth._account.email,
+                  }
+                : null,
+              discord: Auth._account.discordSubject
+                ? {
+                    subject: Auth._account.discordSubject,
+                    email: Auth._account.discordEmail,
+                    username: Auth._account.username,
+                  }
+                : null,
+              farcaster: Auth._account.farcasterFid
+                ? {
+                    fid: Auth._account.farcasterFid,
+                    displayName: Auth._account.farcasterDisplayName,
+                    ownerAddress: Auth._account.farcasterOwnerAddress,
+                    pfp: Auth._account.farcasterPfp,
+                    username: Auth._account.farcasterUsername,
+                    signerPublicKey: Auth._account.farcasterSignerPublicKey,
+                  }
+                : null,
+              github: Auth._account.githubSubject
+                ? {
+                    subject: Auth._account.githubSubject,
+                    email: Auth._account.githubEmail,
+                    name: Auth._account.githubName,
+                    username: Auth._account.githubUsername,
+                  }
+                : null,
+              google: Auth._account.googleSubject
+                ? {
+                    subject: Auth._account.googleSubject,
+                    email: Auth._account.googleEmail,
+                    name: Auth._account.googleName,
+                  }
+                : null,
+              instagram: Auth._account.instagramSubject
+                ? {
+                    subject: Auth._account.instagramSubject,
+                    username: Auth._account.instagramUsername,
+                  }
+                : null,
+              linkedin: Auth._account.linkedinSubject
+                ? {
+                    subject: Auth._account.linkedinSubject,
+                    email: Auth._account.linkedinEmail,
+                    name: Auth._account.linkedinName,
+                    vanityName: Auth._account.linkedinVanityName,
+                  }
+                : null,
+              spotify: Auth._account.spotifySubject
+                ? {
+                    subject: Auth._account.spotifySubject,
+                    email: Auth._account.spotifyEmail,
+                    name: Auth._account.spotifyName,
+                  }
+                : null,
+              telegram: Auth._account.telegramUserId
+                ? {
+                    firstName: Auth._account.telegramFirstName,
+                    lastName: Auth._account.telegramLastName,
+                    photoUrl: Auth._account.telegramPhotoUrl,
+                    userId: Auth._account.telegramUserId,
+                    username: Auth._account.telegramUsername,
+                  }
+                : null,
+              tiktok: Auth._account.tiktokSubject
+                ? {
+                    name: Auth._account.tiktokName,
+                    subject: Auth._account.tiktokSubject,
+                    username: Auth._account.tiktokUsername,
+                  }
+                : null,
+              twitter: Auth._account.twitterSubject
+                ? {
+                    name: Auth._account.twitterName,
+                    subject: Auth._account.twitterSubject,
+                    profilePictureUrl: Auth._account.twitterProfilePictureUrl,
+                    username: Auth._account.twitterUsername,
+                  }
+                : null,
+              proposalNotificationPush: Auth._account.proposalNotificationPush,
+              proposalNotificationSystem:
+                Auth._account.proposalNotificationSystem,
+              orderNotificationPush: Auth._account.orderNotificationPush,
+              orderNotificationSystem: Auth._account.orderNotificationSystem,
+              followNotificationPush: Auth._account.followNotificationPush,
+              followNotificationSystem: Auth._account.followNotificationSystem,
+              collectionNotificationPush:
+                Auth._account.collectionNotificationPush,
+              collectionNotificationSystem:
+                Auth._account.collectionNotificationSystem,
+              generalNotificationPush: Auth._account.generalNotificationPush,
+              generalNotificationSystem:
+                Auth._account.generalNotificationSystem,
+              accountSuspended: Auth._account.accountSuspended,
+              allowNotification: Auth._account.allowNotification,
+              allowNotificationSound: Auth._account.allowNotificationSound,
+              visibility: Auth._account.visibility,
+              onlineStatus: Auth._account.onlineStatus,
+              allowReadReceipt: Auth._account.allowReadReceipt,
+              allowReceiveMessageFrom: Auth._account.allowReceiveMessageFrom,
+              allowAddToGroupsFrom: Auth._account.allowAddToGroupsFrom,
+              allowGroupsSuggestion: Auth._account.allowGroupsSuggestion,
+              e2ePublicKey: publicKey,
+              e2eEncryptedPrivateKey: encryptedPrivateKey,
+              createdAt: Auth._account.createdAt,
+              updatedAt: Auth._account.updatedAt,
+              lastSyncAt: null,
+            })
+            .then(resolve)
+            .catch(reject)
+        })
       })
+
+      return publicKey
     } catch (error) {
-      console.log(error)
+      console.error(error)
       throw new Error(
         "Error during setup of the local keys. Check the console to have more information."
       )
     }
   }
 
-  private async _callBackendAuthAfterOAuthRedirect(authInfo: PrivyAuthInfo) {
+  private static async _callBackendAuthAfterOAuthRedirect(
+    authInfo: PrivyAuthInfo
+  ) {
+    if (!!!Auth._config || !!!Auth._instance || !!!Auth._client)
+      throw new Error("Auth has not been configured")
+
+    Auth.authToken = authInfo.authToken
+
     try {
-      const e2ePublicKey = await this._getUserE2EPublicKey(
+      const e2ePublicKey = await Auth._getUserE2EPublicKey(
         authInfo.user.id,
-        this._apiKey!
+        Auth._apiKey
       )
 
-      if (e2ePublicKey === "error")
-        throw new Error("Error retrieven e2e public key.")
-
-      const { response } = await this._fetch<
+      const { response } = await Auth._client.fetch<
         ApiResponse<{
           user: AccountInitConfig
         }>
-      >(`${this.backendUrl()}/auth`, {
+      >(Auth._client.backendUrl("/auth"), {
         method: "POST",
         body: {
-          ...this._formatAuthParams(authInfo),
+          ...Auth._formatAuthParams(authInfo),
           e2ePublicKey,
-        },
-        headers: {
-          "x-api-key": `${this._apiKey}`,
-          Authorization: `Bearer ${authInfo.authToken}`,
         },
       })
 
       if (!response || !response.data)
-        return this._emit(
+        return Auth._emit(
           "onAuthError",
-          new Error("No response from backend during authentication")
+          new Error("No response from backend during authentication.")
         )
 
       const { user } = response.data[0]
 
       if (!user)
-        return this._emit("onAuthError", new Error("Access not granted."))
+        return Auth._emit("onAuthError", new Error("Access not granted."))
 
       //let's check if it's the first login of the user.
       //this is needed to understand if the user is doing the login on a different device
-      if (!user.firstLogin && !e2ePublicKey) {
-        //this means i have done the signin already on a different device
-        //because if i'm using the same device i should have e2ePublicKey already setup.
-        //So, if this value is null and it's not the first login of the user, means probably the user is doing the login on a different device.
-        //Thus, let's block the possibility to chat since before to do that the user needs to transfer the private keys between the devices.
-        this._chatRef.setCanChat(false)
-      } else {
-        this._chatRef.setCanChat(true)
-      }
-
-      const account = new Account({
+      Chat.getInstance().setCanChat(user.firstLogin || !!e2ePublicKey)
+      Auth._isAuthenticated = true
+      Auth.account = new Account({
+        enableDevMode: Auth._config.devMode,
+        storage: Auth._config.storage,
         ...user,
-        enableDevMode: this._isDevMode,
-        apiKey: this._apiKey!,
-        storage: this._storage!,
-        chatRef: this._chatRef,
       })
       //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
       //the user refresh the page
-      account.storeLastUserLoggedKey()
-
-      this.setAuthToken(authInfo.authToken)
-      this._orderRef.setAuthToken(authInfo.authToken)
-      this._oracleRef.setAuthToken(authInfo.authToken)
-      this._proposalRef.setAuthToken(authInfo.authToken)
-      this._chatRef.setAuthToken(authInfo.authToken)
-      this._notificationRef.setAuthToken(authInfo.authToken)
-
-      this._chatRef.setCurrentAccount(account)
-      this._orderRef.setCurrentAccount(account)
-      this._oracleRef.setCurrentAccount(account)
-      this._proposalRef.setCurrentAccount(account)
-      this._notificationRef.setCurrentAccount(account)
-      this.setCurrentAccount(account) //this must be the last because it fires event
-
-      //clear all the internal callbacks connected to the authentication...
-      this._clearEventsCallbacks([
-        "__onOAuthAuthenticatedDesktop",
-        "__onLoginError",
-      ])
+      Auth._account!.storeLastUserLoggedKey()
 
       //generation of the table and local keys for e2e encryption
-      await this._handleDexie(account)
+      const e2eKey = await Auth._storeUserLocalDB()
 
-      this._isAuthenticated = true
+      //if this condition is true, means the user has done the signup for the first time ever, since e2ePublicKey is supposed to be null in that case
+      if (e2eKey !== e2ePublicKey && !e2ePublicKey) {
+        const { response } = await Auth._client.fetch<
+          ApiResponse<{
+            updated: boolean
+          }>
+        >(Auth._client.backendUrl("/auth/update/e2e"), {
+          method: "POST",
+          body: {
+            e2ePublicKey: e2eKey,
+          },
+        })
+
+        if (!response || !response.data) throw new Error("Invalid response.")
+
+        const { updated } = response.data[0]
+
+        if (!updated) throw new Error("Update E2E Failed. Access not granted.")
+      }
+
+      //clear all the internal callbacks connected to the authentication...
+      Auth._clearEventsCallbacks([
+        "__onOAuthAuthenticatedDesktop",
+        "__onLoginError",
+      ])
     } catch (error) {
-      //safety check, _account could be null and this method destroy the local storage values stored
-      if ("statusCode" in (error as any) && (error as any).statusCode === 401)
-        this.destroyLastUserLoggedKey()
-
       //clear all the internal callbacks connected to the authentication...
       this._clearEventsCallbacks([
         "__onOAuthAuthenticatedDesktop",
         "__onLoginError",
       ])
-      await this.logout()
-      this._emit("onAuthError", error)
+      await Auth._instance.logout()
+      Auth._emit("onAuthError", error)
     }
   }
 
-  private async _callBackendAuth(
-    resolve: (
-      value:
-        | { auth: AuthInfo; account: Account }
-        | PromiseLike<{ auth: AuthInfo; account: Account }>
-    ) => void,
-    reject: (reason?: any) => void,
-    authInfo: PrivyAuthInfo
-  ) {
+  private static async _callBackendAuth(authInfo: PrivyAuthInfo) {
+    if (!!!Auth._config || !!!Auth._instance || !!!Auth._client)
+      throw new Error("Auth has not been configured")
+
+    Auth.authToken = authInfo.authToken
+
     try {
-      const e2ePublicKey = await this._getUserE2EPublicKey(
+      const e2ePublicKey = await Auth._getUserE2EPublicKey(
         authInfo.user.id,
-        this._apiKey!
+        Auth._apiKey
       )
 
-      if (e2ePublicKey === "error")
-        throw new Error("Error retrieven e2e public key.")
-
-      const { response } = await this._fetch<
+      const { response } = await Auth._client.fetch<
         ApiResponse<{
           user: AccountInitConfig
         }>
-      >(`${this.backendUrl()}/auth`, {
+      >(Auth._client.backendUrl("/auth"), {
         method: "POST",
         body: {
-          ...this._formatAuthParams(authInfo),
+          ...Auth._formatAuthParams(authInfo),
           e2ePublicKey,
-        },
-        headers: {
-          "x-api-key": `${this._apiKey}`,
-          Authorization: `Bearer ${authInfo.authToken}`,
         },
       })
 
@@ -425,91 +450,89 @@ export class Auth extends Client implements AuthInternalEvents {
 
       //let's check if it's the first login of the user.
       //this is needed to understand if the user is doing the login on a different device
-      if (!user.firstLogin && !e2ePublicKey) {
-        //this means i have done the signin already on a different device
-        //because if i'm using the same device i should have e2ePublicKey already setup.
-        //So, if this value is null and it's not the first login of the user, means probably the user is doing the login on a different device.
-        //Thus, let's block the possibility to chat since before to do that the user needs to transfer the private keys between the devices.
-        this._chatRef.setCanChat(false)
-      } else {
-        this._chatRef.setCanChat(true)
+      Chat.getInstance().setCanChat(user.firstLogin || !!e2ePublicKey)
+      Auth._isAuthenticated = true
+      Auth._authInfo = {
+        isConnected: true,
+        ...authInfo,
       }
-
-      const account = new Account({
+      Auth.account = new Account({
+        enableDevMode: Auth._config.devMode,
+        storage: Auth._config.storage,
         ...user,
-        enableDevMode: this._isDevMode,
-        apiKey: this._apiKey!,
-        storage: this._storage!,
-        chatRef: this._chatRef,
       })
+
       //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
       //the user refresh the page
-      account.storeLastUserLoggedKey()
-
-      this.setAuthToken(authInfo.authToken)
-
-      this._orderRef.setAuthToken(authInfo.authToken)
-      this._oracleRef.setAuthToken(authInfo.authToken)
-      this._proposalRef.setAuthToken(authInfo.authToken)
-      this._chatRef.setAuthToken(authInfo.authToken)
-      this._notificationRef.setAuthToken(authInfo.authToken)
-
-      this._chatRef.setCurrentAccount(account)
-      this._orderRef.setCurrentAccount(account)
-      this._oracleRef.setCurrentAccount(account)
-      this._proposalRef.setCurrentAccount(account)
-      this._notificationRef.setCurrentAccount(account)
-      this.setCurrentAccount(account) //this must be the last because it fires event
-
-      //clear all the internal callbacks connected to the authentication...
-      this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
+      Auth._account!.storeLastUserLoggedKey()
 
       //generation of the table and local keys for e2e encryption
-      await this._handleDexie(account)
+      const e2eKey = await Auth._storeUserLocalDB()
 
-      this._isAuthenticated = true
+      //if this condition is true, means the user has done the signup for the first time ever, since e2ePublicKey is supposed to be null in that case
+      if (e2eKey !== e2ePublicKey && !e2ePublicKey && e2eKey) {
+        const { response } = await Auth._client.fetch<
+          ApiResponse<{
+            updated: boolean
+          }>
+        >(Auth._client.backendUrl("/auth/update/e2e"), {
+          method: "POST",
+          body: {
+            e2ePublicKey: e2eKey,
+          },
+        })
 
-      resolve({
-        auth: {
-          isConnected: true,
-          ...authInfo,
-        },
-        account,
-      })
-    } catch (error) {
-      //safety check, _account could be null and this method destroy the local storage values stored
-      if ("statusCode" in (error as any) && (error as any).statusCode === 401)
-        this.destroyLastUserLoggedKey()
+        if (!response || !response.data) throw new Error("Invalid response.")
+
+        const { updated } = response.data[0]
+
+        if (!updated) throw new Error("Update E2E Failed. Access not granted.")
+
+        Auth._account!.setE2EPublicKeyOnce = e2eKey
+      }
 
       //clear all the internal callbacks connected to the authentication...
-      this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
-      await this.logout()
-      this._emit("onAuthError", error)
+      Auth._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
 
-      reject(error)
+      return {
+        auth: Auth._authInfo,
+        account: Auth._account!,
+      }
+    } catch (error) {
+      console.error(error)
+
+      //clear all the internal callbacks connected to the authentication...
+      Auth._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
+      await Auth._instance.logout()
+      Auth._emit("onAuthError", error)
+
+      throw error
     }
   }
 
-  private async _callBackendLinkAfterOAuthRedirect(authInfo: PrivyAuthInfo) {
+  private static async _callBackendLinkAfterOAuthRedirect(
+    authInfo: PrivyAuthInfo
+  ) {
+    if (!!!Auth._config || !!!Auth._instance || !!!Auth._client)
+      throw new Error("Auth has not been configured")
+
+    Auth.authToken = authInfo.authToken
+
     try {
-      const { response } = await this._fetch<
+      const { response } = await Auth._client.fetch<
         ApiResponse<{
           link: {
             status: boolean
           }
         }>
-      >(`${this.backendUrl()}/user/link/account`, {
+      >(Auth._client.backendUrl("/user/link/account"), {
         method: "POST",
         body: {
-          ...this._formatAuthParams(authInfo),
-          e2ePublicKey: await this._getUserE2EPublicKey(
+          ...Auth._formatAuthParams(authInfo),
+          e2ePublicKey: await Auth._getUserE2EPublicKey(
             authInfo.user.id,
-            this._apiKey!
+            Auth._apiKey
           ),
-        },
-        headers: {
-          "x-api-key": `${this._apiKey}`,
-          Authorization: `Bearer ${authInfo.authToken}`,
         },
       })
 
@@ -522,51 +545,55 @@ export class Auth extends Client implements AuthInternalEvents {
         throw new Error("An error occured while updating the account.")
 
       //clear all the internal callbacks connected to the authentication...
-      this._clearEventsCallbacks([
+      Auth._clearEventsCallbacks([
         "__onOAuthLinkAuthenticatedDesktop",
         "__onLinkAccountError",
       ])
+      Auth._emit("link", authInfo)
+    } catch (error: any) {
+      console.error(error)
+      if ("statusCode" in error && error.statusCode === 401) {
+        Auth._clearEventsCallbacks([
+          "__onOAuthLinkAuthenticatedDesktop",
+          "__onLinkAccountError",
+          "__onLoginComplete",
+          "__onLoginError",
+        ])
 
-      this._emit("link", {
-        ...authInfo,
-      })
-    } catch (error) {
-      //safety check, _account could be null and this method destroy the local storage values stored
-      if ("statusCode" in (error as any) && (error as any).statusCode === 401)
-        this.destroyLastUserLoggedKey()
-
-      this._clearEventsCallbacks([
-        "__onOAuthLinkAuthenticatedDesktop",
-        "__onLinkAccountError",
-      ])
-      this._emit("onLinkError", error)
+        Auth._emit("onLinkError", error)
+        await Auth._instance.logout()
+        Auth._emit("onAuthError", error)
+      } else {
+        Auth._clearEventsCallbacks([
+          "__onOAuthLinkAuthenticatedDesktop",
+          "__onLinkAccountError",
+        ])
+        Auth._emit("onLinkError", error)
+      }
     }
   }
 
-  private async _callBackendLink(
-    resolve: (value: PrivyAuthInfo | PromiseLike<PrivyAuthInfo>) => void,
-    reject: (reason?: any) => void,
-    authInfo: PrivyAuthInfo
-  ) {
+  private static async _callBackendLink(authInfo: PrivyAuthInfo) {
+    if (!!!Auth._config || !!!Auth._instance || !!!Auth._client)
+      throw new Error("Auth has not been configured")
+
+    Auth.authToken = authInfo.authToken
+
     try {
-      const { response } = await this._fetch<
+      const { response } = await Auth._client.fetch<
         ApiResponse<{
           link: {
             status: boolean
           }
         }>
-      >(`${this.backendUrl()}/user/link/account`, {
+      >(Auth._client.backendUrl("/user/link/account"), {
         method: "POST",
         body: {
-          ...this._formatAuthParams(authInfo),
-          e2ePublicKey: await this._getUserE2EPublicKey(
+          ...Auth._formatAuthParams(authInfo),
+          e2ePublicKey: await Auth._getUserE2EPublicKey(
             authInfo.user.id,
-            this._apiKey!
+            Auth._apiKey
           ),
-        },
-        headers: {
-          "x-api-key": `${this._apiKey}`,
-          Authorization: `Bearer ${authInfo.authToken}`,
         },
       })
 
@@ -579,26 +606,35 @@ export class Auth extends Client implements AuthInternalEvents {
         throw new Error("An error occured while updating the account.")
 
       //clear all the internal callbacks connected to the link...
-      this._clearEventsCallbacks([
+      Auth._clearEventsCallbacks([
         "__onLinkAccountComplete",
         "__onLinkAccountError",
       ])
 
-      resolve({ ...authInfo })
-    } catch (error) {
-      //safety check, _account could be null and this method destroy the local storage values stored
-      if ("statusCode" in (error as any) && (error as any).statusCode === 401)
-        this.destroyLastUserLoggedKey()
+      return authInfo
+    } catch (error: any) {
+      if ("statusCode" in error && error.statusCode === 401) {
+        Auth._clearEventsCallbacks([
+          "__onLinkAccountComplete",
+          "__onLinkAccountError",
+          "__onLoginComplete",
+          "__onLoginError",
+        ])
 
-      this._clearEventsCallbacks([
-        "__onLinkAccountComplete",
-        "__onLinkAccountError",
-      ])
-      reject(error)
+        await Auth._instance.logout()
+        Auth._emit("onAuthError", error)
+      } else {
+        Auth._clearEventsCallbacks([
+          "__onLinkAccountComplete",
+          "__onLinkAccountError",
+        ])
+      }
+
+      throw error
     }
   }
 
-  private _formatAuthParams(authInfo: PrivyAuthInfo): AuthParams {
+  private static _formatAuthParams(authInfo: PrivyAuthInfo): AuthParams {
     return {
       did: authInfo.user.id,
       walletAddress: authInfo.user.wallet!.address,
@@ -707,291 +743,239 @@ export class Auth extends Client implements AuthInternalEvents {
     }
   }
 
-  private _clearEventsCallbacks(events: Array<AuthEvents>) {
-    events.forEach((event: AuthEvents) => {
-      const index = this._eventsCallbacks.findIndex((item) => {
-        return item.eventName === event
-      })
+  private static _clearEventsCallbacks(events: Array<AuthEvents>) {
+    for (const event of events) {
+      const index = Auth._eventsCallbacks.findIndex(
+        (item) => item.event === event
+      )
+      if (index < 0) return
 
-      if (index > -1) this._eventsCallbacks[index].callbacks = []
-    })
-  }
-
-  private _handleDesktopAuthentication(
-    resolve: (
-      value:
-        | { auth: AuthInfo; account: Account }
-        | PromiseLike<{ auth: AuthInfo; account: Account }>
-    ) => void,
-    reject: (reason?: any) => void
-  ) {
-    try {
-      this.on("__onLoginComplete", async (authInfo: PrivyAuthInfo) => {
-        this._callBackendAuth(resolve, reject, authInfo)
-      })
-
-      this.on("__onLoginError", (error: PrivyErrorCode) => {
-        reject(error)
-      })
-
-      this._emit("__authenticate")
-    } catch (error) {
-      reject(error)
+      Auth._eventsCallbacks[index].callbacks = []
     }
   }
 
-  private _handleDesktopLink(
-    resolve: (value: PrivyAuthInfo | PromiseLike<PrivyAuthInfo>) => void,
-    reject: (reason?: any) => void,
+  private static async _handleDesktopAuthentication() {
+    return new Promise<{
+      auth: AuthInfo
+      account: Account
+    }>((resolve, reject) => {
+      if (!!!Auth._config || !!!Auth._instance)
+        throw new Error("Auth has not been configured")
 
-    method:
-      | "apple"
-      | "discord"
-      | "email"
-      | "farcaster"
-      | "github"
-      | "google"
-      | "instagram"
-      | "linkedin"
-      | "phone"
-      | "spotify"
-      | "tiktok"
-      | "twitter"
-      | "wallet"
-      | "telegram"
-  ) {
-    try {
-      this.on("__onLinkAccountComplete", async (authInfo: PrivyAuthInfo) => {
-        this._callBackendLink(resolve, reject, authInfo)
+      Auth._instance.on("__onLoginComplete", (authInfo: PrivyAuthInfo) => {
+        Auth._callBackendAuth(authInfo).then(resolve).catch(reject)
       })
 
-      this.on("__onLinkAccountError", (error: PrivyErrorCode) => {
-        reject(error)
-      })
+      Auth._instance.on("__onLoginError", reject)
 
-      this._emit("__link", method)
-    } catch (error) {
-      reject(error)
-    }
+      Auth._emit("__authenticate")
+    })
   }
 
-  _emit(eventName: AuthEvents, params?: any) {
-    const index = this._eventsCallbacks.findIndex((item) => {
-      return item.eventName === eventName
-    })
+  private static async _handleDesktopLink(method: AuthLinkMethod) {
+    return new Promise<PrivyAuthInfo>((resolve, reject) => {
+      if (!!!Auth._config || !!!Auth._instance)
+        throw new Error("Auth has not been configured")
 
-    if (index > -1)
-      this._eventsCallbacks[index].callbacks.forEach((callback) => {
-        callback(params)
+      Auth._instance.on(
+        "__onLinkAccountComplete",
+        (authInfo: PrivyAuthInfo) => {
+          Auth._callBackendLink(authInfo).then(resolve).catch(reject)
+        }
+      )
+
+      Auth._instance.on("__onLinkAccountError", reject)
+
+      Auth._emit("__link", method)
+    })
+  }
+
+  static _emit(event: AuthEvents, params?: any) {
+    const index = Auth._eventsCallbacks.findIndex(
+      (item) => item.event === event
+    )
+    if (index < 0) return
+
+    Auth._eventsCallbacks[index].callbacks.forEach((callback) =>
+      callback(params)
+    )
+  }
+
+  static config(config: AuthConfig & ApiKeyAuthorized) {
+    if (!!Auth._config) throw new Error("Auth already configured")
+
+    Auth._config = config
+  }
+
+  static getInstance() {
+    return Auth._instance ?? new Auth()
+  }
+
+  /** public instance methods */
+
+  /**
+   * Add a new event and the associated callback.
+   * @param event - The event to listen.
+   * @param callback - The callback related to this event.
+   * @param onlyOnce - An optional flag, it allows the adding of only one callback associated to this event.
+   */
+  on(event: AuthEvents, callback: Function, onlyOnce?: boolean) {
+    const index = Auth._eventsCallbacks.findIndex(
+      (item) => item.event === event
+    )
+
+    if (index < 0)
+      Auth._eventsCallbacks.push({
+        event,
+        callbacks: [callback],
       })
+    else {
+      // this is wrong, if i flag onlyOnce: true i still want my callback to be executed, just once tho
+      if (onlyOnce) return
+      Auth._eventsCallbacks[index].callbacks.push(callback)
+    }
   }
 
   /**
-   * Updates the configuration settings for the authentication client.
-   * @param {AuthClientConfig} config - The configuration object containing the settings to update.
+   * Remove an event and the associated callback or all the callbacks associated to that event.
+   * @param event - The event to unlisten.
+   * @param callback - The callback related to this event.
    * @returns None
    */
-  config(config: AuthClientConfig) {
-    if (config.storage) this._storage = config.storage
-  }
-
-  on(eventName: AuthEvents, callback: Function, onlyOnce?: boolean) {
-    const index = this._eventsCallbacks.findIndex((item) => {
-      return item.eventName === eventName
+  off(event: AuthEvents, callback?: Function) {
+    const index = Auth._eventsCallbacks.findIndex((item) => {
+      return item.event === event
     })
 
-    if (index > -1 && onlyOnce === true) return
+    if (index < 0) return
 
-    if (index > -1 && !onlyOnce)
-      this._eventsCallbacks[index].callbacks.push(callback)
-
-    this._eventsCallbacks.push({
-      eventName,
-      callbacks: [callback],
-    })
+    Auth._eventsCallbacks[index].callbacks = callback
+      ? Auth._eventsCallbacks[index].callbacks.filter((cb) => cb !== callback)
+      : []
   }
 
   authenticate(): Promise<{ auth: AuthInfo; account: Account }> {
-    return new Promise((resolve, reject) => {
-      this._handleDesktopAuthentication(resolve, reject)
-    })
+    return Auth._handleDesktopAuthentication()
   }
 
   sendEmailOTPCode(email: string): Promise<{ email: string }> {
     return new Promise((resolve, reject) => {
-      this.on("__onEmailOTPCodeSent", (email: string) => {
-        resolve({ email })
-      })
+      this.on("__onEmailOTPCodeSent", (email: string) => resolve({ email }))
 
-      this.on("__onEmailOTPCodeSentError", (error: string) => {
-        reject(error)
-      })
+      this.on("__onEmailOTPCodeSentError", reject)
 
-      this._emit("__sendEmailOTPCode", email)
+      Auth._emit("__sendEmailOTPCode", email)
     })
   }
 
   sendPhoneOTPCode(phone: string): Promise<{ phone: string }> {
     return new Promise((resolve, reject) => {
-      this.on("__onSMSOTPCodeSent", (phone: string) => {
-        resolve({ phone })
-      })
+      this.on("__onSMSOTPCodeSent", (phone: string) => resolve({ phone }))
 
-      this.on("__onSMSOTPCodeSentError", (error: string) => {
-        reject(error)
-      })
+      this.on("__onSMSOTPCodeSentError", reject)
 
-      this._emit("__sendSMSOTPCode", phone)
+      Auth._emit("__sendSMSOTPCode", phone)
     })
   }
 
   sendEmailOTPCodeAfterAuth(email: string): Promise<{ email: string }> {
     return new Promise((resolve, reject) => {
-      this.on("__onEmailOTPCodeAfterAuthSent", (email: string) => {
+      this.on("__onEmailOTPCodeAfterAuthSent", (email: string) =>
         resolve({ email })
-      })
+      )
 
-      this.on("__onEmailOTPCodeAfterAuthSentError", (error: string) => {
-        reject(error)
-      })
+      this.on("__onEmailOTPCodeAfterAuthSentError", reject)
 
-      this._emit("__sendEmailOTPCodeAfterAuth", email)
+      Auth._emit("__sendEmailOTPCodeAfterAuth", email)
     })
   }
 
   sendPhoneOTPCodeAfterAuth(phone: string): Promise<{ phone: string }> {
     return new Promise((resolve, reject) => {
-      this.on("__onSMSOTPCodeAfterAuthSent", (phone: string) => {
+      this.on("__onSMSOTPCodeAfterAuthSent", (phone: string) =>
         resolve({ phone })
-      })
+      )
 
-      this.on("__onSMSOTPCodeSentAfterAuthError", (error: string) => {
-        reject(error)
-      })
+      this.on("__onSMSOTPCodeSentAfterAuthError", reject)
 
-      this._emit("__sendSMSOTPCodeAfterAuth", phone)
+      Auth._emit("__sendSMSOTPCodeAfterAuth", phone)
     })
   }
 
-  //call this if you want to auth the user automatically without the need of a button to authenticate
-  //e.g. auth.ready(() => { auth.authenticate() })
+  /**
+   * call this if you want to auth the user automatically without the need of a button to authenticate.
+   *
+   * e.g. auth.ready().then(() => auth.authenticate())
+   */
   ready() {
-    return new Promise((resolve, reject) => {
-      try {
-        this.on("__onPrivyReady", () => {
-          resolve(true)
-        })
-      } catch (error) {
-        resolve(false)
-      }
-    })
+    return new Promise((resolve) =>
+      this.on("__onPrivyReady", () => resolve(true))
+    )
   }
 
   logout(): Promise<boolean> {
-    return new Promise((resolve, reject) => {
-      try {
-        this.on("__onLogoutComplete", (status: boolean) => {
-          this._isLoggingOut = false
-          this._clearEventsCallbacks(["__onLogoutComplete"])
-          resolve(status)
-        })
+    Auth._isLoggingOut = true
+    Auth._isAuthenticated = false
+    // ? should Auth._account = null? auth.on("_logout", () => auth.getCurrentAccount() // exists)
+    Auth._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
 
-        this._isLoggingOut = true
-        this._isAuthenticated = false
-        this._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
-        this._account?.emptyActiveWallets()
-        this.destroyLastUserLoggedKey()
-        this.setAuthToken(null)
-        this._oracleRef.setAuthToken(null)
-        this._chatRef.setAuthToken(null)
-        this._orderRef.setAuthToken(null)
-        this._proposalRef.setAuthToken(null)
+    Auth._emit("__logout")
 
-        this._emit("__logout")
-      } catch (error) {
-        this._clearEventsCallbacks([
-          "__onLoginComplete",
-          "__onLoginError",
-          "__onLogoutComplete",
-        ])
-        console.warn(error)
-        reject(false)
-      }
+    return new Promise((resolve) => {
+      this.on("__onLogoutComplete", (status: boolean) => {
+        Auth._isLoggingOut = false
+
+        Auth.authToken = null
+        // TODO exists?
+        Auth._account?.emptyActiveWallets()
+        Chat.getInstance().disconnect()
+
+        Auth._clearEventsCallbacks(["__onLogoutComplete"])
+        Auth._emit("logout")
+        resolve(status)
+      })
     })
   }
 
   isLoggingOut() {
-    return this._isLoggingOut === true
+    return Auth._isLoggingOut
   }
 
   isAuthenticated() {
-    return this._isAuthenticated === true
+    return Auth._isAuthenticated
   }
 
-  link(
-    method:
-      | "apple"
-      | "discord"
-      | "email"
-      | "farcaster"
-      | "github"
-      | "google"
-      | "instagram"
-      | "linkedin"
-      | "phone"
-      | "spotify"
-      | "tiktok"
-      | "twitter"
-      | "wallet"
-      | "telegram"
-  ): Promise<LinkAccountInfo> {
-    return new Promise((resolve, reject) => {
-      this._handleDesktopLink(resolve, reject, method)
+  getAuthInfo() {
+    return Auth._authInfo
+  }
+
+  getCurrentAccount() {
+    return Auth.account
+  }
+
+  async link(method: AuthLinkMethod) {
+    return new Promise<LinkAccountInfo>((resolve, reject) => {
+      Auth._handleDesktopLink(method).then(resolve).catch(reject)
     })
   }
 
-  unlink(
-    method:
-      | "apple"
-      | "discord"
-      | "email"
-      | "farcaster"
-      | "github"
-      | "google"
-      | "instagram"
-      | "linkedin"
-      | "phone"
-      | "spotify"
-      | "tiktok"
-      | "twitter"
-      | "wallet"
-      | "telegram"
-  ): Promise<boolean> {
-    return new Promise((resolve, reject) => {
-      try {
-        this.on("__onUnlinkAccountComplete", (status: boolean) => {
-          //aggiungere await per chiamata lato server per aggiornare backend
-          resolve(status)
-        })
+  async unlink(method: AuthLinkMethod) {
+    return new Promise<boolean>((resolve, reject) => {
+      this.on("__onUnlinkAccountComplete", (status: boolean) => {
+        // TODO aggiungere await per chiamata lato server per aggiornare backend
+        resolve(status)
+      })
 
-        this.on(
-          "__onUnlinkAccountError",
-          ({ error }: { error: PrivyErrorCode }) => {
-            reject({ error })
-          }
-        )
+      this.on("__onUnlinkAccountError", reject)
 
-        this._emit("__unlink", method)
-      } catch (error) {
-        console.warn(error)
-        reject(error)
-      }
+      Auth._emit("__unlink", method)
     })
   }
 
-  async recoverAccountFromLocalDB(): Promise<void> {
-    if (!this._storage) return
-    if (this._account) return
+  public static async recoverAccountFromLocalDB() {
+    if (!!!Auth._config || !!!Auth._instance || !!!Auth._client)
+      throw new Error("Auth has not been configured")
+    if (Auth._account) return
 
     const lastUserLoggedKey = window.localStorage.getItem(
       CLIENT_DB_KEY_LAST_USER_LOGGED
@@ -1001,25 +985,21 @@ export class Auth extends Client implements AuthInternalEvents {
 
     try {
       const { did, organizationId, token } = JSON.parse(lastUserLoggedKey)
-      const user = await this._storage.get("user", "[did+organizationId]", [
+      const user = await Auth._storage.get("user", "[did+organizationId]", [
         did,
         organizationId,
       ])
 
-      const { response } = await this._fetch<
+      Auth.authToken = token
+
+      const { response } = await Auth._client.fetch<
         ApiResponse<{
           secrets: {
             e2eSecret: string
             e2eSecretIV: string
           }
         }>
-      >(`${this.backendUrl()}/user/secrets`, {
-        method: "GET",
-        headers: {
-          "x-api-key": `${this._apiKey}`,
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      >(Auth._client.backendUrl("/user/secrets"))
 
       if (!response || !response.data) return
 
@@ -1029,14 +1009,14 @@ export class Auth extends Client implements AuthInternalEvents {
 
       const { e2eSecret, e2eSecretIV } = secrets
 
-      const account = new Account({
-        enableDevMode: this._isDevMode,
-        apiKey: this._apiKey!,
-        storage: this._storage,
-        chatRef: this._chatRef,
+      Auth._isAuthenticated = true
+
+      Auth.account = new Account({
+        enableDevMode: Auth._config.devMode,
+        storage: Auth._config.storage,
         did: user.did,
         organizationId: user.organizationId,
-        token: token,
+        token: Auth.authToken!, //we use Auth.authToken and not token because in case we have a 401 error, variable 'token' has the value of the previous token. Instead Auth.authToken has the updated value.
         walletAddress: user.wallet.address,
         walletConnectorType: user.wallet.connectorType,
         walletImported: user.wallet.imported,
@@ -1096,6 +1076,7 @@ export class Auth extends Client implements AuthInternalEvents {
         bio: user.bio,
         firstLogin: user.firstLogin,
         avatarUrl: user.avatarUrl,
+        imageSettings: user.imageSettings,
         phone: user.phone ? user.phone : null,
         isVerified: user.isVerified,
         isPfpNft: user.isPfpNft,
@@ -1126,38 +1107,72 @@ export class Auth extends Client implements AuthInternalEvents {
         allowAddToGroupsFrom: user.allowAddToGroupsFrom,
         allowGroupsSuggestion: user.allowGroupsSuggestion,
       })
-
-      this.setAuthToken(token)
-      this._oracleRef.setAuthToken(token)
-      this._chatRef.setAuthToken(token)
-      this._proposalRef.setAuthToken(token)
-      this._orderRef.setAuthToken(token)
-      this._notificationRef.setAuthToken(token)
-
-      this._chatRef.setCurrentAccount(account)
-      this._orderRef.setCurrentAccount(account)
-      this._oracleRef.setCurrentAccount(account)
-      this._proposalRef.setCurrentAccount(account)
-      this._notificationRef.setCurrentAccount(account)
-      this.setCurrentAccount(account) //this must be the last because it fires event
-    } catch (error) {
-      //safety check, _account could be null and this method destroy the local storage values stored
-      if ("statusCode" in (error as any) && (error as any).statusCode === 401) {
-        this.destroyLastUserLoggedKey()
-        await this.logout()
-      }
-
+    } catch (error: any) {
       console.log("Error during rebuilding phase for account.")
-      console.log(error)
+      console.error(error)
+      if ("statusCode" in error && error.statusCode === 401)
+        await Auth._instance.logout()
     }
   }
 
-  destroyLastUserLoggedKey() {
-    window.localStorage.removeItem(CLIENT_DB_KEY_LAST_USER_LOGGED)
-  }
+  public static async fetchAuthToken() {
+    try {
+      console.log("fetch new token")
+      const token = await getAccessToken()
 
-  setCurrentAccount(account: Account) {
-    super.setCurrentAccount(account)
-    this._emit("__onAccountReady")
+      console.log(
+        "old real time auth token is",
+        Auth._realtimeAuthorizationToken
+      )
+      console.log("old token is ", Auth.authToken)
+      console.log("new token is ", token)
+
+      Auth.authToken = token
+
+      console.log("confirmation for new token ", Auth.authToken)
+      console.log(
+        "confirmation for new real time auth token ",
+        Auth._realtimeAuthorizationToken
+      )
+
+      let lastUserLoggedKey = window.localStorage.getItem(
+        CLIENT_DB_KEY_LAST_USER_LOGGED
+      )
+
+      if (!token) throw new Error("Impossible to refresh the token.")
+
+      if (!lastUserLoggedKey)
+        throw new Error("Impossible to detect a logged user key.")
+
+      console.log(
+        "lastuserlogged key from local storage is ",
+        JSON.parse(lastUserLoggedKey)
+      )
+
+      lastUserLoggedKey = JSON.parse(lastUserLoggedKey)
+      ;(
+        lastUserLoggedKey as unknown as {
+          did: string
+          token: string
+          organizationId: string
+        }
+      ).token = token
+      window.localStorage.setItem(
+        CLIENT_DB_KEY_LAST_USER_LOGGED,
+        JSON.stringify(lastUserLoggedKey)
+      )
+
+      console.log(
+        "setItem performed on local storage with value",
+        lastUserLoggedKey
+      )
+    } catch (error) {
+      console.log("[fetchAuthToken error]:", error)
+      console.log("logging out...")
+      Auth._instance?.logout()
+      Chat.getInstance().isConnected() ?? Chat.getInstance().disconnect()
+
+      throw error
+    }
   }
 }

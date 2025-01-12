@@ -1,5 +1,5 @@
 import { ConversationTradingPool, QIError } from "../../../../core/chat"
-import { RequestTradeArgs, UpdateRequestTradeArgs } from "@src/types"
+import { RequestTradeArgs, UpdateRequestTradeArgs } from "../../../../types"
 
 /**
  * Interface for a Conversation Trading Pool Mutation Engine, which defines methods for
@@ -7,11 +7,16 @@ import { RequestTradeArgs, UpdateRequestTradeArgs } from "@src/types"
  * @interface ConversationTradingPoolMutationEngine
  */
 export interface ConversationTradingPoolMutationEngine {
-  deleteRequestTrade(id: string): Promise<ConversationTradingPool | QIError>
+  deleteRequestTrade(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<ConversationTradingPool | QIError>
   requestTrade(
-    args: RequestTradeArgs
+    args: RequestTradeArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<ConversationTradingPool | QIError>
   updateRequestTrade(
-    args: UpdateRequestTradeArgs
+    args: UpdateRequestTradeArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<ConversationTradingPool | QIError>
 }

@@ -12,19 +12,13 @@ import { Order } from "./order"
 import { Notification } from "./notification"
 import { LoopzConfig } from "./types/app/loopzconfig"
 import { PrivyClientConfig } from "@privy-io/react-auth"
-import { PrivyAdapter } from "./adapter"
+import { PrivyAdapter } from "./adapter/privyadapter"
 import { Maybe } from "./types"
 
 export class Loopz {
   private static _instance: Loopz
-  private static _randomLsname: string
 
-  private static _auth: Auth
-  private static _chat: Chat
-  private static _oracle: Oracle
-  private static _proposal: Proposal
-  private static _order: Order
-  private static _notification: Notification
+  private static _randomLsname: string
 
   private static _apiKey: string
 
@@ -37,6 +31,10 @@ export class Loopz {
   private static _privyAdapter: Maybe<PrivyAdapter> = null
 
   private static _devMode: boolean = false
+
+  static get devMode(): boolean {
+    return Loopz._devMode
+  }
 
   private constructor(
     config: LoopzConfig,
@@ -63,43 +61,34 @@ export class Loopz {
     if (typeof devMode !== "undefined" && devMode === true)
       Loopz._devMode = true
 
-    Loopz._oracle = new Oracle({
-      apiKey: config.apiKey,
-      devMode: Loopz._devMode,
-    })
-    Loopz._proposal = new Proposal({
-      apiKey: config.apiKey,
-      devMode: Loopz._devMode,
-    })
-    Loopz._order = new Order({
-      apiKey: config.apiKey,
-      devMode: Loopz._devMode,
-    })
-    Loopz._chat = new Chat({
-      apiKey: Loopz._apiKey,
-      storage: config.storage,
-      devMode: Loopz._devMode,
-    })
-    Loopz._notification = new Notification({
-      apiKey: config.apiKey,
-      devMode: Loopz._devMode,
-    })
-    Loopz._auth = new Auth({
+    Auth.config({
       apiKey: config.apiKey,
       privyAppId: config.privyAppId,
       privyConfig: config.privyClientConfig,
-      oracle: Loopz._oracle,
-      proposal: Loopz._proposal,
-      order: Loopz._order,
-      chat: Loopz._chat,
-      notification: Loopz._notification,
       storage: config.storage,
       devMode: Loopz._devMode,
     })
+    Oracle.config({
+      devMode: Loopz._devMode,
+    })
+    Proposal.config({
+      devMode: Loopz._devMode,
+    })
+    Order.config({
+      devMode: Loopz._devMode,
+    })
+    Chat.config({
+      storage: config.storage,
+      devMode: Loopz._devMode,
+    })
+    Notification.config({
+      devMode: Loopz._devMode,
+    })
 
-    if (Loopz._privyAdapter)
-      Loopz._privyAdapter.render(Loopz._auth, Loopz._order)
+    if (Loopz._privyAdapter) Loopz._privyAdapter.render()
   }
+
+  /** static methods */
 
   private static async createOrConnectToStorage(): Promise<DexieStorage> {
     if (!window.localStorage)
@@ -144,9 +133,9 @@ export class Loopz {
     }
   ): Promise<Loopz> {
     if (!Loopz._instance) {
-      let runAdapter = undefined
-      let enableStorage = undefined
-      let devMode = undefined
+      let runAdapter: boolean | undefined = undefined
+      let enableStorage: boolean | undefined = undefined
+      let devMode: boolean | undefined = undefined
 
       if (options && "runAdapter" in options) runAdapter = options.runAdapter
       if (options && "enableStorage" in options)
@@ -172,23 +161,35 @@ export class Loopz {
     return Loopz._instance
   }
 
+  /** public instance methods */
+
   init(): {
     auth: Auth
     order: Order
     proposal: Proposal
     oracle: Oracle
     chat: Chat
+    notification: Notification
   } {
-    Loopz._auth.on("__tryRebuildAccountOnRefresh", async () => {
-      await Loopz._auth.recoverAccountFromLocalDB()
-    })
+    const auth = Auth.getInstance()
+    const order = Order.getInstance()
+    const proposal = Proposal.getInstance()
+    const oracle = Oracle.getInstance()
+    const chat = Chat.getInstance()
+    const notification = Notification.getInstance()
+
+    auth.on(
+      "__tryRebuildAccountOnRefresh",
+      Auth.recoverAccountFromLocalDB.bind(Auth)
+    )
 
     return {
-      auth: Loopz._auth,
-      order: Loopz._order,
-      proposal: Loopz._proposal,
-      oracle: Loopz._oracle,
-      chat: Loopz._chat,
+      auth,
+      order,
+      proposal,
+      oracle,
+      chat,
+      notification,
     }
   }
 }

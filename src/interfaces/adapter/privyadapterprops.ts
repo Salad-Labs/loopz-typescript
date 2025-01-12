@@ -1,6 +1,6 @@
 import { PrivyClientConfig } from "@privy-io/react-auth"
-import { Auth } from "@src/auth"
-import { Order } from "@src/order"
+import { Auth } from "../../auth"
+import { Order } from "../../order"
 
 export interface PrivyAdapterProps {
   auth: Auth

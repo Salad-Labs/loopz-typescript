@@ -1,3 +1,4 @@
+import { ListMessagesUpdatedArgs } from "src/types/chat/schema/args/listmessagesupdated"
 import {
   Conversation,
   ConversationPin,
@@ -6,13 +7,14 @@ import {
   QIError,
   User,
 } from "../../../../core/chat"
-import { Maybe } from "../../../../types/base"
 import {
+  Maybe,
   FindUsersByUsernameOrAddressArgs,
   ListAllActiveUserConversationIdsArgs,
   ListMessagesByConversationIdArgs,
+  ListMessagesByRangeOrderArgs,
   ListMessagesImportantByUserConversationIdArgs,
-} from "@src/types"
+} from "../../../../types"
 
 /**
  * Interface for a User Query Engine that provides methods to interact with user conversations and messages.
@@ -20,7 +22,8 @@ import {
  */
 export interface UAQueryEngine {
   listAllActiveUserConversationIds(
-    args: ListAllActiveUserConversationIdsArgs
+    args: ListAllActiveUserConversationIdsArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     | {
         items: Array<string>
@@ -29,31 +32,50 @@ export interface UAQueryEngine {
     | QIError
   >
   listConversationsByIds(
-    ids: Array<string>
+    ids: Array<string>,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     { items: Array<Conversation>; unprocessedKeys?: Maybe<string[]> } | QIError
   >
   listMessagesByConversationId(
-    args: ListMessagesByConversationIdArgs
+    args: ListMessagesByConversationIdArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<{ items: Array<Message>; nextToken?: Maybe<string> } | QIError>
   listMessagesImportantByUserConversationId(
-    args: ListMessagesImportantByUserConversationIdArgs
+    args: ListMessagesImportantByUserConversationIdArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     { items: Array<MessageImportant>; nextToken?: Maybe<string> } | QIError
   >
+  listMessagesByRangeOrder(
+    args: ListMessagesByRangeOrderArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<{ items: Array<Message>; nextToken?: Maybe<string> } | QIError>
+  listMessagesUpdated(
+    args: ListMessagesUpdatedArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<{ items: Array<Message>; nextToken?: Maybe<string> } | QIError>
   listConversationsPinnedByCurrentUser(
-    nextToken?: string
+    nextToken?: string,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     { items: Array<ConversationPin>; nextToken?: Maybe<string> } | QIError
   >
   listUsersByIds(
-    ids: Array<string>
+    ids: Array<string>,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     { items: Array<User>; unprocessedKeys?: Maybe<string[]> } | QIError
   >
-  getConversationById(id: string): Promise<Conversation | QIError>
+  getConversationById(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Conversation | QIError>
   findUsersByUsernameOrAddress(
-    args: FindUsersByUsernameOrAddressArgs
+    args: FindUsersByUsernameOrAddressArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<{ items: Array<User>; nextToken?: String } | QIError>
-  getCurrentUser(): Promise<User | QIError>
+  getCurrentUser(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
 }

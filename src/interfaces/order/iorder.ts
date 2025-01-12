@@ -1,8 +1,8 @@
 import { Collector } from ".."
-import { AssetStatusVerification } from "@src/types"
-import { AssetTypeName } from "@src/types/base/assettypename"
+import { AssetStatusVerification } from "../../types"
+import { AssetTypeName } from "../../types/base/assettypename"
 import { OrderDetail } from "./orderdetail"
-import { OrderParameters } from "@src/types"
+import { OrderParameters } from "../../types"
 
 /**
  * Represents a order detail object that includes master, detail, and parameters information.

@@ -2,7 +2,7 @@ export class MessageMap {
   public static get MESSAGE_MATRIX() {
     return {
       "0": "Hey everyone! 🙂",
-      "1": "What’s up Traders!? 📣",
+      "1": "What's up Traders!? 📣",
       "2": "Who wants to make a deal? 👋",
       "3": "Anyone looking to trade? 😊",
       "4": "Who is up for a trade? 👇",
@@ -10,7 +10,7 @@ export class MessageMap {
       "6": "Do you like it?",
       "7": "What do you think about this?",
       "8": "Let me know if you like it",
-      "9": "Let’s trade",
+      "9": "Let's trade",
       "10": "This may be perfect for you",
       "11": "Hope you like it",
       "001_001": "Anyone interested to this NFT?",
@@ -219,6 +219,6 @@ export class MessageMap {
         "Choose whatever assets you want from my wallet but i would love in exchange the following assets.",
       "102_100":
         "Choose whatever assets you want from my wallet but i would love in exchange the following assets.",
-    }
+    };
   }
 }

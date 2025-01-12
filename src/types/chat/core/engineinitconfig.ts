@@ -1,4 +1,4 @@
-import { DexieStorage } from "@src/core/app"
+import { DexieStorage } from "../../../core/app"
 
 /**
  * Represents the configuration needed to initialize the engine.
@@ -6,11 +6,11 @@ import { DexieStorage } from "@src/core/app"
  */
 export type EngineInitConfig = {
   /**
-   * @property {string} apiKey - The API key for accessing services.
+   * @property {DexieStorage} storage - The internal storage of the application.
    */
-  apiKey: string
-
   storage: DexieStorage
-
+  /**
+   * @property {boolean} devMode - a flag indicating the SDK runs in dev mode.
+   */
   devMode: boolean
 }

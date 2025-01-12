@@ -1,9 +1,19 @@
-import { Maybe } from "@src/types"
+import { Maybe } from "../../../../types"
 
 export interface LocalDBMessage {
   id: string //primary key
   userDid: string //primary key
   userId: string
+  user: {
+    id: string
+    username: string
+    avatarURL: string
+    imageSettings: Maybe<{
+      imageX: number
+      imageY: number
+      imageZoom: number
+    }>
+  }
   organizationId: string
   conversationId: string
   content: string

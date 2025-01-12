@@ -1,5 +1,6 @@
 import { Client } from "@urql/core"
 import { Maybe } from "../../../../types/base"
+import UUIDSubscriptionClient from "../../../../core/chat/uuidsubscriptionclient"
 
 /**
  * Represents the initial configuration for a user.
@@ -34,6 +35,10 @@ export type UserInitConfig = {
    * @property {Maybe<URL>} avatarUrl - The URL of the user's avatar, if available.
    */
   avatarUrl: Maybe<URL>
+  /**
+   * @property {Maybe<string>} imageSettings - The image settings of the avatar, if available.
+   */
+  imageSettings: Maybe<string>
   /**
    * @property {boolean} isVerified - Indicates if the user is verified.
    */
@@ -106,4 +111,8 @@ export type UserInitConfig = {
    * @property {Client} client - Indicates the client
    */
   client: Client
+  /**
+   * @property {UUIDSubscriptionClient} realtimeClient - The real time client associated with the entry.
+   */
+  realtimeClient: UUIDSubscriptionClient
 }

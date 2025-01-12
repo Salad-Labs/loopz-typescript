@@ -1,12 +1,18 @@
-import { Maybe, Network } from "@src/types"
+import { Maybe, Network } from "../../../../types"
 
 export interface LocalDBUser {
   did: string //primary key
   organizationId: string //primary key
+  dynamoDBUserID: string
   username: string
   email: string
   bio: string
   avatarUrl: string
+  imageSettings: Maybe<{
+    imageX: number
+    imageY: number
+    imageZoom: number
+  }>
   isVerified: boolean
   isPfpNft: boolean
   pfp: Maybe<{
@@ -105,4 +111,5 @@ export interface LocalDBUser {
   e2eEncryptedPrivateKey: string
   createdAt: Date
   updatedAt: Maybe<Date>
+  lastSyncAt: Maybe<Date>
 }

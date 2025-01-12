@@ -8,7 +8,6 @@ import {
 } from "../../../../core/chat"
 import {
   AddMembersToConversationArgs,
-  AddMemberToConversationArgs,
   AddReportToConversationArgs,
   EjectMemberArgs,
   MuteConversationArgs,
@@ -22,46 +21,84 @@ import {
  */
 export interface ConversationMutationEngine {
   addMembersToConversation(
-    args: AddMembersToConversationArgs
+    args: AddMembersToConversationArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     { conversationId: string; items: Array<ConversationMember> } | QIError
   >
-  addMemberToConversation(
-    args: AddMemberToConversationArgs
-  ): Promise<ConversationMember | QIError>
   addReportToConversation(
-    args: AddReportToConversationArgs
+    args: AddReportToConversationArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<ConversationReport | QIError>
-  archiveConversation(): Promise<User | QIError>
-  archiveConversation(id: string): Promise<User | QIError>
-  deleteMessage(id: string): Promise<Message | QIError>
+  archiveConversation(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
+  archiveConversation(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
+  deleteMessage(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Message | QIError>
   ejectMember(
-    args: EjectMemberArgs
+    args: EjectMemberArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
-    | { conversationId: string; conversation: Conversation; memberOut: User }
-    | QIError
-  >
-  leaveConversation(): Promise<
     | { conversationId: string; conversation: Conversation; memberOut: User }
     | QIError
   >
   leaveConversation(
-    id: string
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<
     | { conversationId: string; conversation: Conversation; memberOut: User }
     | QIError
   >
-  muteConversation(args: MuteConversationArgs): Promise<Conversation | QIError>
-  sendMessage(args: SendMessageArgs): Promise<Message | QIError>
-  unarchiveConversation(): Promise<User | QIError>
-  unarchiveConversation(id: string): Promise<User | QIError>
-  unmuteConversation(): Promise<Conversation | QIError>
-  unmuteConversation(id: string): Promise<Conversation | QIError>
-  updateConversationGroup(
-    args: UpdateConversationGroupInputArgs
+  leaveConversation(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<
+    | { conversationId: string; conversation: Conversation; memberOut: User }
+    | QIError
+  >
+  muteConversation(
+    args: MuteConversationArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Conversation | QIError>
-  pinConversation(): Promise<Conversation | QIError>
-  pinConversation(id: string): Promise<Conversation | QIError>
-  unpinConversation(): Promise<boolean | QIError>
-  unpinConversation(id: string): Promise<boolean | QIError>
+  sendMessage(
+    args: SendMessageArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Message | QIError>
+  unarchiveConversation(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
+  unarchiveConversation(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
+  unmuteConversation(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Conversation | QIError>
+  unmuteConversation(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Conversation | QIError>
+  updateConversationGroup(
+    args: UpdateConversationGroupInputArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Conversation | QIError>
+  pinConversation(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Conversation | QIError>
+  pinConversation(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Conversation | QIError>
+  unpinConversation(
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<boolean | QIError>
+  unpinConversation(
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<boolean | QIError>
 }

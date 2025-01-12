@@ -10,14 +10,12 @@ export type AddMembersToConversationArgs = {
   /**
    * @property {Array} membersIds - An array of objects containing member details:
    * - memberId: The ID of the member.
-   * - encryptedConversationPrivateKey: The encrypted private key for the conversation.
-   * - encryptedConversationPublicKey: The encrypted public key for the conversation.
+   * - encryptedConversationIVKey: The encrypted iv key for the conversation.
+   * - encryptedConversationAESKey: The encrypted AES key for the conversation.
    */
-  members: [
-    {
-      memberId: string
-      encryptedConversationPrivateKey: string
-      encryptedConversationPublicKey: string
-    }
-  ]
+  members: Array<{
+    memberId: string
+    encryptedConversationIVKey: string
+    encryptedConversationAESKey: string
+  }>
 }

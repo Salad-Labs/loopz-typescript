@@ -26,13 +26,15 @@ export class Reaction extends Engine implements ReactionSchema {
 
   constructor(config: ReactionInitConfig & EngineInitConfig) {
     super({
-      apiKey: config.apiKey,
       storage: config.storage,
       devMode: config.devMode,
     })
+
     this.content = config.content
     this.createdAt = config.createdAt
     this.userId = config.userId
+
     this._client = config.client
+    this._realtimeClient = config.realtimeClient
   }
 }

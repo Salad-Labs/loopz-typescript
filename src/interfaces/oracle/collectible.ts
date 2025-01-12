@@ -96,10 +96,17 @@ export interface Collectible {
      */
     spamClassifications: Array<string>
   }
+
+  id?: {
+    tokenId: string
+    tokenMetadata: {
+      tokenType: string
+    }
+  }
   /**
    * @property {string} tokenId - The unique identifier of the token.
    */
-  tokenId: string
+  tokenId?: string
   /**
    * @property {string} tokenType - The type of the token.
    */
@@ -115,7 +122,30 @@ export interface Collectible {
   /**
    * @property {string | null} [tokenUri=null] - The URI of the token, if available.
    */
-  tokenUri: Maybe<string>
+  tokenUri: Maybe<
+    | string
+    | {
+        gateway: string
+        raw: string
+      }
+  >
+  /**
+   * @property {string | null} [tokenUri=null] - The URI of the token, if available.
+   */
+  metadata?: {
+    attributes: Array<{ trait_type: string; value: string }>
+    image: string
+  }
+
+  contractMetadata?: {
+    contractDeployer: string
+    deployedBlockNumber: number
+    name: string
+    openSea: {}
+    symbol: string
+    tokenType: string
+    totalSupply: string
+  }
   /**
    * @property {object} image - Represents an image object with various properties.
    */
@@ -209,9 +239,9 @@ export interface Collectible {
     bannerImageUrl: Maybe<string>
   }
   /**
-   * @property {Collection} nfttraderCollection - Represents a collection of NFTs shaped in the NFT Trader format.
+   * @property {Collection} loopzAdditionalInfoCollection - Represents additional collection information
    */
-  nfttraderCollection?: Collection
+  loopzAdditionalInfoCollection?: Collection
   /**
    * @property {boolean} isOwner - Indicates if the user is the owner of the NFTs.
    */

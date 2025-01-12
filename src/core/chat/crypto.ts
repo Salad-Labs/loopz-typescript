@@ -1,5 +1,6 @@
 import forge, { Bytes } from "node-forge"
 import { Maybe } from "../../types/base"
+import { escapeHTML, unescapeHTML } from ".."
 
 /**
  * A class that provides cryptographic functions using the node-forge library.
@@ -142,14 +143,14 @@ export class Crypto {
   ) {
     if (!publicKey)
       throw new Error(
-        "An exception occured during the decryption of a message. The private key is not setup correctly."
+        "An exception occured during the encryption of a message. The private key is not setup correctly."
       )
 
     return Crypto.encrypt(publicKey, content)
   }
 
   static generateRandomString(): string {
-    return forge.random.getBytesSync(32)
+    return forge.random.getBytesSync(32).toString()
   }
 
   static generateBase64Key_AES256(): string {
@@ -165,7 +166,67 @@ export class Crypto {
   }
 
   static generateString_128Bit(): string {
-    return forge.random.getBytesSync(16) // 16 bytes = 128 bits
+    return forge.random.getBytesSync(16).toString() // 16 bytes = 128 bits
+  }
+
+  static encryptAES(
+    message: string,
+    key: forge.util.ByteBuffer | Bytes,
+    iv: string | forge.util.ByteStringBuffer | number[] | undefined
+  ) {
+    const cipher = forge.cipher.createCipher("AES-CBC", key)
+
+    cipher.start({ iv })
+    cipher.update(forge.util.createBuffer(message, "utf8"))
+    cipher.finish()
+
+    return forge.util.encode64(cipher.output.getBytes())
+  }
+
+  static decryptAES(
+    encryptedMessage: forge.Base64,
+    key: forge.util.ByteBuffer | Bytes,
+    iv: string | forge.util.ByteStringBuffer | number[] | undefined
+  ) {
+    const decipher = forge.cipher.createDecipher("AES-CBC", key)
+
+    decipher.start({ iv })
+    decipher.update(
+      forge.util.createBuffer(forge.util.decode64(encryptedMessage), "utf8")
+    )
+    decipher.finish()
+
+    return decipher.output.toString() //toString("utf-8")
+  }
+
+  static encryptAESorFail(
+    message: string,
+    keypairItem: Maybe<{
+      AES: string
+      iv: string
+    }>
+  ) {
+    if (!keypairItem)
+      throw new Error(
+        "An exception occured during the encryption of a message. The key pair item is not setup correctly."
+      )
+
+    return Crypto.encryptAES_CBC(message, keypairItem.AES, keypairItem.iv)
+  }
+
+  static decryptAESorFail(
+    message: string,
+    keypairItem: Maybe<{
+      AES: string
+      iv: string
+    }>
+  ) {
+    if (!keypairItem)
+      throw new Error(
+        "An exception occured during the decryption of a message. The key pair item is not setup correctly."
+      )
+
+    return Crypto.decryptAES_CBC(message, keypairItem.AES, keypairItem.iv)
   }
 
   static encryptAES_CBC(
@@ -178,7 +239,7 @@ export class Crypto {
     const cipher = forge.cipher.createCipher("AES-CBC", key)
 
     cipher.start({ iv })
-    cipher.update(forge.util.createBuffer(text))
+    cipher.update(forge.util.createBuffer(encodeURIComponent(escapeHTML(text))))
     cipher.finish()
 
     const encryptedHex = forge.util.bytesToHex(cipher.output.getBytes())
@@ -201,7 +262,7 @@ export class Crypto {
     )
     decipher.finish()
 
-    return decipher.output.toString()
+    return unescapeHTML(decodeURIComponent(decipher.output.toString()))
   }
 
   static encryptSHA256_IV(
@@ -230,6 +291,10 @@ export class Crypto {
     decipher.finish()
 
     return decipher.output.toString()
+  }
+
+  static convertPublicKeyPemToRSA(publicKey: string): forge.pki.rsa.PublicKey {
+    return forge.pki.publicKeyFromPem(publicKey)
   }
 
   static convertRSAPublicKeyToPem(publicKey: forge.pki.rsa.PublicKey): string {

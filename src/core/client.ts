@@ -1,38 +1,37 @@
-import { Maybe } from "@src/types"
 import { HTTPRequestInit, HTTPResponse } from "../interfaces/base"
-import { Account } from "./app"
+import { Auth } from ".."
 
 /**
  * Class representing an HTTP client for making HTTP requests.
- * @class Client
  */
 export class Client {
+  // readonly const
+  private static get _MAX_REFRESH_TOKEN_CALLS() {
+    return 1
+  }
+
   private _devMode: "development" | "production" = "production"
 
   /**
-   * @type {Maybe<string>} _apiKey - The API key, which may be null.
+   * The number of auth attempts the client is doing in case of 401 unauthorized error.
    */
-  protected _apiKey: Maybe<string> = null
+  private _refreshTokenCallCount = 0
 
-  /**
-   * @type {Maybe<string>} _authToken - The JWT token, which may be null.
-   */
+  private get _isDevelopment() {
+    return this._devMode === "development"
+  }
 
-  protected _authToken: Maybe<string> = null
-
-  protected _account: Maybe<Account> = null
-
-  constructor(enableDevMode: boolean) {
-    if (enableDevMode) this.enableDevMode()
+  constructor(enableDevMode?: boolean) {
+    if (enableDevMode) this._devMode = "development"
   }
 
   /**
    * Fetches data from a specified URL using XMLHttpRequest.
-   * @param {string | URL} url - The URL to fetch data from.
-   * @param {HTTPRequestInit} options - The options for the HTTP request.
-   * @returns {Promise<HTTPResponse<RT>>} A promise that resolves with the HTTP response data.
+   * @param url - The URL to fetch data from.
+   * @param options - The options for the HTTP request.
+   * @returns A promise that resolves with the HTTP response data.
    */
-  private async _fetchJS<RT = any>(
+  private async _fetchXHR<RT = any>(
     url: string | URL,
     options: HTTPRequestInit
   ): Promise<HTTPResponse<RT>> {
@@ -80,86 +79,12 @@ export class Client {
   }
 
   /**
-   * Fetches data from a given URL using the specified options.
-   * @param {string | URL} url - The URL to fetch data from.
-   * @param {HTTPRequestInit} options - The options for the HTTP request.
-   * @returns {Promise<HTTPResponse<ReturnType>>} A promise that resolves with the HTTP response.
-   * @throws {Error} If the URL protocol is invalid.
-   */
-  private async _fetchNode<ReturnType = any>(
-    url: string | URL,
-    options: HTTPRequestInit
-  ): Promise<HTTPResponse<ReturnType>> {
-    const client =
-      url instanceof URL
-        ? url.protocol === "https:"
-          ? await import("https")
-          : url.protocol === "http:"
-          ? await import("http")
-          : null
-        : /^https?(?=:)/g.test(url)
-        ? url.substring(0, 5) === "https"
-          ? await import("https")
-          : await import("http")
-        : null
-
-    if (!client) throw new Error("Invalid url protocol")
-
-    return new Promise((resolve, reject) => {
-      const request = client.request(
-        url,
-        { method: options.method, headers: options.headers ?? undefined },
-        (response) => {
-          const statusCode = response.statusCode!,
-            statusMessage = response.statusMessage!
-
-          let result = ""
-
-          response.on(
-            "data",
-            (chunk) => (result += chunk.toString ? chunk.toString() : "")
-          )
-
-          response.on("error", (error) =>
-            reject({
-              statusCode,
-              statusMessage,
-              response: error,
-            })
-          )
-
-          response.on("end", () => {
-            const response = result.length ? JSON.parse(result) : null
-
-            if (statusCode >= 400)
-              reject({
-                statusCode,
-                statusMessage,
-                response,
-              })
-            else
-              resolve({
-                statusCode,
-                statusMessage,
-                response,
-              })
-          })
-        }
-      )
-
-      if (options.body) request.write(JSON.stringify(options.body))
-
-      request.end()
-    })
-  }
-
-  /**
    * Fetches data from the specified URL using either browser's fetch API or Node.js's http/https module.
-   * @param {string | URL} url - The URL to fetch data from.
-   * @param {HTTPRequestInit} [options] - The options for the HTTP request such as method, headers, and body.
-   * @returns {Promise<HTTPResponse<ReturnType>>} A promise that resolves to the HTTP response.
+   * @param url - The URL to fetch data from.
+   * @param options - The options for the HTTP request such as method, headers, and body.
+   * @returns A promise that resolves to the HTTP response.
    */
-  protected _fetch<ReturnType = any>(
+  public async fetch<ReturnType = any>(
     url: string | URL,
     options: HTTPRequestInit = {
       method: "GET",
@@ -170,77 +95,63 @@ export class Client {
     options.headers = {
       ...options.headers,
       "Content-Type": "application/json",
+      mode: "loopz",
     }
 
-    return globalThis.document
-      ? this._fetchJS<ReturnType>(url, options)
-      : this._fetchNode<ReturnType>(url, options)
+    if (!!Auth.apiKey)
+      options.headers = {
+        ...options.headers,
+        "x-api-key": Auth.apiKey,
+      }
+
+    if (!!Auth.authToken)
+      options.headers = {
+        ...options.headers,
+        Authorization: `Bearer ${Auth.authToken}`,
+      }
+
+    return this._fetchXHR<ReturnType>(url, options).catch(async (e) => {
+      if (
+        !("statusCode" in e) ||
+        e.statusCode !== 401 ||
+        this._refreshTokenCallCount++ >= Client._MAX_REFRESH_TOKEN_CALLS
+      )
+        throw e
+
+      try {
+        await Auth.fetchAuthToken()
+      } catch (error) {
+        throw error
+      }
+
+      return this.fetch(url, options).then((res) => {
+        this._refreshTokenCallCount = 0
+        return res
+      })
+    })
   }
 
-  protected getDevMode(): string {
-    return this._devMode
-  }
-
-  protected toggleDevMode() {
-    this._devMode =
-      this._devMode === "development" ? "production" : "development"
-  }
-
-  protected enableDevMode() {
-    this._devMode = "development"
-  }
-
-  protected disableDevMode() {
-    this._devMode = "production"
-  }
-
-  protected isDevelopment() {
-    return this._devMode === "development"
-  }
-
-  protected isProduction() {
-    return this._devMode === "production"
-  }
-
-  protected backendUrl(): string {
+  public backendUrl(path?: string) {
     return `https://${
-      this._devMode === "development" ? `develop.api.` : `api.`
-    }nfttrader.io/v1`
+      this._isDevelopment ? `develop.api.` : `api.`
+    }loopz.xyz/v1${path ?? ""}`
   }
 
-  protected backendChatUrl(): string {
-    return `${
-      this._devMode === "development"
-        ? `https://z47gatqqyraabhwztl7jqvhsgi.appsync-api.eu-west-1.amazonaws.com/graphql`
-        : `` //url server chat graphql production
+  public backendChatUrl() {
+    return this._isDevelopment
+      ? "https://develop.api.loopz.xyz/graphql"
+      : "https://api.loopz.xyz/graphql"
+  }
+
+  public backendNotificationUrl(path?: string) {
+    return `wss://${this._isDevelopment ? `develop.wss.` : `wss.`}loopz.xyz${
+      path ?? ""
     }`
   }
 
-  protected backendNotificationUrl(): string {
-    return `${
-      this._devMode === "development"
-        ? `wss://develop.wss.nfttrader.io`
-        : `wss://wss.nfttrader.io`
-    }`
-  }
-
-  protected backendChatRealtimeUrl(): string {
-    return `${
-      this._devMode === "development"
-        ? `wss://z47gatqqyraabhwztl7jqvhsgi.appsync-realtime-api.eu-west-1.amazonaws.com/graphql` //url server chat graphql development
-        : `` //url server chat graphql production
-    }`
-  }
-
-  setAuthToken(authToken: Maybe<string>): void {
-    this._authToken = authToken
-  }
-
-  setCurrentAccount(account: Account) {
-    this._account = account
-  }
-
-  getCurrentAccount() {
-    return this._account
+  public backendChatRealtimeUrl() {
+    return this._isDevelopment
+      ? "wss://develop.api.graphql.loopz.xyz/graphql/realtime" //url server chat graphql development
+      : "wss://api.graphql.loopz.xyz/graphql/realtime" //url server chat graphql production
   }
 }

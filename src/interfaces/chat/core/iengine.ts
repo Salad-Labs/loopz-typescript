@@ -9,21 +9,15 @@ import forge from "node-forge"
  * @interface IEngine
  */
 export interface IEngine {
-  connect(callback: Function): void
-  reconnect(callback: Function): void
-  collect(garbage: Array<SubscriptionGarbage> | SubscriptionGarbage): void
-  refreshJWTToken(jwt: string): void
-  getJWTToken(): Maybe<string>
-  getApiKey(): Maybe<string>
+  connect(): Promise<void>
+  reconnect(): Promise<void>
   getApiURL(): Maybe<string>
   getRealtimeApiURL(): Maybe<string>
   addKeyPairItem(newItem: KeyPairItem): Array<KeyPairItem>
   removeKeyPairItem(id: string): Array<KeyPairItem>
   setKeyPairMap(map: Array<KeyPairItem>): void
   getKeyPairMap(): Array<KeyPairItem>
-  findPublicKeyById(id: string): Maybe<forge.pki.rsa.PublicKey>
-  findPrivateKeyById(id: Maybe<string>): Maybe<forge.pki.rsa.PrivateKey>
-  findKeyPairById(id: string): Maybe<forge.pki.rsa.KeyPair>
+  findKeyPairById(id: string): Maybe<{ AES: string; iv: string }>
   setUserKeyPair(userKeyPair: forge.pki.rsa.KeyPair): void
   getUserKeyPair(): Maybe<forge.pki.rsa.KeyPair>
 }

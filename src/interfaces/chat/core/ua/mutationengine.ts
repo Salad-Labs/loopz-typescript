@@ -12,15 +12,24 @@ import {
  * @interface UAMutationEngine
  */
 export interface UAMutationEngine {
-  archiveConversations(ids: Array<string>): Promise<User | QIError>
-  createConversationGroup(args: CreateConversationGroupArgs): Promise<
+  archiveConversations(
+    ids: Array<string>,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
+  createConversationGroup(
+    args: CreateConversationGroupArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<
     | {
         keypairItem: KeyPairItem | null
         /* | null is to remove */ conversation: Conversation
       }
     | QIError
   >
-  createConversationOneToOne(args: CreateConversationOneToOneArgs): Promise<
+  createConversationOneToOne(
+    args: CreateConversationOneToOneArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<
     | {
         keypairItem: KeyPairItem | null
         /* | null is to remove */ conversation: Conversation
@@ -28,11 +37,19 @@ export interface UAMutationEngine {
     | QIError
   >
   deleteBatchConversationMessages(
-    args: DeleteBatchConversationMessagesArgs
+    args: DeleteBatchConversationMessagesArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<{ conversationId: string; messagesIds: string[] } | QIError>
   eraseConversationByAdmin(
-    id: string
+    id: string,
+    overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<{ conversationId: string; items: Array<{ id: string }> } | QIError>
-  unarchiveConversations(ids: Array<string>): Promise<User | QIError>
-  updateUser(args: UpdateUserArgs): Promise<User | QIError>
+  unarchiveConversations(
+    ids: Array<string>,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
+  updateUser(
+    args: UpdateUserArgs,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<User | QIError>
 }

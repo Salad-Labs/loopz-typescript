@@ -49,7 +49,6 @@ export class MessageImportant extends Engine implements MessageImportantSchema {
    */
   constructor(config: MessageImportantInitConfig & EngineInitConfig) {
     super({
-      apiKey: config.apiKey,
       storage: config.storage,
       devMode: config.devMode,
     })
@@ -61,6 +60,8 @@ export class MessageImportant extends Engine implements MessageImportantSchema {
     this.conversationId = config.conversationId
     this.createdAt = config.createdAt
     this.updatedAt = config.updatedAt
+
     this._client = config.client
+    this._realtimeClient = config.realtimeClient
   }
 }

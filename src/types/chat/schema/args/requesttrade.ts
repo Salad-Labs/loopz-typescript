@@ -1,5 +1,4 @@
-import { Asset } from "@src/index"
-import { AssetTypeName } from "@src/types/base/assettypename"
+import { Asset } from "../../../index"
 
 /**
  * Represents the arguments needed to request a trade.
@@ -7,7 +6,7 @@ import { AssetTypeName } from "@src/types/base/assettypename"
  */
 export type RequestTradeArgs = {
   /**
-   * @property {Array<string>} creatorsIds - The array of users IDs involved in the trade.
+   * @property {Array<string>} involvedUsers - The array of users IDs involved in the trade.
    */
   involvedUsers: Array<string>
   /**
