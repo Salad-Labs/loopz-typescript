@@ -1,5 +1,5 @@
 {
-  "name": "loopz-typescript",
+  "name": "@salad-labs/loopz-typescript",
   "version": "1.0.0",
   "description": "The Official Loopz TypeScript SDK",
   "main": "index.js",
