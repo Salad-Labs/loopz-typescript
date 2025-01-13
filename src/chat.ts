@@ -243,6 +243,7 @@ import { Order } from "./order"
 import { Auth, ChatEvents, EngineInitConfig } from "."
 import { DetectiveMessage } from "./core/chat/detectivemessage"
 import { ListMessagesUpdatedArgs } from "./types/chat/schema/args/listmessagesupdated"
+import { ConnectedWallet } from "@privy-io/react-auth"
 
 export class Chat
   extends Engine
@@ -10570,6 +10571,7 @@ export class Chat
         }
 
         const order = await orderRef.create(
+          {} as ConnectedWallet,
           participantOne,
           participantTwo,
           dayDuration
