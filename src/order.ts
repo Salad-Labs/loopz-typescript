@@ -17,7 +17,7 @@ import {
 import { ApiResponse } from "./types/base/apiresponse"
 import { ethers } from "ethers"
 import { ConnectedWallet, EIP1193Provider } from "@privy-io/react-auth"
-import { Auth, IOrder } from "."
+import { Auth, IOrder, SEAPORT_1_5_CONTRACT_ADDRESS } from "."
 
 /**
  * Order class that handles interactions with the OpenSea trading platform.
@@ -322,11 +322,10 @@ export class Order {
       this._provider = await wallet.getEthereumProvider()
       const bp = new ethers.BrowserProvider(this._provider)
 
-      console.log(wallet.address)
-
       this._seaport = new Seaport(await bp.getSigner(wallet.address), {
         overrides: {
           seaportVersion: "1.5",
+          contractAddress: SEAPORT_1_5_CONTRACT_ADDRESS,
         },
       })
       this._initialized = true
@@ -445,7 +444,6 @@ export class Order {
 
       // Retrieve the maker address
       const addressMaker = wallet.address
-      console.log(wallet.address)
 
       const makerAssets = participantOne.assets?.map((asset) => {
         return {
@@ -491,8 +489,6 @@ export class Order {
         fees,
         restrictedByZone: true,
       })
-
-      console.log(orderInit, addressMaker)
 
       const { executeAllActions } = await this._seaport.createOrder(
         orderInit,
@@ -570,8 +566,6 @@ export class Order {
       }
 
       try {
-        console.log(order)
-        console.log(taker)
         const { executeAllActions } = await this._seaport.fulfillOrder({
           order,
           accountAddress: taker,
