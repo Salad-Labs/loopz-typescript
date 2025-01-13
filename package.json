@@ -1,13 +1,14 @@
 {
   "name": "@salad-labs/loopz-typescript",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "description": "The Official Loopz TypeScript SDK",
-  "main": "index.js",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
     "codegen": "graphql-codegen",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "npm run build && ls dist",
     "version": "git add . && git commit -m \"Release v$npm_package_version\" && git tag v$npm_package_version",
     "postpublish": "git push && git push --tags"
   },
@@ -68,5 +69,8 @@
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "viem": "^2.17.3"
-  }
+  },
+  "files": [
+    "dist/**/*"
+  ]
 }
