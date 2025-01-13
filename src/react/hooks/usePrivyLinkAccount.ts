@@ -23,7 +23,7 @@ export const usePrivyLinkAccount = () => {
     linkWallet,
     linkTelegram,
   } = useLinkAccount({
-    onSuccess: (user, linkMethod, linkedAccount) => {
+    onSuccess: ({ user, linkMethod, linkedAccount }) => {
       Auth._emit("__onLinkAccountComplete", {
         user,
         linkMethod,

@@ -323,9 +323,7 @@ export class Builder {
         })
 
         if (element) {
-          let amount = ethers.BigNumber.from(element.amount).add(
-            ethers.BigNumber.from(asset.amount)
-          )
+          let amount = BigInt(element.amount!) + BigInt(asset.amount!)
           const amountString = amount.toString()
           //just an update on the amount since it's already in the queue
           element.amount = amountString
@@ -373,9 +371,7 @@ export class Builder {
         })
 
         if (element) {
-          let amount = ethers.BigNumber.from(element.amount).add(
-            ethers.BigNumber.from(asset.amount)
-          )
+          let amount = BigInt(element.amount!) + BigInt(asset.amount!)
           const amountString = amount.toString()
           //just an update on the amount since it's already in the queue
           element.amount = amountString
@@ -426,9 +422,7 @@ export class Builder {
             )
           })
 
-          let amount = ethers.BigNumber.from(element!.amount).add(
-            ethers.BigNumber.from(asset.amount)
-          )
+          let amount = BigInt(element!.amount!) + BigInt(asset.amount!)
           const amountString = amount.toString()
           //just an update on the amount since it's already in the queue
           element!.amount = amountString

@@ -70,7 +70,7 @@ export class AssetsIterable {
       {
         amount,
         itemType: TOKEN_CONSTANTS.NATIVE,
-        token: ethers.constants.AddressZero,
+        token: ethers.ZeroAddress,
         identifier: "0",
       },
       recipient
