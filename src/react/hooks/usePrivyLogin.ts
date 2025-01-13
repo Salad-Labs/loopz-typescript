@@ -22,13 +22,13 @@ export const usePrivyLogin = () => {
   })
 
   const { login } = useLogin({
-    onComplete: async (
+    onComplete: async ({
       user,
       isNewUser,
       wasAlreadyAuthenticated,
       loginMethod,
-      linkedAccount
-    ) => {
+      loginAccount,
+    }) => {
       const authToken = await getAccessToken()
 
       //need to try farcaster and telegram. LOO-37
@@ -51,7 +51,7 @@ export const usePrivyLogin = () => {
           isNewUser,
           wasAlreadyAuthenticated,
           loginMethod,
-          linkedAccount,
+          linkedAccount: loginAccount,
           authToken,
         })
       else
@@ -60,7 +60,7 @@ export const usePrivyLogin = () => {
           isNewUser,
           wasAlreadyAuthenticated,
           loginMethod,
-          linkedAccount,
+          linkedAccount: loginAccount,
           authToken,
         })
     },

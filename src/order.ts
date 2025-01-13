@@ -16,8 +16,7 @@ import {
 } from "./types/order"
 import { ApiResponse } from "./types/base/apiresponse"
 import { ethers } from "ethers"
-import { Web3Provider } from "@ethersproject/providers"
-import { ConnectedWallet } from "@privy-io/react-auth"
+import { ConnectedWallet, EIP1193Provider } from "@privy-io/react-auth"
 import { Auth, IOrder } from "."
 
 /**
@@ -34,7 +33,7 @@ export class Order {
   /**
    * @property {Maybe<ethers.providers.Web3Provider | ethers.providers.JsonRpcProvider>} _provider - The provider instance.
    */
-  private _provider: Maybe<Web3Provider> = null
+  private _provider: Maybe<EIP1193Provider> = null
   /**
    * @property {Maybe<Seaport>} _seaport - The Seaport instance.
    */
@@ -276,8 +275,8 @@ export class Order {
           {
             recipient: gnosisRecipient,
             itemType: TOKEN_CONSTANTS.NATIVE as any,
-            token: ethers.constants.AddressZero,
-            amount: ethers.utils.parseEther(flatFee).toString(),
+            token: ethers.ZeroAddress,
+            amount: ethers.parseEther(flatFee).toString(),
             identifier: "0",
           },
         ],
@@ -320,8 +319,14 @@ export class Order {
     try {
       if (!Auth.account) throw new Error("Account is not initialized.")
 
-      this._provider = await wallet.getEthersProvider()
-      this._seaport = new Seaport(this._provider, { seaportVersion: "1.5" })
+      this._provider = await wallet.getEthereumProvider()
+      const bp = new ethers.BrowserProvider(this._provider)
+
+      this._seaport = new Seaport(await bp.getSigner(wallet.address), {
+        overrides: {
+          seaportVersion: "1.5",
+        },
+      })
       this._initialized = true
     } catch (error) {
       console.log(error)
@@ -398,6 +403,7 @@ export class Order {
    * @param {string} proposalId - The ID of the proposal.
    */
   async create(
+    wallet: ConnectedWallet,
     participantOne: { assets: Array<Asset>; address: string },
     participantTwo: { assets: Array<Asset>; address: string },
     end: number = 0,
@@ -436,7 +442,7 @@ export class Order {
       }
 
       // Retrieve the maker address
-      const [addressMaker] = await this._provider.listAccounts()
+      const [addressMaker] = wallet.address
 
       const makerAssets = participantOne.assets?.map((asset) => {
         return {
@@ -567,9 +573,8 @@ export class Order {
 
         try {
           const transact = await executeAllActions()
-          const receipt = await transact.wait(this._MIN_BLOCKS_REQUIRED)
 
-          this._emit("onExecuteAllActions", { receipt })
+          this._emit("onExecuteAllActions", { transact })
         } catch (error) {
           return this._emit("onExecuteAllActionsError", {
             error,
