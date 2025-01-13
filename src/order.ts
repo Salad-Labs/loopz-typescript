@@ -322,6 +322,8 @@ export class Order {
       this._provider = await wallet.getEthereumProvider()
       const bp = new ethers.BrowserProvider(this._provider)
 
+      console.log(wallet.address)
+
       this._seaport = new Seaport(await bp.getSigner(wallet.address), {
         overrides: {
           seaportVersion: "1.5",
@@ -442,7 +444,8 @@ export class Order {
       }
 
       // Retrieve the maker address
-      const [addressMaker] = wallet.address
+      const addressMaker = wallet.address
+      console.log(wallet.address)
 
       const makerAssets = participantOne.assets?.map((asset) => {
         return {
@@ -488,6 +491,8 @@ export class Order {
         fees,
         restrictedByZone: true,
       })
+
+      console.log(orderInit, addressMaker)
 
       const { executeAllActions } = await this._seaport.createOrder(
         orderInit,
@@ -565,9 +570,14 @@ export class Order {
       }
 
       try {
+        console.log(order)
+        console.log(taker)
         const { executeAllActions } = await this._seaport.fulfillOrder({
           order,
           accountAddress: taker,
+          overrides: {
+            gasLimit: "215120",
+          },
         })
         this._emit("onFulfillOrder")
 
@@ -576,18 +586,21 @@ export class Order {
 
           this._emit("onExecuteAllActions", { transact })
         } catch (error) {
+          console.warn(error)
           return this._emit("onExecuteAllActionsError", {
             error,
             typeError: "waitError",
           })
         }
       } catch (error) {
+        console.warn(error)
         this._emit("onFulfillOrderError", {
           error,
           typeError: "execOrderTransactionError",
         })
       }
     } catch (error) {
+      console.warn(error)
       this._emit("onFinalizeError", {
         error,
         typeError: "ApiError",
