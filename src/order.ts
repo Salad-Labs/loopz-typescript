@@ -55,7 +55,7 @@ export class Order {
   private _initialized: boolean = false
 
   private constructor() {
-    if (!!!Order._config)
+    if (!Order._config)
       throw new Error("Order must be configured before getting the instance")
 
     Order._client = new Client(Order._config.devMode)
@@ -67,7 +67,7 @@ export class Order {
   /** static methods */
 
   static config(config: { devMode: boolean }) {
-    if (!!Order._config) throw new Error("Order already configured")
+    if (Order._config) throw new Error("Order already configured")
 
     Order._config = config
   }
@@ -84,9 +84,9 @@ export class Order {
    * or null if there was an error or no data was returned in the response.
    */
   private async _getGnosis(): Promise<Maybe<MultiSigWallet>> {
-    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+    if (!Order._config || !Order._instance || !Order._client)
       throw new Error("Order has not been configured")
-    if (!!!Auth.account) return null
+    if (!Auth.account) return null
 
     try {
       const { response } = await Order._client.fetch<
@@ -118,7 +118,7 @@ export class Order {
    * @returns A Promise that resolves to a Maybe<Fee> object.
    */
   private async _getMasterFee(): Promise<Maybe<Fee>> {
-    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+    if (!Order._config || !Order._instance || !Order._client)
       throw new Error("Order has not been configured")
     if (!Auth.account) return null
 
@@ -411,7 +411,7 @@ export class Order {
     fees: Array<SeaportFee> = [],
     proposalId?: string
   ): Promise<Maybe<OrderCreated>> {
-    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+    if (!Order._config || !Order._instance || !Order._client)
       throw new Error("Order has not been configured")
 
     try {
@@ -539,7 +539,7 @@ export class Order {
    * @returns None
    */
   async finalize(orderId: string) {
-    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+    if (!Order._config || !Order._instance || !Order._client)
       throw new Error("Order has not been configured")
 
     try {
@@ -614,7 +614,7 @@ export class Order {
     gasLimit: number = 2000000,
     gasPrice: Maybe<string> = null
   ) {
-    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+    if (!Order._config || !Order._instance || !Order._client)
       throw new Error("Order has not been configured")
 
     try {
@@ -666,7 +666,7 @@ export class Order {
    * @returns {Promise<Maybe<OrderDetail>>} A Promise that resolves to the order detail information, or null if an error occurs.
    */
   async get(networkId: string, id: string): Promise<Maybe<IOrder>> {
-    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+    if (!Order._config || !Order._instance || !Order._client)
       throw new Error("Order has not been configured")
 
     try {
@@ -729,7 +729,7 @@ export class Order {
       field: string
     }
   }): Promise<Maybe<OrderListResponse>> {
-    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+    if (!Order._config || !Order._instance || !Order._client)
       throw new Error("Order has not been configured")
 
     try {
@@ -809,7 +809,7 @@ export class Order {
       field: string
     }
   }): Promise<Maybe<OrderListResponse>> {
-    if (!!!Order._config || !!!Order._instance || !!!Order._client)
+    if (!Order._config || !Order._instance || !Order._client)
       throw new Error("Order has not been configured")
 
     try {
@@ -818,7 +818,7 @@ export class Order {
       >(
         Order._client.backendUrl(
           `/order/user/all/${networkId}/${did}/${status}/${skip}/${take}${
-            !!searchAddress ? `/${searchAddress}` : ""
+            searchAddress ? `/${searchAddress}` : ""
           }`
         ),
         {

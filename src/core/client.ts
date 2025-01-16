@@ -98,13 +98,13 @@ export class Client {
       mode: "loopz",
     }
 
-    if (!!Auth.apiKey)
+    if (Auth.apiKey)
       options.headers = {
         ...options.headers,
         "x-api-key": Auth.apiKey,
       }
 
-    if (!!Auth.authToken)
+    if (Auth.authToken)
       options.headers = {
         ...options.headers,
         Authorization: `Bearer ${Auth.authToken}`,

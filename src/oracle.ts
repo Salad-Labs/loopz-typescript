@@ -31,7 +31,7 @@ export class Oracle {
   /** static methods */
 
   static config(config: { devMode: boolean }) {
-    if (!!Oracle._config) throw new Error("Oracle already configured")
+    if (Oracle._config) throw new Error("Oracle already configured")
 
     Oracle._config = config
   }
@@ -41,7 +41,7 @@ export class Oracle {
   }
 
   private constructor() {
-    if (!!!Oracle._config)
+    if (!Oracle._config)
       throw new Error("Oracle must be configured before getting the instance")
 
     Oracle._client = new Client(Oracle._config.devMode)
@@ -80,7 +80,7 @@ export class Oracle {
   async listCollections(
     args: ListCollectionsArgs
   ): Promise<Maybe<{ total: number; collections: Array<Collection> }>> {
-    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+    if (!Oracle._config || !Oracle._instance || !Oracle._client)
       throw new Error("Oracle has not been configured")
 
     const url = Oracle._client.backendUrl(
@@ -119,7 +119,7 @@ export class Oracle {
   async listBookmarkedCollections(
     args: ListBookmarkedCollectionsArgs
   ): Promise<Maybe<{ total: number; collections: Array<Collection> }>> {
-    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+    if (!Oracle._config || !Oracle._instance || !Oracle._client)
       throw new Error("Oracle has not been configured")
 
     const url = Oracle._client.backendUrl(
@@ -164,7 +164,7 @@ export class Oracle {
       total: number
     }>
   > {
-    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+    if (!Oracle._config || !Oracle._instance || !Oracle._client)
       throw new Error("Oracle has not been configured")
 
     const url = Oracle._client.backendUrl(
@@ -216,7 +216,7 @@ export class Oracle {
       total: number
     }>
   > {
-    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+    if (!Oracle._config || !Oracle._instance || !Oracle._client)
       throw new Error("Oracle has not been configured")
 
     const url = Oracle._client.backendUrl(
@@ -259,7 +259,7 @@ export class Oracle {
   async getCollectibleMetadata(
     args: GetCollectibleMetadataArgs
   ): Promise<Maybe<CollectibleMetadata>> {
-    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+    if (!Oracle._config || !Oracle._instance || !Oracle._client)
       throw new Error("Oracle has not been configured")
 
     const url = Oracle._client.backendUrl(
@@ -296,7 +296,7 @@ export class Oracle {
   async getCollectibleBalance(
     args: GetCollectibleBalanceArgs
   ): Promise<Maybe<CollectibleBalance>> {
-    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+    if (!Oracle._config || !Oracle._instance || !Oracle._client)
       throw new Error("Oracle has not been configured")
 
     const url = Oracle._client.backendUrl("/nft/balance")
@@ -331,7 +331,7 @@ export class Oracle {
   async addCollection(
     collections: Array<{ address: string; networkId: string }>
   ): Promise<Maybe<Array<any>>> {
-    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+    if (!Oracle._config || !Oracle._instance || !Oracle._client)
       throw new Error("Oracle has not been configured")
 
     this._validate(
@@ -374,7 +374,7 @@ export class Oracle {
   async addCollections(
     collections: Array<{ address: string; networkId: string }>
   ): Promise<Maybe<Array<any>>> {
-    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+    if (!Oracle._config || !Oracle._instance || !Oracle._client)
       throw new Error("Oracle has not been configured")
 
     this._validate(
@@ -423,7 +423,7 @@ export class Oracle {
   ): Promise<
     Maybe<{ address: string; networkId: string; supported: boolean }>
   > {
-    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+    if (!Oracle._config || !Oracle._instance || !Oracle._client)
       throw new Error("Oracle has not been configured")
 
     this._validate([address])
@@ -462,7 +462,7 @@ export class Oracle {
   ): Promise<
     Maybe<Array<{ address: string; networkId: string; supported: boolean }>>
   > {
-    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+    if (!Oracle._config || !Oracle._instance || !Oracle._client)
       throw new Error("Oracle has not been configured")
 
     this._validate(
@@ -506,7 +506,7 @@ export class Oracle {
     collectionAddress: string,
     networkId: string
   ): Promise<Maybe<Collection>> {
-    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+    if (!Oracle._config || !Oracle._instance || !Oracle._client)
       throw new Error("Oracle has not been configured")
 
     this._validate([collectionAddress])
@@ -541,7 +541,7 @@ export class Oracle {
   async getCoinsPairRate(
     pair: `${string}-${string}`
   ): Promise<Maybe<{ amount: string; base: string; currency: string }>> {
-    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+    if (!Oracle._config || !Oracle._instance || !Oracle._client)
       throw new Error("Oracle has not been configured")
 
     try {
@@ -577,7 +577,7 @@ export class Oracle {
       }>
     >
   > {
-    if (!!!Oracle._config || !!!Oracle._instance || !!!Oracle._client)
+    if (!Oracle._config || !Oracle._instance || !Oracle._client)
       throw new Error("Oracle has not been configured")
 
     try {

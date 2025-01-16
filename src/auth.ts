@@ -51,7 +51,7 @@ export class Auth implements AuthInternalEvents {
 
   private static set account(account: Maybe<Account>) {
     Auth._account = account
-    if (!!account) Auth._emit("__onAccountReady")
+    if (account) Auth._emit("__onAccountReady")
   }
 
   static get realtimeAuthorizationToken() {
@@ -79,7 +79,7 @@ export class Auth implements AuthInternalEvents {
   }
 
   private constructor() {
-    if (!!!Auth._config)
+    if (!Auth._config)
       throw new Error("Auth must be configured before getting the instance")
 
     Auth._storage = Auth._config.storage
@@ -332,7 +332,7 @@ export class Auth implements AuthInternalEvents {
   private static async _callBackendAuthAfterOAuthRedirect(
     authInfo: PrivyAuthInfo
   ) {
-    if (!!!Auth._config || !!!Auth._instance || !!!Auth._client)
+    if (!Auth._config || !Auth._instance || !Auth._client)
       throw new Error("Auth has not been configured")
 
     Auth.authToken = authInfo.authToken
@@ -419,7 +419,7 @@ export class Auth implements AuthInternalEvents {
   }
 
   private static async _callBackendAuth(authInfo: PrivyAuthInfo) {
-    if (!!!Auth._config || !!!Auth._instance || !!!Auth._client)
+    if (!Auth._config || !Auth._instance || !Auth._client)
       throw new Error("Auth has not been configured")
 
     Auth.authToken = authInfo.authToken
@@ -513,7 +513,7 @@ export class Auth implements AuthInternalEvents {
   private static async _callBackendLinkAfterOAuthRedirect(
     authInfo: PrivyAuthInfo
   ) {
-    if (!!!Auth._config || !!!Auth._instance || !!!Auth._client)
+    if (!Auth._config || !Auth._instance || !Auth._client)
       throw new Error("Auth has not been configured")
 
     Auth.authToken = authInfo.authToken
@@ -574,7 +574,7 @@ export class Auth implements AuthInternalEvents {
   }
 
   private static async _callBackendLink(authInfo: PrivyAuthInfo) {
-    if (!!!Auth._config || !!!Auth._instance || !!!Auth._client)
+    if (!Auth._config || !Auth._instance || !Auth._client)
       throw new Error("Auth has not been configured")
 
     Auth.authToken = authInfo.authToken
@@ -759,7 +759,7 @@ export class Auth implements AuthInternalEvents {
       auth: AuthInfo
       account: Account
     }>((resolve, reject) => {
-      if (!!!Auth._config || !!!Auth._instance)
+      if (!Auth._config || !Auth._instance)
         throw new Error("Auth has not been configured")
 
       Auth._instance.on("__onLoginComplete", (authInfo: PrivyAuthInfo) => {
@@ -774,7 +774,7 @@ export class Auth implements AuthInternalEvents {
 
   private static async _handleDesktopLink(method: AuthLinkMethod) {
     return new Promise<PrivyAuthInfo>((resolve, reject) => {
-      if (!!!Auth._config || !!!Auth._instance)
+      if (!Auth._config || !Auth._instance)
         throw new Error("Auth has not been configured")
 
       Auth._instance.on(
@@ -802,7 +802,7 @@ export class Auth implements AuthInternalEvents {
   }
 
   static config(config: AuthConfig & ApiKeyAuthorized) {
-    if (!!Auth._config) throw new Error("Auth already configured")
+    if (Auth._config) throw new Error("Auth already configured")
 
     Auth._config = config
   }
@@ -918,6 +918,8 @@ export class Auth implements AuthInternalEvents {
     Auth._isAuthenticated = false
     // ? should Auth._account = null? auth.on("_logout", () => auth.getCurrentAccount() // exists)
     Auth._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
+    Auth._account?.destroyLastUserLoggedKey()
+    Auth._account = null
 
     Auth._emit("__logout")
 
@@ -973,7 +975,7 @@ export class Auth implements AuthInternalEvents {
   }
 
   public static async recoverAccountFromLocalDB() {
-    if (!!!Auth._config || !!!Auth._instance || !!!Auth._client)
+    if (!Auth._config || !Auth._instance || !Auth._client)
       throw new Error("Auth has not been configured")
     if (Auth._account) return
 

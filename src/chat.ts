@@ -351,7 +351,7 @@ export class Chat
   static readonly SYNCING_TIME = 60000
 
   private constructor() {
-    if (!!!Chat._config)
+    if (!Chat._config)
       throw new Error("Chat must be configured before getting the instance")
 
     super(Chat._config)
@@ -370,7 +370,7 @@ export class Chat
   /** static methods */
 
   static config(config: EngineInitConfig) {
-    if (!!Chat._config) throw new Error("Chat already configured")
+    if (Chat._config) throw new Error("Chat already configured")
 
     Chat._config = config
   }
@@ -1455,7 +1455,7 @@ export class Chat
 
     try {
       const keypairMap = this.getKeyPairMap()
-      const alreadyMember = !!keypairMap.find((item) => {
+      const alreadyMember = keypairMap.find((item) => {
         return item.id === response.conversationId
       })
 
@@ -9902,7 +9902,7 @@ export class Chat
             : true
           const isFromUser = message.origin === "USER"
           const isTextual = message.type === "TEXTUAL"
-          const isNotDeleted = !!!message.deletedAt
+          const isNotDeleted = !message.deletedAt
 
           return isInConversation && isFromUser && isTextual && isNotDeleted
         })

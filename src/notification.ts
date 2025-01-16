@@ -30,7 +30,7 @@ export class Notification {
   }> = []
 
   private constructor() {
-    if (!!!Notification._config)
+    if (!Notification._config)
       throw new Error(
         "Notification must be configured before getting the instance"
       )
@@ -42,8 +42,7 @@ export class Notification {
   /** static methods */
 
   static config(config: { devMode: boolean }) {
-    if (!!Notification._config)
-      throw new Error("Notification already configured")
+    if (Notification._config) throw new Error("Notification already configured")
 
     Notification._config = config
   }
