@@ -80,19 +80,19 @@ export const usePrivyLogin = () => {
       })
       Auth._emit("__onPrivyReady")
     }
+    console.log(authenticated, ready)
 
+    auth.on(
+      "__onAccountReady",
+      () => {
+        console.log("emitting auth...")
+        Auth._emit("auth")
+      },
+      true
+    )
     //account is setup when the client did the login or after the refresh of the page it has rebuilt the account
     //object (and it can do it only if it has a jwt token valid)
     if (authenticated && ready) {
-      auth.on(
-        "__onAccountReady",
-        () => {
-          console.log("emitting auth...")
-          Auth._emit("auth")
-        },
-        true
-      )
-
       Auth._emit("__tryRebuildAccountOnRefresh")
     } else if (!authenticated && ready) {
       auth.logout()

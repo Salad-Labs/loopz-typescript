@@ -43,7 +43,7 @@ export class Proposal {
   /** static methods */
 
   static config(config: { devMode: boolean }) {
-    if (!!Proposal._config) throw new Error("Proposal already configured")
+    if (Proposal._config) throw new Error("Proposal already configured")
 
     Proposal._config = config
   }
@@ -53,7 +53,7 @@ export class Proposal {
   }
 
   private constructor() {
-    if (!!!Proposal._config)
+    if (!Proposal._config)
       throw new Error("Proposal must be configured before getting the instance")
 
     Proposal._client = new Client(Proposal._config.devMode)
@@ -67,7 +67,7 @@ export class Proposal {
    * @throws {Error} If signedMessage is required but not provided.
    */
   private async _createProposal(proposal: CreateProposal): Promise<boolean> {
-    if (!!!Proposal._config || !!!Proposal._instance || !!!Proposal._client)
+    if (!Proposal._config || !Proposal._instance || !Proposal._client)
       throw new Error("Proposal has not been configured")
 
     try {
@@ -102,7 +102,7 @@ export class Proposal {
    * @throws {Error} If the "id" parameter is invalid or if an error occurs during the retrieval process.
    */
   async get(id: string, did?: string): Promise<Maybe<IProposal>> {
-    if (!!!Proposal._config || !!!Proposal._instance || !!!Proposal._client)
+    if (!Proposal._config || !Proposal._instance || !Proposal._client)
       throw new Error("Proposal has not been configured")
     if (!id) throw new Error('Invalid parameter "id".')
 
@@ -143,7 +143,7 @@ export class Proposal {
     take?: number,
     did?: string
   ): Promise<Maybe<ListProposalsResponse>> {
-    if (!!!Proposal._config || !!!Proposal._instance || !!!Proposal._client)
+    if (!Proposal._config || !Proposal._instance || !Proposal._client)
       throw new Error("Proposal has not been configured")
 
     const filtersInput = filtersOptions ? { ...filtersOptions } : null
@@ -242,7 +242,7 @@ export class Proposal {
    * @throws {Error} If the signedMessage is required but not provided.
    */
   async delete(id: string, creatorAddress: string): Promise<void> {
-    if (!!!Proposal._config || !!!Proposal._instance || !!!Proposal._client)
+    if (!Proposal._config || !Proposal._instance || !Proposal._client)
       throw new Error("Proposal has not been configured")
 
     try {
