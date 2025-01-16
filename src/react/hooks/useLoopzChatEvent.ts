@@ -17,7 +17,7 @@ export const useLoopzChatEvent = (
   const { initialized, instance } = loopzContext
 
   useEffect(() => {
-    if (!initialized || !!!listener) return
+    if (!initialized || !listener) return
 
     instance.chat.on(event, listener)
     return () => instance.chat.off(event, listener)

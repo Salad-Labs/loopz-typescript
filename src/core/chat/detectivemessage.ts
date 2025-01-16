@@ -32,7 +32,7 @@ export class DetectiveMessage {
   static readonly DETECTIVE_MESSAGE_OBSERVE_TIME: number = 10000
 
   private constructor() {
-    if (!!!DetectiveMessage._config)
+    if (!DetectiveMessage._config)
       throw new Error(
         "DetectiveMessage must be configured before getting the instance."
       )
@@ -45,7 +45,7 @@ export class DetectiveMessage {
   }
 
   public static config(config: { storage: DexieStorage }) {
-    if (!!DetectiveMessage._config)
+    if (DetectiveMessage._config)
       throw new Error("DetectiveMessage already configured.")
 
     DetectiveMessage._config = config
