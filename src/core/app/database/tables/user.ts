@@ -8,18 +8,13 @@ export interface LocalDBUser {
   email: string
   bio: string
   avatarUrl: string
+  bannerImageUrl: string
   imageSettings: Maybe<{
     imageX: number
     imageY: number
     imageZoom: number
   }>
   isVerified: boolean
-  isPfpNft: boolean
-  pfp: Maybe<{
-    collectionAddress: string
-    tokenId: string
-    networkId: Network
-  }>
   wallet: {
     address: string
     connectorType: string
