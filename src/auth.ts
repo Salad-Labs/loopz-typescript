@@ -190,12 +190,11 @@ export class Auth implements AuthInternalEvents {
               email: Auth._account.email,
               bio: Auth._account.bio,
               avatarUrl: Auth._account.avatarUrl,
+              bannerImageUrl: Auth._account.bannerImageUrl,
               imageSettings: Auth._account.imageSettings
                 ? Auth._account.imageSettings
                 : null,
               isVerified: Auth._account.isVerified,
-              isPfpNft: Auth._account.isPfpNft,
-              pfp: Auth._account.pfp ? Auth._account.pfp : null,
               wallet: {
                 address: Auth._account.walletAddress,
                 connectorType: Auth._account.walletConnectorType,
@@ -1078,6 +1077,7 @@ export class Auth implements AuthInternalEvents {
         bio: user.bio,
         firstLogin: user.firstLogin,
         avatarUrl: user.avatarUrl,
+        bannerImageUrl: user.bannerImageUrl,
         imageSettings: user.imageSettings,
         phone: user.phone ? user.phone : null,
         isVerified: user.isVerified,

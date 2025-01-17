@@ -18,19 +18,15 @@ export interface AccountEngine {
   setEmbeddedWallet(wallet: ConnectedWallet): void
   updateData({
     username,
-    avatarUrl,
+    avatarFile,
+    bannerImageFile,
     bio,
-    pfp: { networkId, collectionAddress, tokenId },
     imageSettings: { imageX, imageY, imageZoom },
   }: {
     username: string
-    avatarUrl: URL
+    avatarFile: Maybe<File>
+    bannerImageFile: Maybe<File>
     bio: string
-    pfp: {
-      networkId: Network
-      collectionAddress: string
-      tokenId: string
-    }
     imageSettings: { imageX: number; imageY: number; imageZoom: number }
   }): Promise<void>
   updateSettings(
