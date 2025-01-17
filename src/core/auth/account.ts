@@ -439,13 +439,6 @@ export class Account implements AccountSchema, AccountEngine {
       if (!response) throw new Error("Response is invalid.")
       if (response!.code !== 200) throw new Error("Error.")
 
-      if (username) (this as any).username = username
-      if (bio) (this as any).bio = bio
-      if (imageSettings) {
-        ;(this as any).imageSettings.imageX = imageSettings.imageX
-        ;(this as any).imageSettings.imageY = imageSettings.imageY
-        ;(this as any).imageSettings.imageZoom = imageSettings.imageZoom
-      }
       if (
         avatarFile &&
         response.data[0].avatarUrl &&
@@ -508,6 +501,14 @@ export class Account implements AccountSchema, AccountEngine {
             .catch(reject)
         })
       })
+
+      if (username) (this as any).username = username
+      if (bio) (this as any).bio = bio
+      if (imageSettings) {
+        ;(this as any).imageSettings.imageX = imageSettings.imageX
+        ;(this as any).imageSettings.imageY = imageSettings.imageY
+        ;(this as any).imageSettings.imageZoom = imageSettings.imageZoom
+      }
     } catch (error: any) {
       console.error(error)
       if ("statusCode" in error && error.statusCode === 401)
