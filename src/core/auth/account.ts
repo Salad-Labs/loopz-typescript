@@ -67,6 +67,7 @@ export class Account implements AccountSchema, AccountEngine {
   readonly bio: string
   readonly firstLogin: boolean
   readonly avatarUrl: string
+  readonly bannerImageUrl: string
   readonly imageSettings: Maybe<{
     imageX: number
     imageY: number
@@ -186,6 +187,7 @@ export class Account implements AccountSchema, AccountEngine {
     this.bio = config.bio
     this.firstLogin = config.firstLogin
     this.avatarUrl = config.avatarUrl
+    this.bannerImageUrl = config.bannerImageUrl
     this.imageSettings = config.imageSettings
     this.phone = config.phone
     this.isVerified = config.isVerified
@@ -392,19 +394,15 @@ export class Account implements AccountSchema, AccountEngine {
 
   async updateData({
     username,
-    avatarUrl,
+    avatarFile,
+    bannerImageFile,
     bio,
-    pfp = null,
     imageSettings = null,
   }: {
     username: Maybe<string>
-    avatarUrl: Maybe<URL>
+    avatarFile: Maybe<File>
+    bannerImageFile: Maybe<File>
     bio: Maybe<string>
-    pfp: Maybe<{
-      networkId: Network
-      collectionAddress: string
-      tokenId: string
-    }>
     imageSettings: Maybe<{
       imageX: number
       imageY: number
@@ -412,47 +410,69 @@ export class Account implements AccountSchema, AccountEngine {
     }>
   }) {
     try {
-      const { response } = await this._client.fetch<ApiResponse<{}>>(
-        this._client.backendUrl("/user/update"),
-        {
-          method: "POST",
-          body: {
-            username,
-            avatarUrl: avatarUrl ? avatarUrl.toString() : null,
-            bio,
-            pfp: pfp
-              ? {
-                  networkId: pfp.networkId,
-                  collectionAddress: pfp.collectionAddress,
-                  tokenId: pfp.tokenId,
-                }
-              : null,
-            imageSettings: imageSettings
-              ? {
-                  imageX: imageSettings.imageX,
-                  imageY: imageSettings.imageY,
-                  imageZoom: imageSettings.imageZoom,
-                }
-              : null,
-          },
-        }
-      )
+      const { response } = await this._client.fetch<
+        ApiResponse<{
+          avatarUrl: Maybe<string>
+          avatarSignedUrl: Maybe<string>
+          bannerImageUrl: Maybe<string>
+          bannerSignedImageUrl: Maybe<string>
+        }>
+      >(this._client.backendUrl("/user/update"), {
+        method: "POST",
+        body: {
+          username,
+          avatarFileName: avatarFile ? avatarFile.name : null,
+          avatarFileType: avatarFile ? avatarFile.type : null,
+          bannerImageFileName: bannerImageFile ? bannerImageFile.name : null,
+          bannerImageFileType: bannerImageFile ? bannerImageFile.type : null,
+          bio,
+          imageSettings: imageSettings
+            ? {
+                imageX: imageSettings.imageX,
+                imageY: imageSettings.imageY,
+                imageZoom: imageSettings.imageZoom,
+              }
+            : null,
+        },
+      })
 
       if (!response) throw new Error("Response is invalid.")
       if (response!.code !== 200) throw new Error("Error.")
 
       if (username) (this as any).username = username
-      if (avatarUrl) (this as any).avatarUrl = avatarUrl
       if (bio) (this as any).bio = bio
-      if (pfp) {
-        ;(this as any).pfp.collectionAddress = pfp.collectionAddress
-        ;(this as any).pfp.tokenId = pfp.tokenId
-        ;(this as any).pfp.networkId = pfp.networkId
-      }
       if (imageSettings) {
         ;(this as any).imageSettings.imageX = imageSettings.imageX
         ;(this as any).imageSettings.imageY = imageSettings.imageY
         ;(this as any).imageSettings.imageZoom = imageSettings.imageZoom
+      }
+      if (
+        avatarFile &&
+        response.data[0].avatarUrl &&
+        response.data[0].avatarSignedUrl
+      ) {
+        ;(this as any).avatarUrl = response.data[0].avatarUrl
+        await fetch(response.data[0].avatarSignedUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": avatarFile.type,
+          },
+          body: avatarFile,
+        })
+      }
+      if (
+        bannerImageFile &&
+        response.data[0].bannerImageUrl &&
+        response.data[0].bannerSignedImageUrl
+      ) {
+        ;(this as any).bannerImageUrl = response.data[0].bannerImageUrl
+        await fetch(response.data[0].bannerSignedImageUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": bannerImageFile.type,
+          },
+          body: bannerImageFile,
+        })
       }
 
       const user = await new Promise<LocalDBUser | undefined>(
@@ -475,9 +495,13 @@ export class Account implements AccountSchema, AccountEngine {
           this._storage.user
             .update(user, {
               username: username ? username : undefined,
-              avatarUrl: avatarUrl ? avatarUrl.toString() : undefined,
+              avatarUrl: (this as any).avatarUrl
+                ? (this as any).avatarUrl.toString()
+                : undefined,
+              bannerImageUrl: (this as any).bannerImageUrl
+                ? (this as any).bannerImageUrl.toString()
+                : undefined,
               bio: bio ? bio : undefined,
-              pfp: pfp ? pfp : undefined,
               imageSettings: imageSettings ? imageSettings : undefined,
             })
             .then(resolve)

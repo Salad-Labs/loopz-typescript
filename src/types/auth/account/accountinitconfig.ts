@@ -54,6 +54,7 @@ export type AccountInitConfig = {
   bio: string
   firstLogin: boolean
   avatarUrl: string
+  bannerImageUrl: string
   imageSettings: Maybe<{
     imageX: number
     imageY: number
