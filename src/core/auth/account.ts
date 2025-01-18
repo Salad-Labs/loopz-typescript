@@ -408,7 +408,19 @@ export class Account implements AccountSchema, AccountEngine {
       imageY: number
       imageZoom: number
     }>
-  }) {
+  }): Promise<
+    Maybe<{
+      username: Maybe<string>
+      avatarUrl: Maybe<string>
+      bannerImageUrl: Maybe<string>
+      bio: Maybe<string>
+      imageSettings: Maybe<{
+        imageX: number
+        imageY: number
+        imageZoom: number
+      }>
+    }>
+  > {
     try {
       const { response } = await this._client.fetch<
         ApiResponse<{
@@ -481,7 +493,7 @@ export class Account implements AccountSchema, AccountEngine {
         }
       )
 
-      if (!user) return
+      if (!user) return null
 
       await new Promise((resolve, reject) => {
         Serpens.addAction(() => {
@@ -509,6 +521,16 @@ export class Account implements AccountSchema, AccountEngine {
         ;(this as any).imageSettings.imageY = imageSettings.imageY
         ;(this as any).imageSettings.imageZoom = imageSettings.imageZoom
       }
+
+      return {
+        username: username ? username : null,
+        avatarUrl: (this as any).avatarUrl ? (this as any).avatarUrl : null,
+        bannerImageUrl: (this as any).bannerImageUrl
+          ? (this as any).bannerImageUrl
+          : null,
+        bio: bio ? bio : null,
+        imageSettings: imageSettings ? imageSettings : null,
+      }
     } catch (error: any) {
       console.error(error)
       if ("statusCode" in error && error.statusCode === 401)
@@ -516,6 +538,8 @@ export class Account implements AccountSchema, AccountEngine {
 
       throw error
     }
+
+    return null
   }
 
   async updateSettings(
