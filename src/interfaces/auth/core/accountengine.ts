@@ -28,7 +28,19 @@ export interface AccountEngine {
     bannerImageFile: Maybe<File>
     bio: string
     imageSettings: { imageX: number; imageY: number; imageZoom: number }
-  }): Promise<void>
+  }): Promise<
+    Maybe<{
+      username: Maybe<string>
+      avatarUrl: Maybe<string>
+      bannerImageUrl: Maybe<string>
+      bio: Maybe<string>
+      imageSettings: Maybe<{
+        imageX: number
+        imageY: number
+        imageZoom: number
+      }>
+    }>
+  >
   updateSettings(
     setting:
       | "proposalNotificationPush"
