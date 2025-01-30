@@ -518,6 +518,8 @@ export class Account implements AccountSchema, AccountEngine {
                 : undefined,
               bio: bio ? bio : undefined,
               imageSettings: imageSettings ? imageSettings : undefined,
+              city: city ? city : undefined,
+              country: country ? country : undefined,
             })
             .then(resolve)
             .catch(reject)
@@ -527,6 +529,16 @@ export class Account implements AccountSchema, AccountEngine {
       if (username) (this as any).username = username
       if (bio) (this as any).bio = bio
       if (imageSettings) {
+        if (
+          typeof (this as any).imageSettings === undefined ||
+          (this as any).imageSettings === null
+        ) {
+          ;(this as any).imageSettings = {
+            imageX: 0,
+            imageY: 0,
+            imageZoom: 1,
+          }
+        }
         ;(this as any).imageSettings.imageX = imageSettings.imageX
         ;(this as any).imageSettings.imageY = imageSettings.imageY
         ;(this as any).imageSettings.imageZoom = imageSettings.imageZoom
