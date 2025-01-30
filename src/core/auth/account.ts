@@ -530,7 +530,7 @@ export class Account implements AccountSchema, AccountEngine {
       if (bio) (this as any).bio = bio
       if (imageSettings) {
         if (
-          typeof (this as any).imageSettings === undefined ||
+          typeof (this as any).imageSettings === "undefined" ||
           (this as any).imageSettings === null
         ) {
           ;(this as any).imageSettings = {
