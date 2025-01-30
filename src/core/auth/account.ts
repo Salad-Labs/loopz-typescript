@@ -68,6 +68,8 @@ export class Account implements AccountSchema, AccountEngine {
   readonly firstLogin: boolean
   readonly avatarUrl: string
   readonly bannerImageUrl: string
+  readonly city: string
+  readonly country: string
   readonly imageSettings: Maybe<{
     imageX: number
     imageY: number
@@ -189,6 +191,8 @@ export class Account implements AccountSchema, AccountEngine {
     this.avatarUrl = config.avatarUrl
     this.bannerImageUrl = config.bannerImageUrl
     this.imageSettings = config.imageSettings
+    this.city = config.city
+    this.country = config.country
     this.phone = config.phone
     this.isVerified = config.isVerified
     this.isPfpNft = config.isPfpNft
@@ -398,6 +402,8 @@ export class Account implements AccountSchema, AccountEngine {
     bannerImageFile,
     bio,
     imageSettings = null,
+    city,
+    country,
   }: {
     username: Maybe<string>
     avatarFile: Maybe<File>
@@ -408,6 +414,8 @@ export class Account implements AccountSchema, AccountEngine {
       imageY: number
       imageZoom: number
     }>
+    city: Maybe<string>
+    country: Maybe<string>
   }): Promise<
     Maybe<{
       username: Maybe<string>
@@ -419,6 +427,8 @@ export class Account implements AccountSchema, AccountEngine {
         imageY: number
         imageZoom: number
       }>
+      city: Maybe<string>
+      country: Maybe<string>
     }>
   > {
     try {
@@ -521,6 +531,8 @@ export class Account implements AccountSchema, AccountEngine {
         ;(this as any).imageSettings.imageY = imageSettings.imageY
         ;(this as any).imageSettings.imageZoom = imageSettings.imageZoom
       }
+      if (city) (this as any).city = city
+      if (country) (this as any).country = country
 
       return {
         username: username ? username : null,
@@ -530,6 +542,8 @@ export class Account implements AccountSchema, AccountEngine {
           : null,
         bio: bio ? bio : null,
         imageSettings: imageSettings ? imageSettings : null,
+        city: city ? city : null,
+        country: country ? country : null,
       }
     } catch (error: any) {
       console.error(error)
