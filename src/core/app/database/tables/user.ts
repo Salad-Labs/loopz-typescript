@@ -14,6 +14,8 @@ export interface LocalDBUser {
     imageY: number
     imageZoom: number
   }>
+  city: string
+  country: string
   isVerified: boolean
   wallet: {
     address: string

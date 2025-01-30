@@ -52,6 +52,8 @@ export type AccountInitConfig = {
   username: string
   email: string
   bio: string
+  city: string
+  country: string
   firstLogin: boolean
   avatarUrl: string
   bannerImageUrl: string

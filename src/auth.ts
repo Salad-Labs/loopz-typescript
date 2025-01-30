@@ -194,6 +194,8 @@ export class Auth implements AuthInternalEvents {
               imageSettings: Auth._account.imageSettings
                 ? Auth._account.imageSettings
                 : null,
+              city: Auth._account.city,
+              country: Auth._account.country,
               isVerified: Auth._account.isVerified,
               wallet: {
                 address: Auth._account.walletAddress,
@@ -1079,6 +1081,8 @@ export class Auth implements AuthInternalEvents {
         avatarUrl: user.avatarUrl,
         bannerImageUrl: user.bannerImageUrl,
         imageSettings: user.imageSettings,
+        city: user.city,
+        country: user.country,
         phone: user.phone ? user.phone : null,
         isVerified: user.isVerified,
         isPfpNft: user.isPfpNft,

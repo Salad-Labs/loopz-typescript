@@ -21,13 +21,17 @@ export interface AccountEngine {
     avatarFile,
     bannerImageFile,
     bio,
-    imageSettings: { imageX, imageY, imageZoom },
+    imageSettings,
+    city,
+    country,
   }: {
-    username: string
+    username: Maybe<string>
     avatarFile: Maybe<File>
     bannerImageFile: Maybe<File>
-    bio: string
-    imageSettings: { imageX: number; imageY: number; imageZoom: number }
+    bio: Maybe<string>
+    imageSettings: Maybe<{ imageX: number; imageY: number; imageZoom: number }>
+    city: Maybe<string>
+    country: Maybe<string>
   }): Promise<
     Maybe<{
       username: Maybe<string>
@@ -39,6 +43,8 @@ export interface AccountEngine {
         imageY: number
         imageZoom: number
       }>
+      city: Maybe<string>
+      country: Maybe<string>
     }>
   >
   updateSettings(

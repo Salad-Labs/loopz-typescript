@@ -56,6 +56,8 @@ export interface AccountSchema {
   firstLogin: boolean
   avatarUrl: string
   bannerImageUrl: string
+  city: string
+  country: string
   phone: Maybe<string>
   isVerified: boolean
   isPfpNft: boolean
