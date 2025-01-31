@@ -192,6 +192,7 @@ export class Auth implements AuthInternalEvents {
               instagramPublicUrl: Auth._account.instagramPublicUrl,
               xPublicUrl: Auth._account.xPublicUrl,
               tiktokPublicUrl: Auth._account.tiktokPublicUrl,
+              personalWebsiteUrl: Auth._account.personalWebsiteUrl,
               avatarUrl: Auth._account.avatarUrl,
               bannerImageUrl: Auth._account.bannerImageUrl,
               imageSettings: Auth._account.imageSettings
@@ -1083,6 +1084,7 @@ export class Auth implements AuthInternalEvents {
         instagramPublicUrl: user.instagramPublicUrl,
         xPublicUrl: user.xPublicUrl,
         tiktokPublicUrl: user.tiktokPublicUrl,
+        personalWebsiteUrl: user.personalWebsiteUrl,
         firstLogin: user.firstLogin,
         avatarUrl: user.avatarUrl,
         bannerImageUrl: user.bannerImageUrl,

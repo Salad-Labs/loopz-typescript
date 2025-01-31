@@ -19,6 +19,7 @@ export interface LocalDBUser {
   instagramPublicUrl: string
   xPublicUrl: string
   tiktokPublicUrl: string
+  personalWebsiteUrl: string
   isVerified: boolean
   wallet: {
     address: string
