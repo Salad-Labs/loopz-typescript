@@ -58,6 +58,9 @@ export interface AccountSchema {
   bannerImageUrl: string
   city: string
   country: string
+  instagramPublicUrl: string
+  xPublicUrl: string
+  tiktokPublicUrl: string
   phone: Maybe<string>
   isVerified: boolean
   isPfpNft: boolean

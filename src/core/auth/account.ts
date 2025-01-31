@@ -75,6 +75,9 @@ export class Account implements AccountSchema, AccountEngine {
     imageY: number
     imageZoom: number
   }>
+  readonly instagramPublicUrl: string
+  readonly xPublicUrl: string
+  readonly tiktokPublicUrl: string
   readonly phone: Maybe<string>
   readonly isVerified: boolean
   readonly isPfpNft: boolean
@@ -194,6 +197,9 @@ export class Account implements AccountSchema, AccountEngine {
     this.city = config.city
     this.country = config.country
     this.phone = config.phone
+    this.instagramPublicUrl = config.instagramPublicUrl
+    this.xPublicUrl = config.xPublicUrl
+    this.tiktokPublicUrl = config.tiktokPublicUrl
     this.isVerified = config.isVerified
     this.isPfpNft = config.isPfpNft
     this.pfp = config.pfp
@@ -404,6 +410,9 @@ export class Account implements AccountSchema, AccountEngine {
     imageSettings = null,
     city,
     country,
+    instagramPublicUrl,
+    xPublicUrl,
+    tiktokPublicUrl,
   }: {
     username: Maybe<string>
     avatarFile: Maybe<File>
@@ -416,6 +425,9 @@ export class Account implements AccountSchema, AccountEngine {
     }>
     city: Maybe<string>
     country: Maybe<string>
+    instagramPublicUrl: Maybe<string>
+    xPublicUrl: Maybe<string>
+    tiktokPublicUrl: Maybe<string>
   }): Promise<
     Maybe<{
       username: Maybe<string>
@@ -429,6 +441,9 @@ export class Account implements AccountSchema, AccountEngine {
       }>
       city: Maybe<string>
       country: Maybe<string>
+      instagramPublicUrl: Maybe<string>
+      xPublicUrl: Maybe<string>
+      tiktokPublicUrl: Maybe<string>
     }>
   > {
     try {
@@ -455,6 +470,9 @@ export class Account implements AccountSchema, AccountEngine {
                 imageZoom: imageSettings.imageZoom,
               }
             : null,
+          instagramPublicUrl,
+          xPublicUrl,
+          tiktokPublicUrl,
         },
       })
 
@@ -520,6 +538,11 @@ export class Account implements AccountSchema, AccountEngine {
               imageSettings: imageSettings ? imageSettings : undefined,
               city: city ? city : undefined,
               country: country ? country : undefined,
+              instagramPublicUrl: instagramPublicUrl
+                ? instagramPublicUrl
+                : undefined,
+              xPublicUrl: xPublicUrl ? xPublicUrl : undefined,
+              tiktokPublicUrl: tiktokPublicUrl ? tiktokPublicUrl : undefined,
             })
             .then(resolve)
             .catch(reject)
@@ -545,6 +568,10 @@ export class Account implements AccountSchema, AccountEngine {
       }
       if (city) (this as any).city = city
       if (country) (this as any).country = country
+      if (instagramPublicUrl)
+        (this as any).instagramPublicUrl = instagramPublicUrl
+      if (xPublicUrl) (this as any).xPublicUrl = xPublicUrl
+      if (tiktokPublicUrl) (this as any).tiktokPublicUrl = tiktokPublicUrl
 
       return {
         username: username ? username : null,
@@ -556,6 +583,9 @@ export class Account implements AccountSchema, AccountEngine {
         imageSettings: imageSettings ? imageSettings : null,
         city: city ? city : null,
         country: country ? country : null,
+        instagramPublicUrl: instagramPublicUrl ? instagramPublicUrl : null,
+        xPublicUrl: xPublicUrl ? xPublicUrl : null,
+        tiktokPublicUrl: tiktokPublicUrl ? tiktokPublicUrl : null,
       }
     } catch (error: any) {
       console.error(error)

@@ -53,6 +53,9 @@ export type AccountInitConfig = {
   email: string
   bio: string
   city: string
+  instagramPublicUrl: string
+  xPublicUrl: string
+  tiktokPublicUrl: string
   country: string
   firstLogin: boolean
   avatarUrl: string

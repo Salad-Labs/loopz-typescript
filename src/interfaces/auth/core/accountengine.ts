@@ -24,6 +24,9 @@ export interface AccountEngine {
     imageSettings,
     city,
     country,
+    instagramPublicUrl,
+    xPublicUrl,
+    tiktokPublicUrl,
   }: {
     username: Maybe<string>
     avatarFile: Maybe<File>
@@ -32,6 +35,9 @@ export interface AccountEngine {
     imageSettings: Maybe<{ imageX: number; imageY: number; imageZoom: number }>
     city: Maybe<string>
     country: Maybe<string>
+    instagramPublicUrl: Maybe<string>
+    xPublicUrl: Maybe<string>
+    tiktokPublicUrl: Maybe<string>
   }): Promise<
     Maybe<{
       username: Maybe<string>
@@ -45,6 +51,9 @@ export interface AccountEngine {
       }>
       city: Maybe<string>
       country: Maybe<string>
+      instagramPublicUrl: Maybe<string>
+      xPublicUrl: Maybe<string>
+      tiktokPublicUrl: Maybe<string>
     }>
   >
   updateSettings(
