@@ -61,6 +61,7 @@ export interface AccountSchema {
   instagramPublicUrl: string
   xPublicUrl: string
   tiktokPublicUrl: string
+  personalWebsiteUrl: string
   phone: Maybe<string>
   isVerified: boolean
   isPfpNft: boolean

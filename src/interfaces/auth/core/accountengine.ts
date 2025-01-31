@@ -4,7 +4,7 @@ import {
   ReceiveMessageFrom,
   UserOnlineStatus,
 } from "../../../enums"
-import { Maybe, Network } from "../../../types"
+import { Maybe } from "../../../types"
 
 export interface AccountEngine {
   destroyLastUserLoggedKey(): void
@@ -27,6 +27,7 @@ export interface AccountEngine {
     instagramPublicUrl,
     xPublicUrl,
     tiktokPublicUrl,
+    personalWebsiteUrl,
   }: {
     username: Maybe<string>
     avatarFile: Maybe<File>
@@ -38,6 +39,7 @@ export interface AccountEngine {
     instagramPublicUrl: Maybe<string>
     xPublicUrl: Maybe<string>
     tiktokPublicUrl: Maybe<string>
+    personalWebsiteUrl: Maybe<string>
   }): Promise<
     Maybe<{
       username: Maybe<string>
@@ -54,6 +56,7 @@ export interface AccountEngine {
       instagramPublicUrl: Maybe<string>
       xPublicUrl: Maybe<string>
       tiktokPublicUrl: Maybe<string>
+      personalWebsiteUrl: Maybe<string>
     }>
   >
   updateSettings(

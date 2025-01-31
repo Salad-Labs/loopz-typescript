@@ -78,6 +78,7 @@ export class Account implements AccountSchema, AccountEngine {
   readonly instagramPublicUrl: string
   readonly xPublicUrl: string
   readonly tiktokPublicUrl: string
+  readonly personalWebsiteUrl: string
   readonly phone: Maybe<string>
   readonly isVerified: boolean
   readonly isPfpNft: boolean
@@ -200,6 +201,7 @@ export class Account implements AccountSchema, AccountEngine {
     this.instagramPublicUrl = config.instagramPublicUrl
     this.xPublicUrl = config.xPublicUrl
     this.tiktokPublicUrl = config.tiktokPublicUrl
+    this.personalWebsiteUrl = config.personalWebsiteUrl
     this.isVerified = config.isVerified
     this.isPfpNft = config.isPfpNft
     this.pfp = config.pfp
@@ -413,6 +415,7 @@ export class Account implements AccountSchema, AccountEngine {
     instagramPublicUrl,
     xPublicUrl,
     tiktokPublicUrl,
+    personalWebsiteUrl,
   }: {
     username: Maybe<string>
     avatarFile: Maybe<File>
@@ -428,6 +431,7 @@ export class Account implements AccountSchema, AccountEngine {
     instagramPublicUrl: Maybe<string>
     xPublicUrl: Maybe<string>
     tiktokPublicUrl: Maybe<string>
+    personalWebsiteUrl: Maybe<string>
   }): Promise<
     Maybe<{
       username: Maybe<string>
@@ -444,6 +448,7 @@ export class Account implements AccountSchema, AccountEngine {
       instagramPublicUrl: Maybe<string>
       xPublicUrl: Maybe<string>
       tiktokPublicUrl: Maybe<string>
+      personalWebsiteUrl: Maybe<string>
     }>
   > {
     try {
@@ -473,6 +478,7 @@ export class Account implements AccountSchema, AccountEngine {
           instagramPublicUrl,
           xPublicUrl,
           tiktokPublicUrl,
+          personalWebsiteUrl,
         },
       })
 
@@ -543,6 +549,9 @@ export class Account implements AccountSchema, AccountEngine {
                 : undefined,
               xPublicUrl: xPublicUrl ? xPublicUrl : undefined,
               tiktokPublicUrl: tiktokPublicUrl ? tiktokPublicUrl : undefined,
+              personalWebsiteUrl: personalWebsiteUrl
+                ? personalWebsiteUrl
+                : undefined,
             })
             .then(resolve)
             .catch(reject)
@@ -572,6 +581,8 @@ export class Account implements AccountSchema, AccountEngine {
         (this as any).instagramPublicUrl = instagramPublicUrl
       if (xPublicUrl) (this as any).xPublicUrl = xPublicUrl
       if (tiktokPublicUrl) (this as any).tiktokPublicUrl = tiktokPublicUrl
+      if (personalWebsiteUrl)
+        (this as any).personalWebsiteUrl = personalWebsiteUrl
 
       return {
         username: username ? username : null,
@@ -586,6 +597,7 @@ export class Account implements AccountSchema, AccountEngine {
         instagramPublicUrl: instagramPublicUrl ? instagramPublicUrl : null,
         xPublicUrl: xPublicUrl ? xPublicUrl : null,
         tiktokPublicUrl: tiktokPublicUrl ? tiktokPublicUrl : null,
+        personalWebsiteUrl: personalWebsiteUrl ? personalWebsiteUrl : null,
       }
     } catch (error: any) {
       console.error(error)
