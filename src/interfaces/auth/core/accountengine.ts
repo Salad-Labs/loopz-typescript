@@ -28,6 +28,7 @@ export interface AccountEngine {
     xPublicUrl,
     tiktokPublicUrl,
     personalWebsiteUrl,
+    gender,
   }: {
     username: Maybe<string>
     avatarFile: Maybe<File>
@@ -43,6 +44,7 @@ export interface AccountEngine {
     tiktokPublicUrl: Maybe<string>
     personalWebsiteUrl: Maybe<string>
     isCreator: Maybe<boolean>
+    gender: Maybe<"male" | "female" | "non-binary" | "other">
   }): Promise<
     Maybe<{
       username: Maybe<string>
@@ -63,6 +65,7 @@ export interface AccountEngine {
       tiktokPublicUrl: Maybe<string>
       personalWebsiteUrl: Maybe<string>
       isCreator: Maybe<boolean>
+      gender: Maybe<"male" | "female" | "non-binary" | "other">
     }>
   >
   updateSettings(

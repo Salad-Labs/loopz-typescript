@@ -203,6 +203,7 @@ export class Auth implements AuthInternalEvents {
               lat: Auth._account.lat,
               lng: Auth._account.lng,
               isCreator: Auth._account.isCreator,
+              gender: Auth._account.gender,
               isVerified: Auth._account.isVerified,
               wallet: {
                 address: Auth._account.walletAddress,
@@ -1097,6 +1098,7 @@ export class Auth implements AuthInternalEvents {
         lat: user.lat,
         lng: user.lng,
         isCreator: user.isCreator,
+        gender: user.gender,
         phone: user.phone ? user.phone : null,
         isVerified: user.isVerified,
         isPfpNft: user.isPfpNft,

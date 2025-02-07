@@ -73,6 +73,7 @@ export class Account implements AccountSchema, AccountEngine {
   readonly lat: number
   readonly lng: number
   readonly isCreator: boolean
+  readonly gender: "male" | "female" | "non-binary" | "other"
   readonly imageSettings: Maybe<{
     imageX: number
     imageY: number
@@ -203,6 +204,7 @@ export class Account implements AccountSchema, AccountEngine {
     this.lat = config.lat
     this.lng = config.lng
     this.isCreator = config.isCreator
+    this.gender = config.gender
     this.phone = config.phone
     this.instagramPublicUrl = config.instagramPublicUrl
     this.xPublicUrl = config.xPublicUrl
@@ -425,6 +427,7 @@ export class Account implements AccountSchema, AccountEngine {
     xPublicUrl,
     tiktokPublicUrl,
     personalWebsiteUrl,
+    gender,
   }: {
     username: Maybe<string>
     avatarFile: Maybe<File>
@@ -444,6 +447,7 @@ export class Account implements AccountSchema, AccountEngine {
     tiktokPublicUrl: Maybe<string>
     personalWebsiteUrl: Maybe<string>
     isCreator: Maybe<boolean>
+    gender: Maybe<"male" | "female" | "non-binary" | "other">
   }): Promise<
     Maybe<{
       username: Maybe<string>
@@ -464,6 +468,7 @@ export class Account implements AccountSchema, AccountEngine {
       tiktokPublicUrl: Maybe<string>
       personalWebsiteUrl: Maybe<string>
       isCreator: Maybe<boolean>
+      gender: Maybe<"male" | "female" | "non-binary" | "other">
     }>
   > {
     try {
@@ -499,6 +504,7 @@ export class Account implements AccountSchema, AccountEngine {
           lat,
           lng,
           isCreator,
+          gender,
         },
       })
 
@@ -511,7 +517,6 @@ export class Account implements AccountSchema, AccountEngine {
         response.data[0].avatarSignedPost
       ) {
         ;(this as any).avatarUrl = response.data[0].avatarUrl
-        //avatarFile
         let formData: FormData = new FormData()
         let file = avatarFile
 
@@ -618,6 +623,7 @@ export class Account implements AccountSchema, AccountEngine {
       if (lat) (this as any).lat = lat
       if (lng) (this as any).lng = lng
       if (isCreator) (this as any).isCreator = isCreator
+      if (gender) (this as any).gender = gender
       if (instagramPublicUrl)
         (this as any).instagramPublicUrl = instagramPublicUrl
       if (xPublicUrl) (this as any).xPublicUrl = xPublicUrl
@@ -638,6 +644,7 @@ export class Account implements AccountSchema, AccountEngine {
         lat: lat ? lat : null,
         lng: lng ? lng : null,
         isCreator: isCreator ? isCreator : null,
+        gender: gender ? gender : null,
         instagramPublicUrl: instagramPublicUrl ? instagramPublicUrl : null,
         xPublicUrl: xPublicUrl ? xPublicUrl : null,
         tiktokPublicUrl: tiktokPublicUrl ? tiktokPublicUrl : null,
