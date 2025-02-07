@@ -36,10 +36,13 @@ export interface AccountEngine {
     imageSettings: Maybe<{ imageX: number; imageY: number; imageZoom: number }>
     city: Maybe<string>
     country: Maybe<string>
+    lat: Maybe<number>
+    lng: Maybe<number>
     instagramPublicUrl: Maybe<string>
     xPublicUrl: Maybe<string>
     tiktokPublicUrl: Maybe<string>
     personalWebsiteUrl: Maybe<string>
+    isCreator: Maybe<boolean>
   }): Promise<
     Maybe<{
       username: Maybe<string>
@@ -53,10 +56,13 @@ export interface AccountEngine {
       }>
       city: Maybe<string>
       country: Maybe<string>
+      lat: Maybe<number>
+      lng: Maybe<number>
       instagramPublicUrl: Maybe<string>
       xPublicUrl: Maybe<string>
       tiktokPublicUrl: Maybe<string>
       personalWebsiteUrl: Maybe<string>
+      isCreator: Maybe<boolean>
     }>
   >
   updateSettings(
