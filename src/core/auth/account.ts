@@ -70,6 +70,9 @@ export class Account implements AccountSchema, AccountEngine {
   readonly bannerImageUrl: string
   readonly city: string
   readonly country: string
+  readonly lat: number
+  readonly lng: number
+  readonly isCreator: boolean
   readonly imageSettings: Maybe<{
     imageX: number
     imageY: number
@@ -197,6 +200,9 @@ export class Account implements AccountSchema, AccountEngine {
     this.imageSettings = config.imageSettings
     this.city = config.city
     this.country = config.country
+    this.lat = config.lat
+    this.lng = config.lng
+    this.isCreator = config.isCreator
     this.phone = config.phone
     this.instagramPublicUrl = config.instagramPublicUrl
     this.xPublicUrl = config.xPublicUrl
@@ -412,6 +418,9 @@ export class Account implements AccountSchema, AccountEngine {
     imageSettings = null,
     city,
     country,
+    lat,
+    lng,
+    isCreator,
     instagramPublicUrl,
     xPublicUrl,
     tiktokPublicUrl,
@@ -428,10 +437,13 @@ export class Account implements AccountSchema, AccountEngine {
     }>
     city: Maybe<string>
     country: Maybe<string>
+    lat: Maybe<number>
+    lng: Maybe<number>
     instagramPublicUrl: Maybe<string>
     xPublicUrl: Maybe<string>
     tiktokPublicUrl: Maybe<string>
     personalWebsiteUrl: Maybe<string>
+    isCreator: Maybe<boolean>
   }): Promise<
     Maybe<{
       username: Maybe<string>
@@ -445,19 +457,22 @@ export class Account implements AccountSchema, AccountEngine {
       }>
       city: Maybe<string>
       country: Maybe<string>
+      lat: Maybe<number>
+      lng: Maybe<number>
       instagramPublicUrl: Maybe<string>
       xPublicUrl: Maybe<string>
       tiktokPublicUrl: Maybe<string>
       personalWebsiteUrl: Maybe<string>
+      isCreator: Maybe<boolean>
     }>
   > {
     try {
       const { response } = await this._client.fetch<
         ApiResponse<{
           avatarUrl: Maybe<string>
-          avatarSignedUrl: Maybe<string>
+          avatarSignedPost: Maybe<any>
           bannerImageUrl: Maybe<string>
-          bannerSignedImageUrl: Maybe<string>
+          bannerSignedImagePost: Maybe<any>
         }>
       >(this._client.backendUrl("/user/update"), {
         method: "POST",
@@ -479,6 +494,11 @@ export class Account implements AccountSchema, AccountEngine {
           xPublicUrl,
           tiktokPublicUrl,
           personalWebsiteUrl,
+          city,
+          country,
+          lat,
+          lng,
+          isCreator,
         },
       })
 
@@ -488,29 +508,44 @@ export class Account implements AccountSchema, AccountEngine {
       if (
         avatarFile &&
         response.data[0].avatarUrl &&
-        response.data[0].avatarSignedUrl
+        response.data[0].avatarSignedPost
       ) {
         ;(this as any).avatarUrl = response.data[0].avatarUrl
-        await fetch(response.data[0].avatarSignedUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": avatarFile.type,
-          },
-          body: avatarFile,
+        //avatarFile
+        let formData: FormData = new FormData()
+        let file = avatarFile
+
+        Object.keys(response.data[0].avatarSignedPost.fields).forEach((key) =>
+          formData!.append(key, response.data[0].avatarSignedPost.fields[key])
+        )
+        formData!.append("file", file)
+
+        await fetch(response.data[0].avatarSignedPost.url, {
+          method: "POST",
+          body: formData,
         })
       }
       if (
         bannerImageFile &&
         response.data[0].bannerImageUrl &&
-        response.data[0].bannerSignedImageUrl
+        response.data[0].bannerSignedImagePost
       ) {
         ;(this as any).bannerImageUrl = response.data[0].bannerImageUrl
-        await fetch(response.data[0].bannerSignedImageUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": bannerImageFile.type,
-          },
-          body: bannerImageFile,
+        let formData: FormData = new FormData()
+        let file = bannerImageFile
+
+        Object.keys(response.data[0].bannerSignedImagePost.fields).forEach(
+          (key) =>
+            formData!.append(
+              key,
+              response.data[0].bannerSignedImagePost.fields[key]
+            )
+        )
+        formData!.append("file", file)
+
+        await fetch(response.data[0].bannerSignedImagePost.url, {
+          method: "POST",
+          body: formData,
         })
       }
 
@@ -544,6 +579,9 @@ export class Account implements AccountSchema, AccountEngine {
               imageSettings: imageSettings ? imageSettings : undefined,
               city: city ? city : undefined,
               country: country ? country : undefined,
+              lat: lat ? lat : undefined,
+              lng: lng ? lng : undefined,
+              isCreator: isCreator ? isCreator : undefined,
               instagramPublicUrl: instagramPublicUrl
                 ? instagramPublicUrl
                 : undefined,
@@ -577,6 +615,9 @@ export class Account implements AccountSchema, AccountEngine {
       }
       if (city) (this as any).city = city
       if (country) (this as any).country = country
+      if (lat) (this as any).lat = lat
+      if (lng) (this as any).lng = lng
+      if (isCreator) (this as any).isCreator = isCreator
       if (instagramPublicUrl)
         (this as any).instagramPublicUrl = instagramPublicUrl
       if (xPublicUrl) (this as any).xPublicUrl = xPublicUrl
@@ -594,6 +635,9 @@ export class Account implements AccountSchema, AccountEngine {
         imageSettings: imageSettings ? imageSettings : null,
         city: city ? city : null,
         country: country ? country : null,
+        lat: lat ? lat : null,
+        lng: lng ? lng : null,
+        isCreator: isCreator ? isCreator : null,
         instagramPublicUrl: instagramPublicUrl ? instagramPublicUrl : null,
         xPublicUrl: xPublicUrl ? xPublicUrl : null,
         tiktokPublicUrl: tiktokPublicUrl ? tiktokPublicUrl : null,

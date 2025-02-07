@@ -16,6 +16,9 @@ export interface LocalDBUser {
   }>
   city: string
   country: string
+  lat: number
+  lng: number
+  isCreator: boolean
   instagramPublicUrl: string
   xPublicUrl: string
   tiktokPublicUrl: string
