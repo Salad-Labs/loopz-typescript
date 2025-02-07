@@ -595,6 +595,7 @@ export class Account implements AccountSchema, AccountEngine {
               personalWebsiteUrl: personalWebsiteUrl
                 ? personalWebsiteUrl
                 : undefined,
+              gender: gender ? gender : undefined,
             })
             .then(resolve)
             .catch(reject)
