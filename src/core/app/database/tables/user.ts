@@ -19,6 +19,7 @@ export interface LocalDBUser {
   lat: number
   lng: number
   isCreator: boolean
+  gender: "male" | "female" | "non-binary" | "other"
   instagramPublicUrl: string
   xPublicUrl: string
   tiktokPublicUrl: string
