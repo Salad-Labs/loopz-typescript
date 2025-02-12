@@ -93,6 +93,7 @@ export interface LocalDBUser {
     profilePictureUrl: Maybe<string>
     username: Maybe<string>
   }>
+  firstLogin: boolean
   proposalNotificationPush: boolean
   proposalNotificationSystem: boolean
   orderNotificationPush: boolean
