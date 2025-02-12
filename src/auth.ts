@@ -173,7 +173,24 @@ export class Auth implements AuthInternalEvents {
         }
       )
 
-      if (existingUser) return null
+      if (existingUser) {
+        if (existingUser.firstLogin) {
+          await new Promise((resolve, reject) => {
+            Serpens.addAction(() => {
+              if (!Auth._account)
+                throw new Error("Account is not setup correctly.")
+
+              Auth._storage.user
+                .update(existingUser, {
+                  firstLogin: false,
+                })
+                .then(resolve)
+                .catch(reject)
+            })
+          })
+        }
+        return null
+      }
 
       //save all the data related to this user into the db
 
@@ -295,6 +312,7 @@ export class Auth implements AuthInternalEvents {
                     username: Auth._account.twitterUsername,
                   }
                 : null,
+              firstLogin: Auth._account.firstLogin,
               proposalNotificationPush: Auth._account.proposalNotificationPush,
               proposalNotificationSystem:
                 Auth._account.proposalNotificationSystem,
