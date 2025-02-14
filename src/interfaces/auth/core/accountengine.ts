@@ -96,4 +96,6 @@ export interface AccountEngine {
     download: boolean,
     callback?: (fileContent: string) => any
   ): Promise<void>
+  followUser(did: string): Promise<void>
+  unfollowUser(did: string): Promise<void>
 }
