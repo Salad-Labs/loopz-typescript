@@ -1030,7 +1030,12 @@ export class Auth implements AuthInternalEvents {
         }>
       >(Auth._client.backendUrl("/user/secrets"))
 
-      if (!response || !response.data) return
+      if (
+        !response ||
+        !response.data ||
+        typeof response.data[0] === "undefined"
+      )
+        return
 
       const { secrets } = response.data[0]
 

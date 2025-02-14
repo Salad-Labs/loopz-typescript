@@ -848,4 +848,35 @@ export class Account implements AccountSchema, AccountEngine {
       storage: this._storage,
     })
   }
+
+  async followUser(did: string): Promise<void> {
+    const { response } = await this._client.fetch<ApiResponse<{}>>(
+      this._client.backendUrl("/user/follow"),
+      {
+        method: "POST",
+        body: {
+          didFollow: did,
+          notification: 1,
+        },
+      }
+    )
+
+    if (!response) throw new Error("Response is invalid.")
+    if (response!.code !== 200) throw new Error("Error")
+  }
+
+  async unfollowUser(did: string): Promise<void> {
+    const { response } = await this._client.fetch<ApiResponse<{}>>(
+      this._client.backendUrl("/user/unfollow"),
+      {
+        method: "DELETE",
+        body: {
+          did,
+        },
+      }
+    )
+
+    if (!response) throw new Error("Response is invalid.")
+    if (response!.code !== 200) throw new Error("Error")
+  }
 }
