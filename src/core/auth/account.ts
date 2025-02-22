@@ -1,7 +1,11 @@
 import { AccountEngine, AccountSchema } from "../../interfaces/auth"
 import { Maybe, Network } from "../../types"
 import { AccountInitConfig } from "../../types/auth/account"
-import { ConnectedWallet, EIP1193Provider } from "@privy-io/react-auth"
+import {
+  ConnectedWallet,
+  EIP1193Provider,
+  getAccessToken,
+} from "@privy-io/react-auth"
 import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "../../constants/app"
 import { encodeFunctionData } from "viem"
 import { erc1155Abi, erc20Abi, erc721Abi } from "../../constants"
@@ -126,12 +130,6 @@ export class Account implements AccountSchema, AccountEngine {
     eventName: "onFundExit"
     callbacks: Array<Function>
   }> = []
-
-  set setE2EPublicKeyOnce(e2ePublicKey: string) {
-    if (this.e2ePublicKey)
-      throw new Error("You cannot override the e2e public key")
-    ;(this as any).e2ePublicKey = e2ePublicKey
-  }
 
   constructor(
     config: AccountInitConfig & {

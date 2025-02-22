@@ -232,13 +232,10 @@ import {
   LocalDBUser,
 } from "./core/app/database"
 import { Converter, findAddedAndRemovedConversation, Serpens } from "./core"
-import Dexie from "dexie"
 import { Reaction } from "./core/chat/reaction"
 import { v4 as uuidv4 } from "uuid"
-import * as bip39 from "@scure/bip39"
-import { wordlist } from "@scure/bip39/wordlists/english"
 import { ApiResponse } from "./types/base/apiresponse"
-import { md, mgf, pki } from "node-forge"
+import { md, pki } from "node-forge"
 import { Order } from "./order"
 import { Auth, ChatEvents, EngineInitConfig } from "."
 import { DetectiveMessage } from "./core/chat/detectivemessage"
@@ -10022,208 +10019,48 @@ export class Chat
   }
 
   /** transfer keys logic */
+  async storePIN(pin: string): Promise<boolean> {
+    if (pin.length !== 5) throw new Error("PIN length must be of five digits.")
+    if (isNaN(Number(pin))) throw new Error("PIN must be numerical.")
 
-  //this action is performed by device A
-  async pair(): Promise<Maybe<string>> {
-    if (!this._userKeyPair)
+    const existingUser = await new Promise<LocalDBUser | undefined>(
+      (resolve, reject) => {
+        Serpens.addAction(() => {
+          if (!Auth.account) throw new Error("Account is not setup correctly.")
+
+          this._storage.user
+            .where("[did+organizationId]")
+            .equals([Auth.account!.did, Auth.account!.organizationId])
+            .first()
+            .then(resolve)
+            .catch(reject)
+        })
+      }
+    )
+
+    if (!existingUser) throw new Error("User is not setup correctly.")
+    if (
+      existingUser.e2eEncryptedPrivateKey === "" ||
+      !existingUser.e2eEncryptedPrivateKey
+    )
       throw new Error(
-        "Pairing is possible only if the user has generated a personal keys pair."
-      )
-
-    //WARNING!
-    //old code was the following:
-    /**
-     *
-     * const mnemonic = bip39.generateMnemonic()
-     * const seed = bip39.mnemonicToSeedSync(mnemonic)
-     * const hex = seed.toString("hex")
-     *
-     * bip39 was imported with another npm package and not @scure/bip39
-     * so, the convertion in hex is not supported directly because seed now is an UInt8Array instead to be a Buffer
-     * we need to verify if adding the buffer convertion has the same effect.
-     *
-     */
-
-    const mnemonic = bip39.generateMnemonic(wordlist)
-    const seed = bip39.mnemonicToSeedSync(mnemonic)
-    const buffer = Buffer.from(seed)
-    const hex = buffer.toString("hex")
-
-    try {
-      const { response } = await this._clientEngine.fetch<
-        ApiResponse<{ status: number }>
-      >(this._clientEngine.backendUrl("/pair/device/init"), {
-        method: "POST",
-        body: {
-          pairingIdentity: hex,
-        },
-      })
-      if (!response || !response.data) throw new Error("Response is invalid.")
-
-      return mnemonic
-    } catch (error: any) {
-      console.error(error)
-
-      if ("statusCode" in error && error.statusCode === 401) {
-        await Auth.getInstance().logout()
-      }
-
-      return null
-    }
-  }
-
-  //this action is performed by device B
-  async startPairing(mnemonic: string): Promise<Maybe<{ status: number }>> {
-    try {
-      const keyPair = await Crypto.generateKeys("STANDARD")
-
-      if (!keyPair)
-        throw new Error("It was not possible to generate a valid key pair.")
-
-      //WARNING!
-      //old code was the following:
-      /**
-       *
-       * const mnemonic = bip39.generateMnemonic()
-       * const seed = bip39.mnemonicToSeedSync(mnemonic)
-       * const hex = seed.toString("hex")
-       *
-       * bip39 was imported with another npm package and not @scure/bip39
-       * so, the convertion in hex is not supported directly because seed now is an UInt8Array instead to be a Buffer
-       * we need to verify if adding the buffer convertion has the same effect.
-       *
-       */
-
-      const seed = bip39.mnemonicToSeedSync(mnemonic)
-      const buffer = Buffer.from(seed)
-      const hex = buffer.toString("hex")
-      const _md = md.sha256.create()
-
-      _md.update(hex)
-
-      this._keyPairingObject = {
-        privateKey: keyPair.privateKey,
-        publicKey: keyPair.publicKey,
-        md: _md,
-        mgf1: mgf.mgf1.create(_md),
-      }
-
-      const { response } = await this._clientEngine.fetch<
-        ApiResponse<{ status: number }>
-      >(this._clientEngine.backendUrl("/pair/device/knowledge"), {
-        method: "POST",
-        body: {
-          pairingIdentity: hex,
-          publicKey: Crypto.convertRSAPublicKeyToPem(
-            this._keyPairingObject.publicKey!
-          ),
-        },
-      })
-
-      if (!response || !response.data) throw new Error("Response is invalid.")
-
-      return response.data[0]
-    } catch (error: any) {
-      console.error(error)
-
-      if ("statusCode" in error && error.statusCode === 401) {
-        await Auth.getInstance().logout()
-      }
-
-      return null
-    }
-  }
-
-  //this is called by device A
-  async transferKeysWhenReady(mnemonic: string) {
-    if (!this._userKeyPair)
-      throw new Error(
-        "Pairing is possible only if the user has generated a personal keys pair."
+        "The private key of this user must be setup before to call this method."
       )
 
     try {
-      console.log("trying to transfer keys...")
-
-      //WARNING!
-      //old code was the following:
-      /**
-       *
-       * const seed = bip39.mnemonicToSeedSync(mnemonic)
-       * const hex = seed.toString("hex")
-       *
-       * bip39 was imported with another npm package and not @scure/bip39
-       * so, the convertion in hex is not supported directly because seed now is an UInt8Array instead to be a Buffer
-       * we need to verify if adding the buffer convertion has the same effect.
-       *
-       */
-
-      const seed = bip39.mnemonicToSeedSync(mnemonic)
-      const buffer = Buffer.from(seed)
-      const hex = buffer.toString("hex")
-
-      const { response } = await this._clientEngine.fetch<
-        ApiResponse<{ status: number; publicKey: string }>
-      >(this._clientEngine.backendUrl("/pair/device/check"), {
-        method: "POST",
-        body: {
-          pairingIdentity: hex,
-        },
-      })
-
-      if (!response || !response.data) throw new Error("Response is invalid.")
-
-      const status = response.data[0].status
-      const publicKeyPem = response.data[0].publicKey
-
-      if (status === 1) setTimeout(this.transferKeysWhenReady.bind(this), 2000)
-      else {
-        //let's encrypt the personal key pair of the current user
-        const personalPublicKey = this._userKeyPair!.publicKey
-        const personalPrivateKey = this._userKeyPair!.privateKey
-        const publicKey = pki.publicKeyFromPem(publicKeyPem)
-        const personalPublicKeyPem =
-          Crypto.convertRSAPublicKeyToPem(personalPublicKey)
-        const personalPrivateKeyPem =
-          Crypto.convertRSAPrivateKeyToPem(personalPrivateKey)
-        const _md = md.sha256.create()
-        _md.update(hex)
-        const mgf1 = mgf.mgf1.create(_md)
-
-        const encryptedPublicKey = publicKey.encrypt(
-          personalPublicKeyPem,
-          "RSA-OAEP",
-          {
-            md: _md,
-            mgf1,
-          }
-        )
-        const encryptedPrivateKey = publicKey.encrypt(
-          personalPrivateKeyPem,
-          "RSA-OAEP",
-          {
-            md: _md,
-            mgf1,
-          }
-        )
-
-        const encryptedPublicKeyBase64 = Crypto.toBase64(encryptedPublicKey)
-        const encryptedPrivateKeyBase64 = Crypto.toBase64(encryptedPrivateKey)
-
-        const { response } = await this._clientEngine.fetch<
-          ApiResponse<{ status: number }>
-        >(this._clientEngine.backendUrl("/pair/device/transfer/keys"), {
+      const { response } = await this._clientEngine.fetch<ApiResponse<{}>>(
+        this._clientEngine.backendUrl("/user/pin/keys/store"),
+        {
           method: "POST",
           body: {
-            pairingIdentity: hex,
-            encryptedPublicKey: encryptedPublicKeyBase64,
-            encryptedPrivateKey: encryptedPrivateKeyBase64,
+            pin,
+            encryptedKey: existingUser.e2eEncryptedPrivateKey,
           },
-        })
+        }
+      )
+      if (!response || !response.data) throw new Error("Response is invalid.")
 
-        if (!response || !response.data) throw new Error("Response is invalid.")
-
-        return response.data[0]
-      }
+      return true
     } catch (error: any) {
       console.error(error)
 
@@ -10231,121 +10068,54 @@ export class Chat
         await Auth.getInstance().logout()
       }
 
-      throw error
+      return false
     }
   }
 
-  //called by device B
-  async downloadKeysWhenReady(mnemonic: string) {
-    if (!Auth.account)
-      throw new Error(
-        "Account is not setup correctly. Authenticate to the platform first."
-      )
+  async checkPIN(pin: string): Promise<boolean> {
+    if (pin.length !== 5) throw new Error("PIN length must be of five digits.")
+    if (isNaN(Number(pin))) throw new Error("PIN must be numerical.")
+
+    const existingUser = await new Promise<LocalDBUser | undefined>(
+      (resolve, reject) => {
+        Serpens.addAction(() => {
+          if (!Auth.account) throw new Error("Account is not setup correctly.")
+
+          this._storage.user
+            .where("[did+organizationId]")
+            .equals([Auth.account!.did, Auth.account!.organizationId])
+            .first()
+            .then(resolve)
+            .catch(reject)
+        })
+      }
+    )
+
+    if (!existingUser) throw new Error("User is not setup correctly.")
 
     try {
-      console.log("trying to download keys...")
-
-      //WARNING!
-      //old code was the following:
-      /**
-       *
-       * const seed = bip39.mnemonicToSeedSync(mnemonic)
-       * const hex = seed.toString("hex")
-       *
-       * bip39 was imported with another npm package and not @scure/bip39
-       * so, the convertion in hex is not supported directly because seed now is an UInt8Array instead to be a Buffer
-       * we need to verify if adding the buffer convertion has the same effect.
-       *
-       */
-
-      const seed = bip39.mnemonicToSeedSync(mnemonic)
-      const buffer = Buffer.from(seed)
-      const hex = buffer.toString("hex")
-
       const { response } = await this._clientEngine.fetch<
-        ApiResponse<{
-          status: number
-          encryptedPrivateKey?: string
-          encryptedPublicKey?: string
-        }>
-      >(this._clientEngine.backendUrl("/pair/device/download/keys"), {
+        ApiResponse<{ encryptedKey: string }>
+      >(this._clientEngine.backendUrl("/user/pin/keys/check"), {
         method: "POST",
         body: {
-          pairingIdentity: hex,
+          pin,
         },
       })
-
       if (!response || !response.data) throw new Error("Response is invalid.")
 
-      const status = response.data[0].status
-      const encryptedPrivateKey = response.data[0].encryptedPrivateKey
-      const encryptedPublicKey = response.data[0].encryptedPublicKey
-
-      if (status === 3) setTimeout(this.downloadKeysWhenReady.bind(this), 2000)
-      else {
-        //let's decrypt the personal key pair for the current user
-        const personalEncryptedPublicKeyBase64 = encryptedPublicKey!
-        const personalEncryptedPrivateKeyBase64 = encryptedPrivateKey!
-        const personalEncryptedPublicKey = Crypto.fromBase64(
-          personalEncryptedPublicKeyBase64
-        )
-        const personalEncryptedPrivateKey = Crypto.fromBase64(
-          personalEncryptedPrivateKeyBase64
-        )
-        const personalPublicKeyPem =
-          this._keyPairingObject!.privateKey!.decrypt(
-            personalEncryptedPublicKey,
-            "RSA-OAEP",
-            {
-              md: this._keyPairingObject!.md,
-              mgf1: this._keyPairingObject!.mgf1,
-            }
-          )
-        const personalPrivateKeyPem =
-          this._keyPairingObject!.privateKey!.decrypt(
-            personalEncryptedPrivateKey,
-            "RSA-OAEP",
-            {
-              md: this._keyPairingObject!.md,
-              mgf1: this._keyPairingObject!.mgf1,
-            }
-          )
-
-        this._userKeyPair = await Crypto.generateKeyPairFromPem(
-          personalPublicKeyPem,
-          personalPrivateKeyPem
-        )
-
-        if (!this._userKeyPair)
-          throw new Error("Key pair generated is not valid.")
-
-        //let's update the current user on our local database
-        const privateKeyForLocalDB = Crypto.encryptAES_CBC(
-          personalPrivateKeyPem,
-          Buffer.from(Auth.account!.e2eSecret, "hex").toString("base64"),
-          Buffer.from(Auth.account!.e2eSecretIV, "hex").toString("base64")
-        )
-
-        let user = await this._storage.get("user", "[did+organizationId]", [
-          Auth.account!.did,
-          Auth.account!.organizationId,
-        ])
-
-        await new Promise((resolve, reject) => {
-          Serpens.addAction(() => {
-            this._storage.user
-              .update(user, {
-                e2eEncryptedPrivateKey: privateKeyForLocalDB,
-                e2ePublicKey: personalPublicKeyPem,
-              })
-              .then(resolve)
-              .catch(reject)
-          })
+      await new Promise((resolve, reject) => {
+        Serpens.addAction(() => {
+          this._storage.user
+            .update(existingUser, {
+              e2eEncryptedPrivateKey: response.data[0].encryptedKey,
+            })
+            .then(resolve)
+            .catch(reject)
         })
+      })
 
-        this._canChat = true
-        return this._userKeyPair
-      }
+      return true
     } catch (error: any) {
       console.error(error)
 
@@ -10353,7 +10123,28 @@ export class Chat
         await Auth.getInstance().logout()
       }
 
-      throw error
+      return false
+    }
+  }
+
+  async isPINStored() {
+    try {
+      const { response } = await this._clientEngine.fetch<
+        ApiResponse<{ stored: boolean }>
+      >(this._clientEngine.backendUrl("/user/is/pin/keys/stored"), {
+        method: "GET",
+      })
+      if (!response || !response.data) throw new Error("Response is invalid.")
+
+      return true
+    } catch (error: any) {
+      console.error(error)
+
+      if ("statusCode" in error && error.statusCode === 401) {
+        await Auth.getInstance().logout()
+      }
+
+      return false
     }
   }
 
@@ -10365,8 +10156,6 @@ export class Chat
 
   setCanChat(canChat: boolean) {
     this._canChat = canChat
-    if (!this._canChat)
-      console.warn("User needs to transfer private keys between devices.")
   }
 
   /** combining messages (NFT & crypto) */
