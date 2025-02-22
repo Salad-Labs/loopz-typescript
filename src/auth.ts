@@ -126,36 +126,59 @@ export class Auth implements AuthInternalEvents {
     }
   }
 
-  private static async _getUserE2EPublicKey(
+  private static async _getOrCreateUserKeys(
     did: string,
     organizationId: string
-  ): Promise<Maybe<string>> {
-    return new Promise<Maybe<string>>((resolve, reject) => {
+  ): Promise<{
+    e2ePublicKeyPem: string
+    e2ePrivateKeyPem: Maybe<string>
+    e2eEncryptedPrivateKey: Maybe<string>
+  }> {
+    return new Promise<{
+      e2ePublicKeyPem: string
+      e2ePrivateKeyPem: Maybe<string>
+      e2eEncryptedPrivateKey: Maybe<string>
+    }>((resolve, reject) => {
       Serpens.addAction(() => {
         Auth._storage.user
           .where("[did+organizationId]")
           .equals([did, organizationId])
           .first()
-          .then((existingUser) => {
-            resolve(existingUser ? existingUser.e2ePublicKey : null)
+          .then(async (existingUser) => {
+            if (existingUser) {
+              resolve({
+                e2ePublicKeyPem: existingUser.e2ePublicKey,
+                e2eEncryptedPrivateKey: existingUser.e2eEncryptedPrivateKey,
+                e2ePrivateKeyPem: null,
+              })
+            } else {
+              const keys = await Auth._generateKeys()
+              const publicKeyPem = Crypto.convertRSAPublicKeyToPem(
+                keys.publicKey
+              )
+              const privateKeyPem = Crypto.convertRSAPrivateKeyToPem(
+                keys.privateKey
+              )
+
+              resolve({
+                e2ePublicKeyPem: publicKeyPem,
+                e2ePrivateKeyPem: privateKeyPem,
+                e2eEncryptedPrivateKey: null,
+              })
+            }
           })
           .catch(reject)
       })
     })
   }
 
-  private static async _storeUserLocalDB(): Promise<Maybe<string>> {
+  private static async _storeUserOnLocalDB(keys: {
+    e2ePublicKeyPem: string
+    e2ePrivateKeyPem: Maybe<string>
+    e2eEncryptedPrivateKey: Maybe<string>
+  }): Promise<void> {
     try {
       if (!Auth._account) throw new Error("Account is not set")
-      const keys = await Auth._generateKeys()
-
-      //let's encrypt first the private key. Private key will be always calculated runtime.
-      const encryptedPrivateKey = Crypto.encryptAES_CBC(
-        Crypto.convertRSAPrivateKeyToPem(keys.privateKey),
-        Buffer.from(Auth._account.e2eSecret, "hex").toString("base64"),
-        Buffer.from(Auth._account.e2eSecretIV, "hex").toString("base64")
-      )
-      const publicKey = Crypto.convertRSAPublicKeyToPem(keys.publicKey)
 
       const existingUser = await new Promise<LocalDBUser | undefined>(
         (resolve, reject) => {
@@ -189,7 +212,8 @@ export class Auth implements AuthInternalEvents {
             })
           })
         }
-        return null
+
+        return
       }
 
       //save all the data related to this user into the db
@@ -336,8 +360,10 @@ export class Auth implements AuthInternalEvents {
               allowReceiveMessageFrom: Auth._account.allowReceiveMessageFrom,
               allowAddToGroupsFrom: Auth._account.allowAddToGroupsFrom,
               allowGroupsSuggestion: Auth._account.allowGroupsSuggestion,
-              e2ePublicKey: publicKey,
-              e2eEncryptedPrivateKey: encryptedPrivateKey,
+              e2ePublicKey: keys.e2ePublicKeyPem,
+              e2eEncryptedPrivateKey: keys.e2eEncryptedPrivateKey
+                ? keys.e2eEncryptedPrivateKey
+                : "",
               createdAt: Auth._account.createdAt,
               updatedAt: Auth._account.updatedAt,
               lastSyncAt: null,
@@ -346,8 +372,6 @@ export class Auth implements AuthInternalEvents {
             .catch(reject)
         })
       })
-
-      return publicKey
     } catch (error) {
       console.error(error)
       throw new Error(
@@ -365,7 +389,7 @@ export class Auth implements AuthInternalEvents {
     Auth.authToken = authInfo.authToken
 
     try {
-      const e2ePublicKey = await Auth._getUserE2EPublicKey(
+      const keys = await Auth._getOrCreateUserKeys(
         authInfo.user.id,
         Auth._apiKey
       )
@@ -378,7 +402,7 @@ export class Auth implements AuthInternalEvents {
         method: "POST",
         body: {
           ...Auth._formatAuthParams(authInfo),
-          e2ePublicKey,
+          e2ePublicKey: keys.e2ePublicKeyPem,
         },
       })
 
@@ -395,7 +419,48 @@ export class Auth implements AuthInternalEvents {
 
       //let's check if it's the first login of the user.
       //this is needed to understand if the user is doing the login on a different device
-      Chat.getInstance().setCanChat(user.firstLogin || !!e2ePublicKey)
+
+      //this is needed to understand if the user is doing the login on a different device
+      if (
+        user.e2ePublicKey.toLowerCase() === keys.e2ePublicKeyPem.toLowerCase()
+      ) {
+        //this means the user is accessing from the same device/the devices it owns share the same keys OR he's/she's doing the signup
+        if (keys.e2eEncryptedPrivateKey) {
+          //it means i've recovered the private key from the local database. So the user has the possibility to have chats
+          Chat.getInstance().setCanChat(true)
+
+          //so now we have the following situation:
+          //keys.e2eEncryptedPrivateKey = string
+          //keys.e2ePrivateKeyPem = string
+          //keys.e2ePublicKeyPem = string
+        } else {
+          //in the case of a signup, i generate now the private key so the user can chat
+          Chat.getInstance().setCanChat(true)
+          const encryptedPrivateKey = Crypto.encryptAES_CBC(
+            keys.e2ePrivateKeyPem!,
+            Buffer.from(user.e2eSecret, "hex").toString("base64"),
+            Buffer.from(user.e2eSecretIV, "hex").toString("base64")
+          )
+
+          keys.e2eEncryptedPrivateKey = encryptedPrivateKey
+
+          //so now we have the following situation:
+          //keys.e2eEncryptedPrivateKey = string
+          //keys.e2ePrivateKeyPem = string
+          //keys.e2ePublicKeyPem = string
+        }
+      } else {
+        //this means the user is accessing from another device, so the keys needs to be overwritten
+        Chat.getInstance().setCanChat(false)
+        keys.e2ePublicKeyPem = user.e2ePublicKey
+        keys.e2ePrivateKeyPem = null
+
+        //so now we have the following situation:
+        //keys.e2eEncryptedPrivateKey = null
+        //keys.e2ePrivateKeyPem = null
+        //keys.e2ePublicKeyPem = string
+      }
+
       Auth._isAuthenticated = true
       Auth.account = new Account({
         enableDevMode: Auth._config.devMode,
@@ -407,27 +472,7 @@ export class Auth implements AuthInternalEvents {
       Auth._account!.storeLastUserLoggedKey()
 
       //generation of the table and local keys for e2e encryption
-      const e2eKey = await Auth._storeUserLocalDB()
-
-      //if this condition is true, means the user has done the signup for the first time ever, since e2ePublicKey is supposed to be null in that case
-      if (e2eKey !== e2ePublicKey && !e2ePublicKey) {
-        const { response } = await Auth._client.fetch<
-          ApiResponse<{
-            updated: boolean
-          }>
-        >(Auth._client.backendUrl("/auth/update/e2e"), {
-          method: "POST",
-          body: {
-            e2ePublicKey: e2eKey,
-          },
-        })
-
-        if (!response || !response.data) throw new Error("Invalid response.")
-
-        const { updated } = response.data[0]
-
-        if (!updated) throw new Error("Update E2E Failed. Access not granted.")
-      }
+      await Auth._storeUserOnLocalDB(keys)
 
       //clear all the internal callbacks connected to the authentication...
       Auth._clearEventsCallbacks([
@@ -452,7 +497,7 @@ export class Auth implements AuthInternalEvents {
     Auth.authToken = authInfo.authToken
 
     try {
-      const e2ePublicKey = await Auth._getUserE2EPublicKey(
+      const keys = await Auth._getOrCreateUserKeys(
         authInfo.user.id,
         Auth._apiKey
       )
@@ -465,7 +510,7 @@ export class Auth implements AuthInternalEvents {
         method: "POST",
         body: {
           ...Auth._formatAuthParams(authInfo),
-          e2ePublicKey,
+          e2ePublicKey: keys.e2ePublicKeyPem,
         },
       })
 
@@ -475,9 +520,47 @@ export class Auth implements AuthInternalEvents {
 
       if (!user) throw new Error("Access not granted.")
 
-      //let's check if it's the first login of the user.
       //this is needed to understand if the user is doing the login on a different device
-      Chat.getInstance().setCanChat(user.firstLogin || !!e2ePublicKey)
+      if (
+        user.e2ePublicKey.toLowerCase() === keys.e2ePublicKeyPem.toLowerCase()
+      ) {
+        //this means the user is accessing from the same device/the devices it owns share the same keys OR he's/she's doing the signup
+        if (keys.e2eEncryptedPrivateKey) {
+          //it means i've recovered the private key from the local database. So the user has the possibility to have chats
+          Chat.getInstance().setCanChat(true)
+
+          //so now we have the following situation:
+          //keys.e2eEncryptedPrivateKey = string
+          //keys.e2ePrivateKeyPem = string
+          //keys.e2ePublicKeyPem = string
+        } else {
+          //in the case of a signup, i generate now the private key so the user can chat
+          Chat.getInstance().setCanChat(true)
+          const encryptedPrivateKey = Crypto.encryptAES_CBC(
+            keys.e2ePrivateKeyPem!,
+            Buffer.from(user.e2eSecret, "hex").toString("base64"),
+            Buffer.from(user.e2eSecretIV, "hex").toString("base64")
+          )
+
+          keys.e2eEncryptedPrivateKey = encryptedPrivateKey
+
+          //so now we have the following situation:
+          //keys.e2eEncryptedPrivateKey = string
+          //keys.e2ePrivateKeyPem = string
+          //keys.e2ePublicKeyPem = string
+        }
+      } else {
+        //this means the user is accessing from another device, so the keys needs to be overwritten
+        Chat.getInstance().setCanChat(false)
+        keys.e2ePublicKeyPem = user.e2ePublicKey
+        keys.e2ePrivateKeyPem = null
+
+        //so now we have the following situation:
+        //keys.e2eEncryptedPrivateKey = null
+        //keys.e2ePrivateKeyPem = null
+        //keys.e2ePublicKeyPem = string
+      }
+
       Auth._isAuthenticated = true
       Auth._authInfo = {
         isConnected: true,
@@ -493,30 +576,8 @@ export class Auth implements AuthInternalEvents {
       //the user refresh the page
       Auth._account!.storeLastUserLoggedKey()
 
-      //generation of the table and local keys for e2e encryption
-      const e2eKey = await Auth._storeUserLocalDB()
-
-      //if this condition is true, means the user has done the signup for the first time ever, since e2ePublicKey is supposed to be null in that case
-      if (e2eKey !== e2ePublicKey && !e2ePublicKey && e2eKey) {
-        const { response } = await Auth._client.fetch<
-          ApiResponse<{
-            updated: boolean
-          }>
-        >(Auth._client.backendUrl("/auth/update/e2e"), {
-          method: "POST",
-          body: {
-            e2ePublicKey: e2eKey,
-          },
-        })
-
-        if (!response || !response.data) throw new Error("Invalid response.")
-
-        const { updated } = response.data[0]
-
-        if (!updated) throw new Error("Update E2E Failed. Access not granted.")
-
-        Auth._account!.setE2EPublicKeyOnce = e2eKey
-      }
+      //generation of the record in user table and local keys for e2e encryption
+      await Auth._storeUserOnLocalDB(keys)
 
       //clear all the internal callbacks connected to the authentication...
       Auth._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
@@ -556,10 +617,6 @@ export class Auth implements AuthInternalEvents {
         method: "POST",
         body: {
           ...Auth._formatAuthParams(authInfo),
-          e2ePublicKey: await Auth._getUserE2EPublicKey(
-            authInfo.user.id,
-            Auth._apiKey
-          ),
         },
       })
 
@@ -617,10 +674,6 @@ export class Auth implements AuthInternalEvents {
         method: "POST",
         body: {
           ...Auth._formatAuthParams(authInfo),
-          e2ePublicKey: await Auth._getUserE2EPublicKey(
-            authInfo.user.id,
-            Auth._apiKey
-          ),
         },
       })
 
@@ -943,7 +996,6 @@ export class Auth implements AuthInternalEvents {
   logout(): Promise<boolean> {
     Auth._isLoggingOut = true
     Auth._isAuthenticated = false
-    // ? should Auth._account = null? auth.on("_logout", () => auth.getCurrentAccount() // exists)
     Auth._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
     Auth._account?.destroyLastUserLoggedKey()
     Auth._account = null
@@ -955,7 +1007,6 @@ export class Auth implements AuthInternalEvents {
         Auth._isLoggingOut = false
 
         Auth.authToken = null
-        // TODO exists?
         Auth._account?.emptyActiveWallets()
         Chat.getInstance().disconnect()
 
