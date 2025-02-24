@@ -25,6 +25,7 @@ export interface LocalDBUser {
   tiktokPublicUrl: string
   personalWebsiteUrl: string
   isVerified: boolean
+  signupCompleted: boolean
   wallet: {
     address: string
     connectorType: string

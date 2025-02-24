@@ -72,6 +72,7 @@ export type AccountInitConfig = {
   }>
   phone: Maybe<string>
   isVerified: boolean
+  signupCompleted: boolean
   isPfpNft: boolean
   pfp: Maybe<{
     collectionAddress: string

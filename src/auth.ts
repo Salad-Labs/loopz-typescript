@@ -246,6 +246,7 @@ export class Auth implements AuthInternalEvents {
               isCreator: Auth._account.isCreator,
               gender: Auth._account.gender,
               isVerified: Auth._account.isVerified,
+              signupCompleted: Auth._account.signupCompleted,
               wallet: {
                 address: Auth._account.walletAddress,
                 connectorType: Auth._account.walletConnectorType,
@@ -1175,6 +1176,7 @@ export class Auth implements AuthInternalEvents {
         gender: user.gender,
         phone: user.phone ? user.phone : null,
         isVerified: user.isVerified,
+        signupCompleted: user.signupCompleted,
         isPfpNft: user.isPfpNft,
         pfp: user.pfp ? user.pfp : null,
         proposalNotificationPush: user.proposalNotificationPush,
