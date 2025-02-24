@@ -68,6 +68,7 @@ export interface AccountSchema {
   personalWebsiteUrl: string
   phone: Maybe<string>
   isVerified: boolean
+  signupCompleted: boolean
   isPfpNft: boolean
   pfp: Maybe<{
     collectionAddress: string

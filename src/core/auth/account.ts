@@ -1,11 +1,7 @@
 import { AccountEngine, AccountSchema } from "../../interfaces/auth"
 import { Maybe, Network } from "../../types"
 import { AccountInitConfig } from "../../types/auth/account"
-import {
-  ConnectedWallet,
-  EIP1193Provider,
-  getAccessToken,
-} from "@privy-io/react-auth"
+import { ConnectedWallet, EIP1193Provider } from "@privy-io/react-auth"
 import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "../../constants/app"
 import { encodeFunctionData } from "viem"
 import { erc1155Abi, erc20Abi, erc721Abi } from "../../constants"
@@ -89,6 +85,7 @@ export class Account implements AccountSchema, AccountEngine {
   readonly personalWebsiteUrl: string
   readonly phone: Maybe<string>
   readonly isVerified: boolean
+  readonly signupCompleted: boolean
   readonly isPfpNft: boolean
   readonly pfp: Maybe<{
     collectionAddress: string
@@ -209,6 +206,7 @@ export class Account implements AccountSchema, AccountEngine {
     this.tiktokPublicUrl = config.tiktokPublicUrl
     this.personalWebsiteUrl = config.personalWebsiteUrl
     this.isVerified = config.isVerified
+    this.signupCompleted = config.signupCompleted
     this.isPfpNft = config.isPfpNft
     this.pfp = config.pfp
     this.proposalNotificationPush = config.proposalNotificationPush
@@ -426,6 +424,7 @@ export class Account implements AccountSchema, AccountEngine {
     tiktokPublicUrl,
     personalWebsiteUrl,
     gender,
+    signupCompleted,
   }: {
     username: Maybe<string>
     avatarFile: Maybe<File>
@@ -446,6 +445,7 @@ export class Account implements AccountSchema, AccountEngine {
     personalWebsiteUrl: Maybe<string>
     isCreator: Maybe<boolean>
     gender: Maybe<"male" | "female" | "non-binary" | "other">
+    signupCompleted: Maybe<boolean>
   }): Promise<
     Maybe<{
       username: Maybe<string>
@@ -467,6 +467,7 @@ export class Account implements AccountSchema, AccountEngine {
       personalWebsiteUrl: Maybe<string>
       isCreator: Maybe<boolean>
       gender: Maybe<"male" | "female" | "non-binary" | "other">
+      signupCompleted: Maybe<boolean>
     }>
   > {
     try {
@@ -503,6 +504,7 @@ export class Account implements AccountSchema, AccountEngine {
           lng,
           isCreator,
           gender,
+          signupCompleted: signupCompleted ? signupCompleted : undefined,
         },
       })
 
@@ -594,6 +596,7 @@ export class Account implements AccountSchema, AccountEngine {
                 ? personalWebsiteUrl
                 : undefined,
               gender: gender ? gender : undefined,
+              signupCompleted: signupCompleted ? signupCompleted : undefined,
             })
             .then(resolve)
             .catch(reject)
@@ -629,6 +632,7 @@ export class Account implements AccountSchema, AccountEngine {
       if (tiktokPublicUrl) (this as any).tiktokPublicUrl = tiktokPublicUrl
       if (personalWebsiteUrl)
         (this as any).personalWebsiteUrl = personalWebsiteUrl
+      if (signupCompleted) (this as any).signupCompleted = signupCompleted
 
       return {
         username: username ? username : null,
@@ -648,6 +652,7 @@ export class Account implements AccountSchema, AccountEngine {
         xPublicUrl: xPublicUrl ? xPublicUrl : null,
         tiktokPublicUrl: tiktokPublicUrl ? tiktokPublicUrl : null,
         personalWebsiteUrl: personalWebsiteUrl ? personalWebsiteUrl : null,
+        signupCompleted,
       }
     } catch (error: any) {
       console.error(error)
