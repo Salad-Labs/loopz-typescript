@@ -527,7 +527,7 @@ export class Auth implements AuthInternalEvents {
       ) {
         //this means the user is accessing from the same device/the devices it owns share the same keys OR he's/she's doing the signup
         if (keys.e2eEncryptedPrivateKey) {
-          //it means i've recovered the private key from the local database. So the user has the possibility to have chats
+          //it means i've recovered the private key from the local database. So the user has the possibility to chat
           Chat.getInstance().setCanChat(true)
 
           //so now we have the following situation:
@@ -551,7 +551,7 @@ export class Auth implements AuthInternalEvents {
           //keys.e2ePublicKeyPem = string
         }
       } else {
-        //this means the user is accessing from another device, so the keys needs to be overwritten
+        //this means the user is accessing from another device, so the keys need to be overwritten
         Chat.getInstance().setCanChat(false)
         keys.e2ePublicKeyPem = user.e2ePublicKey
         keys.e2ePrivateKeyPem = null
@@ -1096,6 +1096,13 @@ export class Auth implements AuthInternalEvents {
       const { e2eSecret, e2eSecretIV } = secrets
 
       Auth._isAuthenticated = true
+
+      Chat.getInstance().setCanChat(
+        user.e2ePublicKey &&
+          user.e2ePublicKey.length > 0 &&
+          user.e2eEncryptedPrivateKey &&
+          user.e2eEncryptedPrivateKey.length > 0
+      )
 
       Auth.account = new Account({
         enableDevMode: Auth._config.devMode,

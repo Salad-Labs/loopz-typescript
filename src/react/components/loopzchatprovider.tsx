@@ -83,7 +83,7 @@ export const LoopzChatProvider: FC<
       .catch(() => {
         hasStartedConnection.current = false
         setChatStatus({
-          canChat: true,
+          canChat: false,
           isConnecting: false,
           isConnected: false,
           isSyncing: false,
