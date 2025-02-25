@@ -300,13 +300,6 @@ export class Chat
     conversation: Conversation
   }> = []
 
-  private _keyPairingObject: Maybe<{
-    publicKey: Maybe<pki.rsa.PublicKey>
-    privateKey: Maybe<pki.rsa.PrivateKey>
-    md: Maybe<md.sha256.MessageDigest>
-    mgf1: Maybe<string>
-  }> = null
-
   private _canChat: boolean = false
 
   private _hookMessageCreated: boolean = false
@@ -10161,6 +10154,7 @@ export class Chat
 
   setCanChat(canChat: boolean) {
     this._canChat = canChat
+    this._emit("canChat", { canChat })
   }
 
   /** combining messages (NFT & crypto) */

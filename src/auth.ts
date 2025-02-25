@@ -1071,6 +1071,13 @@ export class Auth implements AuthInternalEvents {
         organizationId,
       ])
 
+      Chat.getInstance().setCanChat(
+        user.e2ePublicKey &&
+          user.e2ePublicKey.length > 0 &&
+          user.e2eEncryptedPrivateKey &&
+          user.e2eEncryptedPrivateKey.length > 0
+      )
+
       Auth.authToken = token
 
       const { response } = await Auth._client.fetch<
@@ -1096,14 +1103,6 @@ export class Auth implements AuthInternalEvents {
       const { e2eSecret, e2eSecretIV } = secrets
 
       Auth._isAuthenticated = true
-
-      Chat.getInstance().setCanChat(
-        user.e2ePublicKey &&
-          user.e2ePublicKey.length > 0 &&
-          user.e2eEncryptedPrivateKey &&
-          user.e2eEncryptedPrivateKey.length > 0
-      )
-
       Auth.account = new Account({
         enableDevMode: Auth._config.devMode,
         storage: Auth._config.storage,

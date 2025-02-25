@@ -47,6 +47,14 @@ export const LoopzChatProvider: FC<
     if (!initialized) return
 
     setCanChat(instance.chat.clientCanChat())
+
+    instance.chat.on(
+      "canChat",
+      ({ canChat }: { canChat: boolean }) => {
+        setCanChat(canChat) //<- this setCanChat is the function of this hook, it's not the setCanChat of the chat object instance
+      },
+      true //we prevent more than one adding of the listener
+    )
   }, [initialized, instance])
 
   useEffect(() => {
