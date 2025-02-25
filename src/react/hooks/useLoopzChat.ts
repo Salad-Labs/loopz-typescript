@@ -66,6 +66,7 @@ export const useLoopzChat: UseLoopzChat = ({
     isSynced,
     setIsConnected,
     setIsSynced,
+    setCanChat,
   } = chatContext
 
   const connect = useCallback(() => {
@@ -234,5 +235,8 @@ export const useLoopzChat: UseLoopzChat = ({
     disconnect,
     sync,
     unsync,
+    setIsConnected,
+    setIsSynced,
+    setCanChat,
   }
 }
