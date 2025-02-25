@@ -9497,6 +9497,13 @@ export class Chat
   async connect(force = false): Promise<void> {
     //let's take all the information related to our keys into _userKeyPair object. These are the public and private key of the current user.
     //To do that, let's do a query on the local user table. If the _userKeyPair is already set, we skip this operation.
+    if (!this.clientCanChat()) {
+      console.warn(
+        "This client can not connect. Tip: probably you need to complete of the user settings calling checkPIN()"
+      )
+      return
+    }
+
     if (!this._userKeyPair) {
       let user = (await this._storage.get("user", "[did+organizationId]", [
         Auth.account!.did,
