@@ -17,7 +17,7 @@ export const LoopzChatProvider: FC<
   LoopzProviderChatConfig & { children?: ReactNode }
 > = ({ autoConnect, autoSync, children }) => {
   const { instance, initialized } = useLoopz()
-  const { isAuthenticated } = useLoopzAuth()
+  const { isAuthenticated, account } = useLoopzAuth()
   const hasStartedConnection = useRef(false)
   const hasStartedSynchronization = useRef(false)
   const [chatStatus, setChatStatus] = useState({
@@ -112,6 +112,7 @@ export const LoopzChatProvider: FC<
       !initialized ||
       !chatStatus.isConnected ||
       chatStatus.isSynced ||
+      !account ||
       hasStartedSynchronization.current
     )
       return
@@ -126,28 +127,58 @@ export const LoopzChatProvider: FC<
         isSynced: false,
       })
 
-    instance.chat
-      .sync()
-      .then(() =>
-        setChatStatus({
-          canChat: true,
-          isConnecting: false,
-          isConnected: true,
-          isSyncing: false,
-          isSynced: true,
+    if (account.signupCompleted) {
+      instance.chat
+        .sync()
+        .then(() =>
+          setChatStatus({
+            canChat: true,
+            isConnecting: false,
+            isConnected: true,
+            isSyncing: false,
+            isSynced: true,
+          })
+        )
+        .catch(() => {
+          hasStartedSynchronization.current = false
+          setChatStatus({
+            canChat: true,
+            isConnecting: false,
+            isConnected: true,
+            isSyncing: false,
+            isSynced: false,
+          })
         })
+    } else {
+      account.on(
+        "onSignupCompleted",
+        () => {
+          instance.chat
+            .sync()
+            .then(() =>
+              setChatStatus({
+                canChat: true,
+                isConnecting: false,
+                isConnected: true,
+                isSyncing: false,
+                isSynced: true,
+              })
+            )
+            .catch(() => {
+              hasStartedSynchronization.current = false
+              setChatStatus({
+                canChat: true,
+                isConnecting: false,
+                isConnected: true,
+                isSyncing: false,
+                isSynced: false,
+              })
+            })
+        },
+        true
       )
-      .catch(() => {
-        hasStartedSynchronization.current = false
-        setChatStatus({
-          canChat: true,
-          isConnecting: false,
-          isConnected: true,
-          isSyncing: false,
-          isSynced: false,
-        })
-      })
-  }, [initialized, chatStatus, autoSync, instance])
+    }
+  }, [initialized, chatStatus, autoSync, instance, account])
 
   useEffect(() => {
     if (!initialized) return
