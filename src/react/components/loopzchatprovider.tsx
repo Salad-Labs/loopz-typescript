@@ -55,7 +55,17 @@ export const LoopzChatProvider: FC<
       },
       true //we prevent more than one adding of the listener
     )
-  }, [initialized, instance])
+
+    if (account) {
+      account.on(
+        "onSignupCompleted",
+        () => {
+          setCanChat(instance.chat.clientCanChat()) //it should be true since this event is called after the authentication. Authentication on signup turns the value of _canChat to true
+        },
+        true
+      )
+    }
+  }, [initialized, instance, account])
 
   useEffect(() => {
     if (
