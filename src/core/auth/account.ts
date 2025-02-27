@@ -124,7 +124,7 @@ export class Account implements AccountSchema, AccountEngine {
   private _activeWallets: Array<ConnectedWallet> = []
   private _embeddedWallet: Maybe<ConnectedWallet> = null
   private _eventsCallbacks: Array<{
-    eventName: "onFundExit"
+    eventName: "onFundExit" | "onSignupCompleted"
     callbacks: Array<Function>
   }> = []
 
@@ -366,7 +366,11 @@ export class Account implements AccountSchema, AccountEngine {
     await this._activeWallets[0].switchChain(chainId)
   }
 
-  on(eventName: "onFundExit", callback: Function, onlyOnce?: boolean) {
+  on(
+    eventName: "onFundExit" | "onSignupCompleted",
+    callback: Function,
+    onlyOnce?: boolean
+  ) {
     const index = this._eventsCallbacks.findIndex((item) => {
       return item.eventName === eventName
     })
@@ -382,7 +386,7 @@ export class Account implements AccountSchema, AccountEngine {
     }
   }
 
-  off(eventName: "onFundExit", callback?: Function) {
+  off(eventName: "onFundExit" | "onSignupCompleted", callback?: Function) {
     const index = this._eventsCallbacks.findIndex((item) => {
       return item.eventName === eventName
     })
@@ -400,7 +404,7 @@ export class Account implements AccountSchema, AccountEngine {
    * @param {any} [params] - The parameters to pass to the event callbacks.
    * @returns None
    */
-  _emit(event: "onFundExit", params?: any) {
+  _emit(event: "onFundExit" | "onSignupCompleted", params?: any) {
     const item = this._eventsCallbacks.find((item) => {
       return item.eventName === event
     })
@@ -632,7 +636,10 @@ export class Account implements AccountSchema, AccountEngine {
       if (tiktokPublicUrl) (this as any).tiktokPublicUrl = tiktokPublicUrl
       if (personalWebsiteUrl)
         (this as any).personalWebsiteUrl = personalWebsiteUrl
-      if (signupCompleted) (this as any).signupCompleted = signupCompleted
+      if (signupCompleted) {
+        ;(this as any).signupCompleted = signupCompleted
+        this._emit("onSignupCompleted", {})
+      }
 
       return {
         username: username ? username : null,
