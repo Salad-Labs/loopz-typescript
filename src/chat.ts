@@ -660,6 +660,12 @@ export class Chat
           record.bannerImageURL,
           this.findKeyPairById(record.id)
         ),
+        lastMessageText: record.lastMessageText
+          ? Crypto.decryptAESorFail(
+              record.lastMessageText,
+              this.findKeyPairById(record.id)
+            )
+          : "",
       }
 
       this._emit("conversationUpdatedLDB", _conversation)
