@@ -10,5 +10,5 @@ export type UseLoopzAuth = () => LoopzAuthContextValue & {
   sendPhoneOTPCode(phone: string): Promise<{ phone: string }>
   sendPhoneOTPCodeAfterAuth(phone: string): Promise<{ phone: string }>
   unlink(method: AuthLinkMethod): Promise<boolean>
-  logout(): Promise<boolean>
+  logout(): void
 }
