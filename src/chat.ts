@@ -641,8 +641,11 @@ export class Chat
       this._emit("conversationCreatedLDB", _conversation)
     }
 
-    this._hookConversationUpdatingFn = (modifications, primaryKey, record) => {
-      console.log("hook ->", modifications, record)
+    this._hookConversationUpdatingFn = (
+      modifications: Partial<LocalDBConversation>,
+      primaryKey,
+      record
+    ) => {
       const _conversation = {
         ...record,
         name: Crypto.decryptAESorFail(
@@ -661,12 +664,18 @@ export class Chat
           record.bannerImageURL,
           this.findKeyPairById(record.id)
         ),
-        lastMessageText: record.lastMessageText
+        lastMessageText: modifications.lastMessageText
           ? Crypto.decryptAESorFail(
-              record.lastMessageText,
+              modifications.lastMessageText,
               this.findKeyPairById(record.id)
             )
           : "",
+        lastMessageSentAt: modifications.lastMessageSentAt
+          ? modifications.lastMessageSentAt
+          : null,
+        hasLastMessageSentAt: modifications.lastMessageSentAt
+          ? true
+          : record.hasLastMessageSentAt,
       }
 
       this._emit("conversationUpdatedLDB", _conversation)
