@@ -642,6 +642,7 @@ export class Chat
     }
 
     this._hookConversationUpdatingFn = (modifications, primaryKey, record) => {
+      console.log("hook ->", modifications, record)
       const _conversation = {
         ...record,
         name: Crypto.decryptAESorFail(
