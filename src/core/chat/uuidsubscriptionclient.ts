@@ -93,13 +93,11 @@ export default class UUIDSubscriptionClient extends SubscriptionClient {
                     console.log("MAX ATTEMPTS REACHED... logout required!!!")
                     //reset prevToken and fetchTokenAttemptsRealtime
                     //do the logout and unsync if needed
-                    Auth.getInstance()
-                      .logout()
-                      .then(() => {
-                        Auth.prevToken = null
-                        Auth.fetchTokenAttemptsRealtime = 0
-                        Chat.unsyncBrutal()
-                      })
+                    Auth.getInstance().logout()
+
+                    Auth.prevToken = null
+                    Auth.fetchTokenAttemptsRealtime = 0
+                    Chat.unsyncBrutal()
                   } else {
                     console.log("Let's try again...")
                     Auth.fetchTokenAttemptsRealtime++
@@ -118,13 +116,10 @@ export default class UUIDSubscriptionClient extends SubscriptionClient {
                   )
 
                   this.close()
-                  Auth.getInstance()
-                    .logout()
-                    .then(() => {
-                      Auth.prevToken = null
-                      Auth.fetchTokenAttemptsRealtime = 0
-                      Chat.unsyncBrutal()
-                    })
+                  Auth.getInstance().logout()
+                  Auth.prevToken = null
+                  Auth.fetchTokenAttemptsRealtime = 0
+                  Chat.unsyncBrutal()
                 }
               }
             })()
