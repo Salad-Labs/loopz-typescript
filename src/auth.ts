@@ -994,32 +994,16 @@ export class Auth implements AuthInternalEvents {
     )
   }
 
-  logout(): Promise<boolean> {
-    Auth._isLoggingOut = true
+  logout() {
     Auth._isAuthenticated = false
     Auth._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
     Auth._account?.destroyLastUserLoggedKey()
+    Auth._account?.emptyActiveWallets()
     Auth._account = null
-
-    Auth._emit("__logout")
-
-    return new Promise((resolve) => {
-      this.on("__onLogoutComplete", (status: boolean) => {
-        Auth._isLoggingOut = false
-
-        Auth.authToken = null
-        Auth._account?.emptyActiveWallets()
-        Chat.getInstance().disconnect()
-
-        Auth._clearEventsCallbacks(["__onLogoutComplete"])
-        Auth._emit("logout")
-        resolve(status)
-      })
-    })
-  }
-
-  isLoggingOut() {
-    return Auth._isLoggingOut
+    Auth.authToken = null
+    Chat.getInstance().disconnect()
+    Auth._emit("__logout") //tells to Privy to logout
+    Auth._emit("logout") //tells to Loopz listeners to logout
   }
 
   isAuthenticated() {

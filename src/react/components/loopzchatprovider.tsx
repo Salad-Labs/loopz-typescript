@@ -197,7 +197,7 @@ export const LoopzChatProvider: FC<
       hasStartedConnection.current = false
       hasStartedSynchronization.current = false
       setChatStatus({
-        canChat: true,
+        canChat: false,
         isConnecting: false,
         isConnected: false,
         isSyncing: false,
