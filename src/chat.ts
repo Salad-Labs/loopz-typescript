@@ -699,6 +699,9 @@ export class Chat
         hasLastMessageSentAt: modifications.lastMessageSentAt
           ? true
           : record.hasLastMessageSentAt,
+        messageToRead: modifications.messageToRead
+          ? modifications.messageToRead
+          : record.messageToRead,
       }
 
       this._emit("conversationUpdatedLDB", _conversation)
