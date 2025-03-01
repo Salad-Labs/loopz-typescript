@@ -18,7 +18,7 @@ export interface LocalDBConversation {
   isArchived: boolean
   type: "ONE_TO_ONE" | "GROUP"
   lastMessageSentAt: Maybe<Date>
-  lastMessageRead: Maybe<Date>
+  messageToRead: number
   lastMessageAuthor: Maybe<string>
   lastMessageText: Maybe<string>
   hasLastMessageSentAt: boolean

@@ -648,22 +648,42 @@ export class Chat
     ) => {
       const _conversation = {
         ...record,
-        name: Crypto.decryptAESorFail(
-          record.name,
-          this.findKeyPairById(record.id)
-        ),
-        description: Crypto.decryptAESorFail(
-          record.description,
-          this.findKeyPairById(record.id)
-        ),
-        imageURL: Crypto.decryptAESorFail(
-          record.imageURL,
-          this.findKeyPairById(record.id)
-        ),
-        bannerImageURL: Crypto.decryptAESorFail(
-          record.bannerImageURL,
-          this.findKeyPairById(record.id)
-        ),
+        name: modifications.name
+          ? Crypto.decryptAESorFail(
+              modifications.name,
+              this.findKeyPairById(record.id)
+            )
+          : Crypto.decryptAESorFail(
+              record.name,
+              this.findKeyPairById(record.id)
+            ),
+        description: modifications.description
+          ? Crypto.decryptAESorFail(
+              modifications.description,
+              this.findKeyPairById(record.id)
+            )
+          : Crypto.decryptAESorFail(
+              record.description,
+              this.findKeyPairById(record.id)
+            ),
+        imageURL: modifications.imageURL
+          ? Crypto.decryptAESorFail(
+              modifications.imageURL,
+              this.findKeyPairById(record.id)
+            )
+          : Crypto.decryptAESorFail(
+              record.imageURL,
+              this.findKeyPairById(record.id)
+            ),
+        bannerImageURL: modifications.bannerImageURL
+          ? Crypto.decryptAESorFail(
+              modifications.bannerImageURL,
+              this.findKeyPairById(record.id)
+            )
+          : Crypto.decryptAESorFail(
+              record.bannerImageURL,
+              this.findKeyPairById(record.id)
+            ),
         lastMessageText: modifications.lastMessageText
           ? Crypto.decryptAESorFail(
               modifications.lastMessageText,
@@ -842,7 +862,7 @@ export class Chat
               isConversationArchived,
               conversationStored ? conversationStored.lastMessageAuthor : null,
               conversationStored ? conversationStored.lastMessageText : null,
-              conversationStored ? conversationStored.lastMessageRead : null
+              conversationStored ? conversationStored.messageToRead : 0
             )
           })
         )
@@ -1125,6 +1145,8 @@ export class Chat
                     conversation.lastMessageAuthor = lastMessage.user.username
                     conversation.lastMessageText = lastMessage.content
                     conversation.lastMessageSentAt = lastMessage.createdAt
+                    conversation.messageToRead =
+                      conversation.messageToRead + messages.length
                   })
                   .then(resolve)
                   .catch(reject)
@@ -1596,7 +1618,7 @@ export class Chat
             isConversationArchived,
             null,
             null,
-            null
+            0
           ),
         ])
 
@@ -1801,6 +1823,7 @@ export class Chat
                 lastMessageAuthor: response.user.username,
                 lastMessageSentAt: new Date(),
                 lastMessageText: response.content,
+                messageToRead: conversation.messageToRead + 1,
               })
               .then(resolve)
               .catch(reject)
@@ -1947,7 +1970,7 @@ export class Chat
             conversationStored ? conversationStored.isArchived : false,
             conversationStored ? conversationStored.lastMessageAuthor : null,
             conversationStored ? conversationStored.lastMessageText : null,
-            conversationStored ? conversationStored.lastMessageRead : null
+            conversationStored ? conversationStored.messageToRead : 0
           ),
         ])
 
@@ -10024,7 +10047,7 @@ export class Chat
             .where("[id+userDid]")
             .equals([conversationId, Auth.account!.did])
             .modify((conversation: LocalDBConversation) => {
-              conversation.lastMessageRead = new Date()
+              conversation.messageToRead = 0
             })
             .then(resolve)
             .catch(reject)
