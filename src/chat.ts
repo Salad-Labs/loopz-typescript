@@ -673,6 +673,9 @@ export class Chat
         lastMessageSentAt: modifications.lastMessageSentAt
           ? modifications.lastMessageSentAt
           : null,
+        lastMessageAuthor: modifications.lastMessageAuthor
+          ? modifications.lastMessageAuthor
+          : null,
         hasLastMessageSentAt: modifications.lastMessageSentAt
           ? true
           : record.hasLastMessageSentAt,
