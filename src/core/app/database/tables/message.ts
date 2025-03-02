@@ -30,6 +30,7 @@ export interface LocalDBMessage {
   origin: "SYSTEM" | "USER"
   messageRoot: Maybe<LocalDBMessage>
   messageRootId: Maybe<string>
+  order: number
   createdAt: Date
   updatedAt: Maybe<Date>
   deletedAt: Maybe<Date>
