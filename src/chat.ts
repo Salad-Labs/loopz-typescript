@@ -705,17 +705,32 @@ export class Chat
           : record.lastMessageAuthor
           ? record.lastMessageAuthor
           : null,
+        lastMessageSentId: modifications.lastMessageSentId
+          ? modifications.lastMessageSentId
+          : record.lastMessageSentId
+          ? record.lastMessageSentId
+          : null,
+        lastMessageSentOrder: modifications.lastMessageSentOrder
+          ? modifications.lastMessageSentOrder
+          : record.lastMessageSentOrder
+          ? record.lastMessageSentOrder
+          : null,
         lastMessageReadId: modifications.lastMessageReadId
           ? modifications.lastMessageReadId
           : record.lastMessageReadId
           ? record.lastMessageReadId
           : null,
+        lastMessageReadOrder: modifications.lastMessageReadOrder
+          ? modifications.lastMessageReadOrder
+          : record.lastMessageReadOrder
+          ? record.lastMessageReadOrder
+          : null,
+        messagesToRead: modifications.messagesToRead
+          ? modifications.messagesToRead
+          : record.messagesToRead,
         hasLastMessageSentAt: modifications.lastMessageSentAt
           ? true
           : record.hasLastMessageSentAt,
-        messageToRead: modifications.messageToRead
-          ? modifications.messageToRead
-          : record.messageToRead,
       }
 
       this._emit("conversationUpdatedLDB", _conversation)
@@ -879,7 +894,14 @@ export class Chat
               isConversationArchived,
               conversationStored ? conversationStored.lastMessageAuthor : null,
               conversationStored ? conversationStored.lastMessageText : null,
-              conversationStored ? conversationStored.messageToRead : 0,
+              conversationStored ? conversationStored.lastMessageSentId : null,
+              conversationStored
+                ? conversationStored.lastMessageSentOrder
+                : null,
+              conversationStored ? conversationStored.messagesToRead : 0,
+              conversationStored
+                ? conversationStored.lastMessageReadOrder
+                : null,
               conversationStored ? conversationStored.lastMessageReadId : null
             )
           })
@@ -1163,8 +1185,13 @@ export class Chat
                     conversation.lastMessageAuthor = lastMessage.user.username
                     conversation.lastMessageText = lastMessage.content
                     conversation.lastMessageSentAt = lastMessage.createdAt
-                    conversation.messageToRead =
-                      conversation.messageToRead + messages.length
+                    conversation.lastMessageSentId = lastMessage.id
+                    conversation.lastMessageSentOrder = lastMessage.order
+                    conversation.messagesToRead =
+                      conversation.messagesToRead +
+                      messages.filter((message) => {
+                        return message.user.id !== Auth.account!.did
+                      }).length
                   })
                   .then(resolve)
                   .catch(reject)
@@ -1636,7 +1663,10 @@ export class Chat
             isConversationArchived,
             null,
             null,
+            null,
+            null,
             0,
+            null,
             null
           ),
         ])
@@ -1842,7 +1872,12 @@ export class Chat
                 lastMessageAuthor: response.user.username,
                 lastMessageSentAt: new Date(),
                 lastMessageText: response.content,
-                messageToRead: conversation.messageToRead + 1,
+                lastMessageSentId: response.id,
+                lastMessageSentOrder: response.order,
+                messagesToRead:
+                  Auth.account!.did !== response.user.id
+                    ? conversation.messagesToRead + 1
+                    : conversation.messagesToRead,
               })
               .then(resolve)
               .catch(reject)
@@ -1918,6 +1953,117 @@ export class Chat
           message: response,
           conversationId: response.conversationId,
         })
+
+        const conversation: LocalDBConversation = await this._storage.get(
+          "conversation",
+          "[id+userDid]",
+          [response.conversationId, Auth.account!.did]
+        )
+
+        if (response.id === conversation.lastMessageSentId) {
+          // Ok, I need to perform a check at this point.
+          // Basically, if the deleted message is the last sent message in the conversation,
+          // I need to update the conversation so that all the "lastMessage..." fields are restored
+          // by fetching the latest message from the local messages table.
+          // This latest message will no longer be the one that was just deleted, but the one preceding it.
+          //
+          // Additionally, I need to check whether to decrement the messagesToRead field.
+          // This value should only decrease by one if the deleted message was not sent by the current user.
+          // (I probably need to add a safeguard to prevent messagesToRead from going negative in case,
+          // for some reason, it is simultaneously reset to zero if the client calls readMessages() at the same time.)
+
+          const lastMessage: LocalDBMessage | undefined = await new Promise<
+            LocalDBMessage | undefined
+          >((resolve, reject) => {
+            Serpens.addAction(() =>
+              this._storage.message
+                .orderBy("createdAt")
+                .filter(
+                  (element) =>
+                    element.conversationId === conversation.id &&
+                    element.userDid === Auth.account!.did &&
+                    typeof element.deletedAt !== "undefined" &&
+                    !element.deletedAt
+                )
+                .last()
+                .then(resolve)
+                .catch(reject)
+            )
+          })
+
+          if (!lastMessage) {
+            // If there is no previous message, then the conversation only had one message at that moment.
+            // This is the simplest case.
+            await new Promise((resolve, reject) => {
+              Serpens.addAction(() => {
+                this._storage.conversation
+                  .update(conversation, {
+                    deletedAt: null,
+                    lastMessageAuthor: null,
+                    lastMessageText: null,
+                    lastMessageSentAt: null,
+                    lastMessageSentId: null,
+                    lastMessageSentOrder: null,
+                    lastMessageReadId: null,
+                    lastMessageReadOrder: null,
+                    messagesToRead: 0,
+                  })
+                  .then(resolve)
+                  .catch(reject)
+              })
+            })
+          } else {
+            await new Promise((resolve, reject) => {
+              Serpens.addAction(() => {
+                this._storage.conversation
+                  .update(conversation, {
+                    deletedAt: null,
+                    lastMessageAuthor: lastMessage.user.username,
+                    lastMessageText: lastMessage.content,
+                    lastMessageSentAt: lastMessage.createdAt,
+                    lastMessageSentId: lastMessage.id,
+                    lastMessageSentOrder: lastMessage.order,
+                    lastMessageReadId:
+                      response.id === conversation.lastMessageReadId
+                        ? lastMessage.id
+                        : conversation.lastMessageReadId,
+                    lastMessageReadOrder:
+                      response.order === conversation.lastMessageReadOrder
+                        ? lastMessage.order
+                        : conversation.lastMessageReadOrder,
+                    messagesToRead:
+                      Auth.account!.did !== response.user.id
+                        ? conversation.messagesToRead <= 1
+                          ? 0
+                          : conversation.messagesToRead - 1
+                        : conversation.messagesToRead,
+                  })
+                  .then(resolve)
+                  .catch(reject)
+              })
+            })
+          }
+        } else {
+          // If the deleted message is not the last one in the conversation,
+          // messagesToRead should be decremented only if its order is greater than that of the last message marked as read
+          // and if the author of the deleted message is different from the current user.
+          await new Promise((resolve, reject) => {
+            Serpens.addAction(() => {
+              this._storage.conversation
+                .update(conversation, {
+                  deletedAt: null,
+                  messagesToRead:
+                    Auth.account!.did !== response.user.id
+                      ? conversation.messagesToRead <= 1
+                        ? 0
+                        : conversation.messagesToRead - 1
+                      : conversation.messagesToRead,
+                })
+                .then(resolve)
+                .catch(reject)
+            })
+          })
+        }
       }
     } catch (error) {
       console.log("[ERROR]: _onDeleteMessageSync() -> ", error)
@@ -1954,6 +2100,76 @@ export class Chat
         this._emit("batchMessagesDeleted", {
           messagesIds: response.messagesIds,
         })
+
+        //similar logic of onDeleteMessageSync, the difference here we simplify the process by resetting everything to the lastMessage stored
+        //on the message table and we set messagesToRead to 0. We do that to make everything easier since the batch could involve many steps.
+
+        const conversation: LocalDBConversation = await this._storage.get(
+          "conversation",
+          "[id+userDid]",
+          [response.conversationId, Auth.account!.did]
+        )
+
+        const lastMessage: LocalDBMessage | undefined = await new Promise<
+          LocalDBMessage | undefined
+        >((resolve, reject) => {
+          Serpens.addAction(() =>
+            this._storage.message
+              .orderBy("createdAt")
+              .filter(
+                (element) =>
+                  element.conversationId === conversation.id &&
+                  element.userDid === Auth.account!.did &&
+                  typeof element.deletedAt !== "undefined" &&
+                  !element.deletedAt
+              )
+              .last()
+              .then(resolve)
+              .catch(reject)
+          )
+        })
+
+        if (!lastMessage) {
+          // If there is no previous message, then the conversation only had one message at that moment.
+          // This is the simplest case.
+          await new Promise((resolve, reject) => {
+            Serpens.addAction(() => {
+              this._storage.conversation
+                .update(conversation, {
+                  deletedAt: null,
+                  lastMessageAuthor: null,
+                  lastMessageText: null,
+                  lastMessageSentAt: null,
+                  lastMessageSentId: null,
+                  lastMessageSentOrder: null,
+                  lastMessageReadId: null,
+                  lastMessageReadOrder: null,
+                  messagesToRead: 0,
+                })
+                .then(resolve)
+                .catch(reject)
+            })
+          })
+        } else {
+          await new Promise((resolve, reject) => {
+            Serpens.addAction(() => {
+              this._storage.conversation
+                .update(conversation, {
+                  deletedAt: null,
+                  lastMessageAuthor: lastMessage.user.username,
+                  lastMessageText: lastMessage.content,
+                  lastMessageSentAt: lastMessage.createdAt,
+                  lastMessageSentId: lastMessage.id,
+                  lastMessageSentOrder: lastMessage.order,
+                  lastMessageReadId: lastMessage.id,
+                  lastMessageReadOrder: lastMessage.order,
+                  messagesToRead: 0,
+                })
+                .then(resolve)
+                .catch(reject)
+            })
+          })
+        }
       }
     } catch (error) {
       console.log("[ERROR]: _onBatchDeleteMessagesSync() -> ", error)
@@ -1989,7 +2205,10 @@ export class Chat
             conversationStored ? conversationStored.isArchived : false,
             conversationStored ? conversationStored.lastMessageAuthor : null,
             conversationStored ? conversationStored.lastMessageText : null,
-            conversationStored ? conversationStored.messageToRead : 0,
+            conversationStored ? conversationStored.lastMessageSentId : null,
+            conversationStored ? conversationStored.lastMessageSentOrder : null,
+            conversationStored ? conversationStored.messagesToRead : 0,
+            conversationStored ? conversationStored.lastMessageReadOrder : null,
             conversationStored ? conversationStored.lastMessageReadId : null
           ),
         ])
@@ -10057,7 +10276,7 @@ export class Chat
 
   /** update operations local database */
 
-  async readMessage(conversationId: string): Promise<void> {
+  async readMessages(conversationId: string): Promise<void> {
     if (!Auth.account) throw new Error("Account must be initialized.")
 
     try {
@@ -10067,7 +10286,10 @@ export class Chat
             .where("[id+userDid]")
             .equals([conversationId, Auth.account!.did])
             .modify((conversation: LocalDBConversation) => {
-              conversation.messageToRead = 0
+              conversation.messagesToRead = 0
+              conversation.lastMessageReadId = conversation.lastMessageSentId
+              conversation.lastMessageReadOrder =
+                conversation.lastMessageSentOrder
             })
             .then(resolve)
             .catch(reject)

@@ -10,7 +10,10 @@ export class Converter {
     isArchived: boolean,
     lastMessageAuthor: Maybe<string>,
     lastMessageText: Maybe<string>,
-    messageToRead: number,
+    lastMessageSentId: Maybe<string>,
+    lastMessageSentOrder: Maybe<number>,
+    messagesToRead: number,
+    lastMessageReadOrder: Maybe<number>,
     lastMessageReadId: Maybe<string>
   ): LocalDBConversation {
     return {
@@ -34,8 +37,11 @@ export class Converter {
         : new Date("1970-01-01T00:00:00Z"),
       lastMessageAuthor,
       lastMessageText,
-      messageToRead,
+      messagesToRead,
       lastMessageReadId,
+      lastMessageReadOrder,
+      lastMessageSentOrder,
+      lastMessageSentId,
       hasLastMessageSentAt: conversation.lastMessageSentAt ? true : false,
       type: conversation.type as "GROUP" | "ONE_TO_ONE",
       createdAt: conversation.createdAt,
@@ -89,6 +95,7 @@ export class Converter {
             )
           : null,
       messageRootId: "messageRootId" in message ? message.messageRootId : null,
+      order: message.order,
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
       deletedAt: message.deletedAt,
