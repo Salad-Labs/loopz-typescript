@@ -21,6 +21,7 @@ export interface LocalDBConversation {
   messageToRead: number
   lastMessageAuthor: Maybe<string>
   lastMessageText: Maybe<string>
+  lastMessageReadId: Maybe<string>
   hasLastMessageSentAt: boolean
   createdAt: Date
   updatedAt: Maybe<Date>

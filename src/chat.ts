@@ -646,7 +646,7 @@ export class Chat
       primaryKey,
       record
     ) => {
-      const _conversation = {
+      const _conversation: LocalDBConversation = {
         ...record,
         name: modifications.name
           ? Crypto.decryptAESorFail(
@@ -689,12 +689,26 @@ export class Chat
               modifications.lastMessageText,
               this.findKeyPairById(record.id)
             )
-          : "",
+          : record.lastMessageText
+          ? Crypto.decryptAESorFail(
+              record.lastMessageText,
+              this.findKeyPairById(record.id)
+            )
+          : null,
         lastMessageSentAt: modifications.lastMessageSentAt
           ? modifications.lastMessageSentAt
+          : record.lastMessageSentAt
+          ? record.lastMessageSentAt
           : null,
         lastMessageAuthor: modifications.lastMessageAuthor
           ? modifications.lastMessageAuthor
+          : record.lastMessageAuthor
+          ? record.lastMessageAuthor
+          : null,
+        lastMessageReadId: modifications.lastMessageReadId
+          ? modifications.lastMessageReadId
+          : record.lastMessageReadId
+          ? record.lastMessageReadId
           : null,
         hasLastMessageSentAt: modifications.lastMessageSentAt
           ? true
@@ -865,7 +879,8 @@ export class Chat
               isConversationArchived,
               conversationStored ? conversationStored.lastMessageAuthor : null,
               conversationStored ? conversationStored.lastMessageText : null,
-              conversationStored ? conversationStored.messageToRead : 0
+              conversationStored ? conversationStored.messageToRead : 0,
+              conversationStored ? conversationStored.lastMessageReadId : null
             )
           })
         )
@@ -1621,7 +1636,8 @@ export class Chat
             isConversationArchived,
             null,
             null,
-            0
+            0,
+            null
           ),
         ])
 
@@ -1973,7 +1989,8 @@ export class Chat
             conversationStored ? conversationStored.isArchived : false,
             conversationStored ? conversationStored.lastMessageAuthor : null,
             conversationStored ? conversationStored.lastMessageText : null,
-            conversationStored ? conversationStored.messageToRead : 0
+            conversationStored ? conversationStored.messageToRead : 0,
+            conversationStored ? conversationStored.lastMessageReadId : null
           ),
         ])
 
