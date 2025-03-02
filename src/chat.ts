@@ -1190,7 +1190,7 @@ export class Chat
                     conversation.messagesToRead =
                       conversation.messagesToRead +
                       messages.filter((message) => {
-                        return message.user.id !== Auth.account!.did
+                        return message.user.id !== Auth.account!.dynamoDBUserID
                       }).length
                   })
                   .then(resolve)
@@ -1875,7 +1875,7 @@ export class Chat
                 lastMessageSentId: response.id,
                 lastMessageSentOrder: response.order,
                 messagesToRead:
-                  Auth.account!.did !== response.user.id
+                  Auth.account!.dynamoDBUserID !== response.user.id
                     ? conversation.messagesToRead + 1
                     : conversation.messagesToRead,
               })
@@ -2032,7 +2032,7 @@ export class Chat
                         ? lastMessage.order
                         : conversation.lastMessageReadOrder,
                     messagesToRead:
-                      Auth.account!.did !== response.user.id
+                      Auth.account!.dynamoDBUserID !== response.user.id
                         ? conversation.messagesToRead <= 1
                           ? 0
                           : conversation.messagesToRead - 1
@@ -2053,7 +2053,7 @@ export class Chat
                 .update(conversation, {
                   deletedAt: null,
                   messagesToRead:
-                    Auth.account!.did !== response.user.id
+                    Auth.account!.dynamoDBUserID !== response.user.id
                       ? conversation.messagesToRead <= 1
                         ? 0
                         : conversation.messagesToRead - 1
