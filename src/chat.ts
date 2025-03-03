@@ -9909,6 +9909,7 @@ export class Chat
           Serpens.addAction(() =>
             this._storage.message
               .orderBy("createdAt")
+              .reverse()
               .offset(offset)
               .limit(numberElements)
               .filter(
