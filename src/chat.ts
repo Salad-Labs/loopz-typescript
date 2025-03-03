@@ -10013,12 +10013,11 @@ export class Chat
     const conversations: LocalDBConversation[] = []
 
     try {
-      // Recuperiamo tutte le conversazioni filtrate PRIMA di applicare offset e limit
       const allConversations = await new Promise<LocalDBConversation[]>(
         (resolve, reject) => {
           Serpens.addAction(() =>
             this._storage.conversation
-              .where("userDid") // Filtra per utente prima di recuperare i dati
+              .where("indexDid")
               .equals(Auth.account!.did)
               .filter(
                 (element) =>
@@ -10031,7 +10030,6 @@ export class Chat
         }
       )
 
-      // Ordiniamo manualmente per `lastMessageSentAt` dal più recente al meno recente
       const sortedConversations = allConversations
         .sort((a, b) => {
           const dateA = a.lastMessageSentAt
@@ -10040,9 +10038,9 @@ export class Chat
           const dateB = b.lastMessageSentAt
             ? new Date(b.lastMessageSentAt).getTime()
             : 0
-          return dateB - dateA // Dal più recente al meno recente
+          return dateB - dateA
         })
-        .slice(offset, offset + numberElements) // Applichiamo offset e limit
+        .slice(offset, offset + numberElements)
 
       for (let conversation of sortedConversations) {
         try {
