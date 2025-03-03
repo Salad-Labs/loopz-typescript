@@ -9904,17 +9904,16 @@ export class Chat
 
     try {
       const messages: LocalDBMessage[] = []
+
+      // Recuperiamo tutti i messaggi filtrati
       const allMessages = await new Promise<LocalDBMessage[]>(
         (resolve, reject) => {
           Serpens.addAction(() =>
             this._storage.message
-              .orderBy("createdAt")
-              .reverse()
-              .offset(offset)
-              .limit(numberElements)
+              .where("conversationId")
+              .equals(conversationId)
               .filter(
                 (element) =>
-                  element.conversationId === conversationId &&
                   element.userDid === Auth.account!.did &&
                   typeof element.deletedAt !== "undefined" &&
                   !element.deletedAt
@@ -9926,7 +9925,14 @@ export class Chat
         }
       )
 
-      for (let message of allMessages) {
+      const sortedMessages = allMessages
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        .slice(offset, offset + numberElements)
+
+      for (let message of sortedMessages) {
         try {
           const _message = {
             ...message,
@@ -10007,19 +10013,16 @@ export class Chat
     const conversations: LocalDBConversation[] = []
 
     try {
+      // Recuperiamo tutte le conversazioni filtrate PRIMA di applicare offset e limit
       const allConversations = await new Promise<LocalDBConversation[]>(
         (resolve, reject) => {
           Serpens.addAction(() =>
             this._storage.conversation
-              .orderBy("lastMessageSentAt")
-              .reverse()
-              .offset(offset)
-              .limit(numberElements)
+              .where("userDid") // Filtra per utente prima di recuperare i dati
+              .equals(Auth.account!.did)
               .filter(
                 (element) =>
-                  element.userDid === Auth.account!.did &&
-                  typeof element.deletedAt !== "undefined" &&
-                  !element.deletedAt
+                  typeof element.deletedAt !== "undefined" && !element.deletedAt
               )
               .toArray()
               .then(resolve)
@@ -10028,7 +10031,20 @@ export class Chat
         }
       )
 
-      for (let conversation of allConversations) {
+      // Ordiniamo manualmente per `lastMessageSentAt` dal più recente al meno recente
+      const sortedConversations = allConversations
+        .sort((a, b) => {
+          const dateA = a.lastMessageSentAt
+            ? new Date(a.lastMessageSentAt).getTime()
+            : 0
+          const dateB = b.lastMessageSentAt
+            ? new Date(b.lastMessageSentAt).getTime()
+            : 0
+          return dateB - dateA // Dal più recente al meno recente
+        })
+        .slice(offset, offset + numberElements) // Applichiamo offset e limit
+
+      for (let conversation of sortedConversations) {
         try {
           const keyPair = this.findKeyPairById(conversation.id)
           if (!keyPair) continue
