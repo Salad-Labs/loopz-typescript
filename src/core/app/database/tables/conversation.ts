@@ -6,6 +6,7 @@ export interface LocalDBConversation {
   indexDid: string
   organizationId: string
   name: string
+  authorId: Maybe<string>
   description: string
   imageURL: string
   bannerImageURL: string

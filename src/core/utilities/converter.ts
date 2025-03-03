@@ -7,6 +7,7 @@ export class Converter {
     conversation: Conversation,
     userDid: string,
     organizationId: string,
+    authorId: Maybe<string>,
     isArchived: boolean,
     lastMessageAuthor: Maybe<string>,
     lastMessageText: Maybe<string>,
@@ -19,6 +20,7 @@ export class Converter {
     return {
       id: conversation.id,
       userDid,
+      authorId,
       indexDid: userDid, //used to query more efficently this table into recoverUserConversations()
       organizationId,
       name: conversation.name,
