@@ -674,6 +674,11 @@ export class Chat
           : record.lastMessageAuthor
           ? record.lastMessageAuthor
           : null,
+        lastMessageAuthorId: modifications.lastMessageAuthorId
+          ? modifications.lastMessageAuthorId
+          : record.lastMessageAuthorId
+          ? record.lastMessageAuthorId
+          : null,
         lastMessageSentId: modifications.lastMessageSentId
           ? modifications.lastMessageSentId
           : record.lastMessageSentId
@@ -863,6 +868,9 @@ export class Chat
               conversation.ownerId,
               isConversationArchived,
               conversationStored ? conversationStored.lastMessageAuthor : null,
+              conversationStored
+                ? conversationStored.lastMessageAuthorId
+                : null,
               conversationStored ? conversationStored.lastMessageText : null,
               conversationStored ? conversationStored.lastMessageSentId : null,
               conversationStored
@@ -1153,6 +1161,7 @@ export class Chat
                   .modify((conversation: LocalDBConversation) => {
                     const lastMessage = messages[0] //messages are ordered from the most recent to the less recent message, so the first item is the last message sent
                     conversation.lastMessageAuthor = lastMessage.user.username
+                    conversation.lastMessageAuthorId = lastMessage.user.id
                     conversation.lastMessageText = lastMessage.content
                     conversation.lastMessageSentAt = lastMessage.createdAt
                     conversation.lastMessageSentId = lastMessage.id
@@ -1641,6 +1650,7 @@ export class Chat
             null,
             null,
             null,
+            null,
             0,
             null,
             null
@@ -1841,6 +1851,7 @@ export class Chat
               .update(conversation, {
                 deletedAt: null,
                 lastMessageAuthor: response.user.username,
+                lastMessageAuthorId: response.user.id,
                 lastMessageSentAt: new Date(),
                 lastMessageText: response.content,
                 lastMessageSentId: response.id,
@@ -1971,6 +1982,7 @@ export class Chat
                   .update(conversation, {
                     deletedAt: null,
                     lastMessageAuthor: null,
+                    lastMessageAuthorId: null,
                     lastMessageText: null,
                     lastMessageSentAt: null,
                     lastMessageSentId: null,
@@ -1990,6 +2002,7 @@ export class Chat
                   .update(conversation, {
                     deletedAt: null,
                     lastMessageAuthor: lastMessage.user.username,
+                    lastMessageAuthorId: lastMessage.user.id,
                     lastMessageText: lastMessage.content,
                     lastMessageSentAt: lastMessage.createdAt,
                     lastMessageSentId: lastMessage.id,
@@ -2109,6 +2122,7 @@ export class Chat
                 .update(conversation, {
                   deletedAt: null,
                   lastMessageAuthor: null,
+                  lastMessageAuthorId: null,
                   lastMessageText: null,
                   lastMessageSentAt: null,
                   lastMessageSentId: null,
@@ -2128,6 +2142,7 @@ export class Chat
                 .update(conversation, {
                   deletedAt: null,
                   lastMessageAuthor: lastMessage.user.username,
+                  lastMessageAuthorId: lastMessage.user.id,
                   lastMessageText: lastMessage.content,
                   lastMessageSentAt: lastMessage.createdAt,
                   lastMessageSentId: lastMessage.id,
@@ -2176,6 +2191,7 @@ export class Chat
             conversationStored ? conversationStored.authorId : null,
             conversationStored ? conversationStored.isArchived : false,
             conversationStored ? conversationStored.lastMessageAuthor : null,
+            conversationStored ? conversationStored.lastMessageAuthorId : null,
             conversationStored ? conversationStored.lastMessageText : null,
             conversationStored ? conversationStored.lastMessageSentId : null,
             conversationStored ? conversationStored.lastMessageSentOrder : null,
