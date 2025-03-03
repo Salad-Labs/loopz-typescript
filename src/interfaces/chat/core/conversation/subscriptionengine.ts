@@ -9,13 +9,6 @@ import { SubscriptionGarbage } from "../../../../types/chat/subscriptiongarbage"
 import {
   Conversation as ConversationGraphQL,
   ListConversationMembers as ListConversationMembersGraphQL,
-  SubscriptionOnAddPinConversationArgs,
-  SubscriptionOnEjectMemberArgs,
-  SubscriptionOnLeaveConversationArgs,
-  SubscriptionOnMuteConversationArgs,
-  SubscriptionOnRemovePinConversationArgs,
-  SubscriptionOnUnmuteConversationArgs,
-  SubscriptionOnUpdateConversationGroupArgs,
   MemberOutResult as MemberOutResultGraphQL,
 } from "../../../../graphql/generated/graphql"
 
@@ -25,19 +18,17 @@ import {
  */
 export interface ConversationSubscriptionEngine {
   onUpdateConversationGroup(
-    id: string,
     callback: (
       response: QIError | Conversation,
       source: OperationResult<
         { onUpdateConversationGroup: ConversationGraphQL },
-        SubscriptionOnUpdateConversationGroupArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
     overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onEjectMember(
-    conversationId: string,
     callback: (
       response:
         | QIError
@@ -48,14 +39,13 @@ export interface ConversationSubscriptionEngine {
           },
       source: OperationResult<
         { onEjectMember: MemberOutResultGraphQL },
-        SubscriptionOnEjectMemberArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
     overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onLeaveConversation(
-    conversationId: string,
     callback: (
       response:
         | QIError
@@ -66,55 +56,51 @@ export interface ConversationSubscriptionEngine {
           },
       source: OperationResult<
         { onLeaveConversation: MemberOutResultGraphQL },
-        SubscriptionOnLeaveConversationArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
     overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onMuteConversation(
-    conversationId: string,
     callback: (
       response: QIError | Conversation,
       source: OperationResult<
         { onMuteConversation: ConversationGraphQL },
-        SubscriptionOnMuteConversationArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
     overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onUnmuteConversation(
-    conversationId: string,
     callback: (
       response: QIError | Conversation,
       source: OperationResult<
         { onUnmuteConversation: ConversationGraphQL },
-        SubscriptionOnUnmuteConversationArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
     overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onAddPinConversation(
-    conversationId: string,
     callback: (
       response: QIError | Conversation,
       source: OperationResult<
         { onAddPinConversation: ConversationGraphQL },
-        SubscriptionOnAddPinConversationArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
     overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage
   onRemovePinConversation(
-    conversationId: string,
     callback: (
       response: QIError | Conversation,
       source: OperationResult<
         { onRemovePinConversation: ConversationGraphQL },
-        SubscriptionOnRemovePinConversationArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,

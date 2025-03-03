@@ -1,10 +1,7 @@
 import { OperationResult } from "@urql/core"
 import { User, QIError } from "../../../../core/chat"
 import { SubscriptionGarbage } from "../../../../types/chat/subscriptiongarbage"
-import {
-  SubscriptionOnUpdateUserArgs,
-  User as UserGraphQL,
-} from "../../../../graphql/generated/graphql"
+import { User as UserGraphQL } from "../../../../graphql/generated/graphql"
 
 /**
  * Interface for a user subscription engine that allows for updating user information.
@@ -12,13 +9,9 @@ import {
  */
 export interface UserSubscriptionEngine {
   onUpdateUser(
-    id: string,
     callback: (
       response: QIError | User,
-      source: OperationResult<
-        { onUpdateUser: UserGraphQL },
-        SubscriptionOnUpdateUserArgs & { jwt: string }
-      >,
+      source: OperationResult<{ onUpdateUser: UserGraphQL }, { jwt: string }>,
       uuid: string
     ) => void,
     overrideHandlingUnauthorizedQIError?: boolean
