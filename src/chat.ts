@@ -1406,16 +1406,33 @@ export class Chat
 
       if (added.length > 0)
         for (const conversation of added) {
-          this._conversationsMap.push({
-            type: "ACTIVE",
-            conversationId: conversation.id,
-            conversation,
+          const conversationAdded = this._conversationsMap.find((item) => {
+            return item.conversationId === conversation.id
           })
+
+          if (conversationAdded) {
+            conversationAdded.type = "ACTIVE"
+          } else {
+            this._conversationsMap.push({
+              type: "ACTIVE",
+              conversationId: conversation.id,
+              conversation,
+            })
+          }
+
           this._emit("conversationNewMembers", {
             conversation,
             conversationId: conversation.id,
           })
         }
+      if (removed.length > 0) {
+        for (const conversation of removed) {
+          const conversationRemoved = this._conversationsMap.find((item) => {
+            return item.conversationId === conversation.id
+          })
+          if (conversationRemoved) conversationRemoved.type = "CANCELED"
+        }
+      }
     }
 
     //we add the internal events for the local database
