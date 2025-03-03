@@ -79,36 +79,17 @@ import {
   MutationRemoveImportantFromMessageArgs,
   MutationAddPinToConversationArgs,
   MutationRemovePinFromConversationArgs,
-  SubscriptionOnSendMessageArgs,
-  SubscriptionOnEditMessageArgs,
-  SubscriptionOnDeleteMessageArgs,
-  SubscriptionOnRemoveReactionArgs,
-  SubscriptionOnAddReactionArgs,
-  SubscriptionOnAddPinMessageArgs,
-  SubscriptionOnRemovePinMessageArgs,
-  SubscriptionOnUpdateConversationGroupArgs,
-  SubscriptionOnEjectMemberArgs,
-  SubscriptionOnLeaveConversationArgs,
-  SubscriptionOnAddPinConversationArgs,
-  SubscriptionOnRemovePinConversationArgs,
-  SubscriptionOnMuteConversationArgs,
-  SubscriptionOnUpdateUserArgs,
-  SubscriptionOnRequestTradeArgs,
-  SubscriptionOnDeleteRequestTradeArgs,
   QueryListMessagesImportantByUserConversationIdArgs,
   ListMessagesImportantByUserConversationIdResult as ListMessagesImportantByUserConversationIdResultGraphQL,
   QueryListConversationsPinnedByCurrentUserArgs,
   ListConversationsPinnedByUserIdResult as ListConversationsPinnedByUserIdResultGraphQL,
   QueryListConversationMemberByUserIdArgs,
   ListConversationMemberByUserIdResult as ListConversationMemberByUserIdResultGraphQL,
-  SubscriptionOnUnmuteConversationArgs,
   BatchDeleteMessagesResult as BatchDeleteMessagesResultGraphQL,
-  SubscriptionOnBatchDeleteMessagesArgs,
   MemberOutResult as MemberOutResultGraphQL,
   QueryListUsersByIdsArgs,
   ListUsersByIdsResult as ListUsersByIdsResultGraphQL,
   MutationUpdateRequestTradeArgs,
-  SubscriptionOnUpdateRequestTradeArgs,
   QueryListTradesByConversationIdArgs,
   ListTradesByConversationIdResult as ListTradesByConversationIdResultGraphQL,
   QueryGetConversationTradingPoolByIdArgs,
@@ -235,7 +216,6 @@ import { Converter, findAddedAndRemovedConversation, Serpens } from "./core"
 import { Reaction } from "./core/chat/reaction"
 import { v4 as uuidv4 } from "uuid"
 import { ApiResponse } from "./types/base/apiresponse"
-import { md, pki } from "node-forge"
 import { Order } from "./order"
 import { Auth, ChatEvents, EngineInitConfig } from "."
 import { DetectiveMessage } from "./core/chat/detectivemessage"
@@ -291,7 +271,6 @@ export class Chat
 
     unsubscribe: Function
     uuid: string
-    conversationId: string
   }> = []
 
   private _conversationsMap: Array<{
@@ -380,11 +359,7 @@ export class Chat
     if (Chat._instance._syncTimeout) clearTimeout(Chat._instance._syncTimeout)
 
     //let's unsubscribe everything from the previous results
-    for (const { conversationId } of Chat._instance._conversationsMap.filter(
-      (conversation) => conversation.type === "ACTIVE"
-    )) {
-      Chat._instance._removeSubscriptionsSync(conversationId)
-    }
+    Chat._instance._removeSubscriptionsSync()
 
     //let's clear the _unsubscribeSyncSet from the previous results
     Chat._instance._unsubscribeSyncSet = []
@@ -426,7 +401,6 @@ export class Chat
         type: "onAddMembersToConversation",
         unsubscribe,
         uuid,
-        conversationId: "", //this value is updated inside the callback fired by the subscription
       })
     } else {
       const error = Chat._instance._handleUnauthorizedQIError(
@@ -452,12 +426,7 @@ export class Chat
     }
 
     //now that we have a _conversationsMap array filled, we can add subscription for every conversation that is currently active
-    for (const { conversationId } of Chat._instance._conversationsMap.filter(
-      (conversation) => conversation.type === "ACTIVE"
-    )) {
-      Chat._instance._addSubscriptionsSync(conversationId)
-    }
-
+    Chat._instance._addSubscriptionsSync()
     ;(async () => {
       if (!Chat._instance) return
 
@@ -1442,19 +1411,10 @@ export class Chat
             conversationId: conversation.id,
             conversation,
           })
-          this._addSubscriptionsSync(conversation.id)
           this._emit("conversationNewMembers", {
             conversation,
             conversationId: conversation.id,
           })
-        }
-
-      if (removed.length > 0)
-        for (const conversation of removed) {
-          this._conversationsMap = this._conversationsMap.filter((item) => {
-            return item.conversationId !== conversation.id
-          })
-          this._removeSubscriptionsSync(conversation.id)
         }
     }
 
@@ -1567,9 +1527,6 @@ export class Chat
           return item.uuid === uuid
         })
 
-        if (index > -1)
-          this._unsubscribeSyncSet[index].conversationId = conversationId
-
         //now we store the conversation in the local database
         const responseConversation = await this.listConversationsByIds(
           [conversationId],
@@ -1672,13 +1629,8 @@ export class Chat
         ])
 
         //let's remove all the subscriptions previously added
-        if (subscriptionConversationCheck.conversationWasActive) {
-          this._removeSubscriptionsSync(conversationId)
+        if (subscriptionConversationCheck.conversationWasActive)
           this._conversationsMap[index].type = "ACTIVE" //assign again "type" the value "ACTIVE" because _removeSubscriptionsSync() turns type to "CANCELED"
-        }
-
-        //let's add the subscriptions in order to keep synchronized this conversation
-        this._addSubscriptionsSync(conversationId)
 
         this._emit("conversationCreated", {
           conversation,
@@ -1734,7 +1686,7 @@ export class Chat
       {
         onAddReaction: MessageGraphQL
       },
-      SubscriptionOnAddReactionArgs & {
+      {
         jwt: string
       }
     >,
@@ -1783,7 +1735,7 @@ export class Chat
       {
         onRemoveReaction: MessageGraphQL
       },
-      SubscriptionOnRemoveReactionArgs & {
+      {
         jwt: string
       }
     >,
@@ -1832,7 +1784,7 @@ export class Chat
       {
         onSendMessage: MessageGraphQL
       },
-      SubscriptionOnSendMessageArgs & {
+      {
         jwt: string
       }
     >,
@@ -1901,7 +1853,7 @@ export class Chat
       {
         onEditMessage: MessageGraphQL
       },
-      SubscriptionOnEditMessageArgs & {
+      {
         jwt: string
       }
     >,
@@ -1936,7 +1888,7 @@ export class Chat
       {
         onDeleteMessage: MessageGraphQL
       },
-      SubscriptionOnDeleteMessageArgs & {
+      {
         jwt: string
       }
     >,
@@ -2082,7 +2034,7 @@ export class Chat
       {
         onBatchDeleteMessages: BatchDeleteMessagesResultGraphQL
       },
-      SubscriptionOnBatchDeleteMessagesArgs & {
+      {
         jwt: string
       }
     >,
@@ -2183,7 +2135,7 @@ export class Chat
       {
         onUpdateConversationGroup: ConversationGraphQL
       },
-      SubscriptionOnUpdateConversationGroupArgs & {
+      {
         jwt: string
       }
     >,
@@ -2231,7 +2183,7 @@ export class Chat
       {
         onEjectMember: MemberOutResultGraphQL
       },
-      SubscriptionOnEjectMemberArgs & {
+      {
         jwt: string
       }
     >,
@@ -2240,7 +2192,11 @@ export class Chat
     try {
       if (!(response instanceof QIError)) {
         const conversationId = response.conversationId
-        this._removeSubscriptionsSync(conversationId)
+        const index = this._conversationsMap.findIndex((conversation) => {
+          return conversation.conversationId === conversationId
+        })
+        this._conversationsMap[index].type = "CANCELED"
+
         const message = {
           id: uuidv4(),
           userId: response.memberOut.id,
@@ -2281,7 +2237,7 @@ export class Chat
       {
         onLeaveConversation: MemberOutResultGraphQL
       },
-      SubscriptionOnLeaveConversationArgs & {
+      {
         jwt: string
       }
     >,
@@ -2291,7 +2247,10 @@ export class Chat
     try {
       if (!(response instanceof QIError)) {
         const conversationId = response.conversationId
-        this._removeSubscriptionsSync(conversationId)
+        const index = this._conversationsMap.findIndex((conversation) => {
+          return conversation.conversationId === conversationId
+        })
+        this._conversationsMap[index].type = "CANCELED"
         const message = {
           id: uuidv4(),
           userId: response.memberOut.id,
@@ -2331,7 +2290,7 @@ export class Chat
       {
         onMuteConversation: ConversationGraphQL
       },
-      SubscriptionOnMuteConversationArgs & {
+      {
         jwt: string
       }
     >,
@@ -2356,7 +2315,7 @@ export class Chat
       {
         onUnmuteConversation: ConversationGraphQL
       },
-      SubscriptionOnUnmuteConversationArgs & {
+      {
         jwt: string
       }
     >,
@@ -2381,7 +2340,7 @@ export class Chat
       {
         onRequestTrade: ConversationTradingPoolGraphQL
       },
-      SubscriptionOnRequestTradeArgs & {
+      {
         jwt: string
       }
     >,
@@ -2405,7 +2364,7 @@ export class Chat
       {
         onUpdateRequestTrade: ConversationTradingPoolGraphQL
       },
-      SubscriptionOnUpdateRequestTradeArgs & {
+      {
         jwt: string
       }
     >,
@@ -2423,15 +2382,14 @@ export class Chat
     }
   }
 
-  private _addSubscriptionsSync(conversationId: string) {
+  private _addSubscriptionsSync() {
     //add reaction(conversationId)
     const onAddReaction = this.onAddReaction(
-      conversationId,
       (
         response: QIError | Message,
         source: OperationResult<
           { onAddReaction: MessageGraphQL },
-          SubscriptionOnAddReactionArgs & { jwt: string }
+          { jwt: string }
         >,
         uuid: string
       ) => {
@@ -2446,7 +2404,6 @@ export class Chat
         type: "onAddReaction",
         unsubscribe,
         uuid,
-        conversationId,
       })
     } else {
       const error = this._handleUnauthorizedQIError(onAddReaction)
@@ -2469,12 +2426,11 @@ export class Chat
 
     //remove reaction(conversationId)
     const onRemoveReaction = this.onRemoveReaction(
-      conversationId,
       (
         response: QIError | Message,
         source: OperationResult<
           { onRemoveReaction: MessageGraphQL },
-          SubscriptionOnRemoveReactionArgs & { jwt: string }
+          { jwt: string }
         >,
         uuid: string
       ) => {
@@ -2489,7 +2445,6 @@ export class Chat
         type: "onRemoveReaction",
         unsubscribe,
         uuid,
-        conversationId,
       })
     } else {
       const error = this._handleUnauthorizedQIError(onRemoveReaction)
@@ -2512,12 +2467,11 @@ export class Chat
 
     //send message(conversationId)
     const onSendMessage = this.onSendMessage(
-      conversationId,
       (
         response: Message | QIError,
         source: OperationResult<
           { onSendMessage: MessageGraphQL },
-          SubscriptionOnSendMessageArgs & { jwt: string }
+          { jwt: string }
         >,
         uuid: string
       ) => {
@@ -2532,7 +2486,6 @@ export class Chat
         type: "onSendMessage",
         unsubscribe,
         uuid,
-        conversationId,
       })
     } else {
       const error = this._handleUnauthorizedQIError(onSendMessage)
@@ -2555,12 +2508,11 @@ export class Chat
 
     //edit message(conversationId)
     const onEditMessage = this.onEditMessage(
-      conversationId,
       (
         response: QIError | Message,
         source: OperationResult<
           { onEditMessage: MessageGraphQL },
-          SubscriptionOnEditMessageArgs & { jwt: string }
+          { jwt: string }
         >,
         uuid: string
       ) => {
@@ -2575,7 +2527,6 @@ export class Chat
         type: "onEditMessage",
         unsubscribe,
         uuid,
-        conversationId,
       })
     } else {
       const error = this._handleUnauthorizedQIError(onEditMessage)
@@ -2598,18 +2549,16 @@ export class Chat
 
     //delete message(conversationId)
     const onDeleteMessage = this.onDeleteMessage(
-      conversationId,
       (
         response: QIError | Message,
         source: OperationResult<
           { onDeleteMessage: MessageGraphQL },
-          SubscriptionOnDeleteMessageArgs & { jwt: string }
+          { jwt: string }
         >,
         uuid: string
       ) => {
         this._onDeleteMessageSync(response, source, uuid)
       },
-
       true
     )
 
@@ -2619,7 +2568,6 @@ export class Chat
         type: "onDeleteMessage",
         unsubscribe,
         uuid,
-        conversationId,
       })
     } else {
       const error = this._handleUnauthorizedQIError(onDeleteMessage)
@@ -2642,12 +2590,11 @@ export class Chat
 
     //delete batch messages(conversationId)
     const onBatchDeleteMessages = this.onBatchDeleteMessages(
-      conversationId,
       (
         response: QIError | { conversationId: string; messagesIds: string[] },
         source: OperationResult<
           { onBatchDeleteMessages: BatchDeleteMessagesResultGraphQL },
-          SubscriptionOnBatchDeleteMessagesArgs & { jwt: string }
+          { jwt: string }
         >,
         uuid: string
       ) => {
@@ -2662,7 +2609,6 @@ export class Chat
         type: "onBatchDeleteMessages",
         unsubscribe,
         uuid,
-        conversationId,
       })
     } else {
       const error = this._handleUnauthorizedQIError(onBatchDeleteMessages)
@@ -2685,12 +2631,11 @@ export class Chat
 
     //update settings group(conversationId)
     const onUpdateConversationGroup = this.onUpdateConversationGroup(
-      conversationId,
       (
         response: QIError | Conversation,
         source: OperationResult<
           { onUpdateConversationGroup: ConversationGraphQL },
-          SubscriptionOnUpdateConversationGroupArgs & { jwt: string }
+          { jwt: string }
         >,
         uuid: string
       ) => {
@@ -2705,7 +2650,6 @@ export class Chat
         type: "onUpdateConversationGroup",
         unsubscribe,
         uuid,
-        conversationId,
       })
     } else {
       const error = this._handleUnauthorizedQIError(onUpdateConversationGroup)
@@ -2728,7 +2672,6 @@ export class Chat
 
     //eject member(conversationId)
     const onEjectMember = this.onEjectMember(
-      conversationId,
       (
         response:
           | QIError
@@ -2739,7 +2682,7 @@ export class Chat
             },
         source: OperationResult<
           { onEjectMember: MemberOutResultGraphQL },
-          SubscriptionOnEjectMemberArgs & { jwt: string }
+          { jwt: string }
         >,
         uuid: string
       ) => {
@@ -2754,7 +2697,6 @@ export class Chat
         type: "onEjectMember",
         unsubscribe,
         uuid,
-        conversationId,
       })
     } else {
       const error = this._handleUnauthorizedQIError(onEjectMember)
@@ -2777,7 +2719,6 @@ export class Chat
 
     //leave group/conversation(conversationId)
     const onLeaveConversation = this.onLeaveConversation(
-      conversationId,
       (
         response:
           | QIError
@@ -2788,7 +2729,7 @@ export class Chat
             },
         source: OperationResult<
           { onLeaveConversation: MemberOutResultGraphQL },
-          SubscriptionOnLeaveConversationArgs & { jwt: string }
+          { jwt: string }
         >,
         uuid: string
       ) => {
@@ -2803,7 +2744,6 @@ export class Chat
         type: "onLeaveConversation",
         unsubscribe,
         uuid,
-        conversationId,
       })
     } else {
       const error = this._handleUnauthorizedQIError(onLeaveConversation)
@@ -2826,12 +2766,11 @@ export class Chat
 
     //mute conversation(conversationId)
     const onMuteConversation = this.onMuteConversation(
-      conversationId,
       (
         response: QIError | Conversation,
         source: OperationResult<
           { onMuteConversation: ConversationGraphQL },
-          SubscriptionOnMuteConversationArgs & { jwt: string }
+          { jwt: string }
         >,
         uuid: string
       ) => {
@@ -2846,7 +2785,6 @@ export class Chat
         type: "onMuteConversation",
         unsubscribe,
         uuid,
-        conversationId,
       })
     } else {
       const error = this._handleUnauthorizedQIError(onMuteConversation)
@@ -2869,14 +2807,13 @@ export class Chat
 
     //unmute conversation(conversationId)
     const onUnmuteConversation = this.onUnmuteConversation(
-      conversationId,
       (
         response: QIError | Conversation,
         source: OperationResult<
           {
             onUnmuteConversation: ConversationGraphQL
           },
-          SubscriptionOnUnmuteConversationArgs & {
+          {
             jwt: string
           }
         >,
@@ -2893,7 +2830,6 @@ export class Chat
         type: "onUnmuteConversation",
         unsubscribe,
         uuid,
-        conversationId,
       })
     } else {
       const error = this._handleUnauthorizedQIError(onUnmuteConversation)
@@ -2915,14 +2851,13 @@ export class Chat
     }
 
     const onRequestTrade = this.onRequestTrade(
-      conversationId,
       (
         response: QIError | ConversationTradingPool,
         source: OperationResult<
           {
             onRequestTrade: ConversationTradingPoolGraphQL
           },
-          SubscriptionOnRequestTradeArgs & {
+          {
             jwt: string
           }
         >,
@@ -2939,7 +2874,6 @@ export class Chat
         type: "onRequestTrade",
         unsubscribe,
         uuid,
-        conversationId,
       })
     } else {
       const error = this._handleUnauthorizedQIError(onRequestTrade)
@@ -2961,14 +2895,13 @@ export class Chat
     }
 
     const onUpdateRequestTrade = this.onUpdateRequestTrade(
-      conversationId,
       (
         response: QIError | ConversationTradingPool,
         source: OperationResult<
           {
             onUpdateRequestTrade: ConversationTradingPoolGraphQL
           },
-          SubscriptionOnUpdateRequestTradeArgs & {
+          {
             jwt: string
           }
         >,
@@ -2985,7 +2918,6 @@ export class Chat
         type: "onUpdateRequestTrade",
         unsubscribe,
         uuid,
-        conversationId,
       })
     } else {
       const error = this._handleUnauthorizedQIError(onUpdateRequestTrade)
@@ -3007,36 +2939,20 @@ export class Chat
     }
   }
 
-  private _removeSubscriptionsSync(conversationId: string) {
+  private _removeSubscriptionsSync() {
     //let's remove first the subscriptions
-    const unsubscribeItems = this._unsubscribeSyncSet.filter((item) => {
-      return item.conversationId === conversationId
-    })
 
-    unsubscribeItems.forEach((item) => {
+    this._unsubscribeSyncSet.forEach((item) => {
       try {
         item.unsubscribe()
       } catch (error) {
         console.log(
           "[ERROR]: unsubscribe() failed for conversation item -> ",
           item.uuid,
-          item.type,
-          conversationId
+          item.type
         )
       }
     })
-
-    //let's remove the unsubscriptions functions from the _unsubscribeSyncSet since we have unsubscribed everything
-    this._unsubscribeSyncSet = this._unsubscribeSyncSet.filter((item) => {
-      return item.conversationId !== conversationId
-    })
-
-    //let's update also the _conversationsMap and turn this conversation as unactive
-    const index = this._conversationsMap.findIndex((conversation) => {
-      return conversation.conversationId === conversationId
-    })
-
-    if (index > -1) this._conversationsMap[index].type = "CANCELED"
   }
 
   /** local database events */
@@ -7307,14 +7223,13 @@ export class Chat
    */
 
   onSendMessage(
-    conversationId: string,
     callback: (
       response: Message | QIError,
       source: OperationResult<
         {
           onSendMessage: MessageGraphQL
         },
-        SubscriptionOnSendMessageArgs & {
+        {
           jwt: string
         }
       >,
@@ -7324,9 +7239,9 @@ export class Chat
   ): SubscriptionGarbage | QIError {
     const key = "onSendMessage"
     const metasubscription = this._subscription<
-      SubscriptionOnSendMessageArgs,
+      null,
       { onSendMessage: MessageGraphQL }
-    >(onSendMessage, key, { conversationId })
+    >(onSendMessage, key, null)
 
     if (metasubscription instanceof QIError) {
       if (!overrideHandlingUnauthorizedQIError) {
@@ -7464,12 +7379,11 @@ export class Chat
   }
 
   onEditMessage(
-    conversationId: string,
     callback: (
       response: QIError | Message,
       source: OperationResult<
         { onEditMessage: MessageGraphQL },
-        SubscriptionOnEditMessageArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
@@ -7477,9 +7391,9 @@ export class Chat
   ): QIError | SubscriptionGarbage {
     const key = "onEditMessage"
     const metasubscription = this._subscription<
-      SubscriptionOnEditMessageArgs,
+      null,
       { onEditMessage: MessageGraphQL }
-    >(onEditMessage, key, { conversationId })
+    >(onEditMessage, key, null)
 
     if (metasubscription instanceof QIError) {
       if (!overrideHandlingUnauthorizedQIError) {
@@ -7615,12 +7529,11 @@ export class Chat
   }
 
   onBatchDeleteMessages(
-    conversationId: string,
     callback: (
       response: QIError | { conversationId: string; messagesIds: string[] },
       source: OperationResult<
         { onBatchDeleteMessages: BatchDeleteMessagesResultGraphQL },
-        SubscriptionOnBatchDeleteMessagesArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
@@ -7628,9 +7541,9 @@ export class Chat
   ): QIError | SubscriptionGarbage {
     const key = "onBatchDeleteMessages"
     const metasubscription = this._subscription<
-      SubscriptionOnBatchDeleteMessagesArgs,
+      null,
       { onBatchDeleteMessages: BatchDeleteMessagesResultGraphQL }
-    >(onBatchDeleteMessages, key, { conversationId })
+    >(onBatchDeleteMessages, key, null)
 
     if (metasubscription instanceof QIError) {
       if (!overrideHandlingUnauthorizedQIError) {
@@ -7681,12 +7594,11 @@ export class Chat
   }
 
   onDeleteMessage(
-    conversationId: string,
     callback: (
       response: QIError | Message,
       source: OperationResult<
         { onDeleteMessage: MessageGraphQL },
-        SubscriptionOnDeleteMessageArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
@@ -7694,9 +7606,9 @@ export class Chat
   ): QIError | SubscriptionGarbage {
     const key = "onDeleteMessage"
     const metasubscription = this._subscription<
-      SubscriptionOnDeleteMessageArgs,
+      null,
       { onDeleteMessage: MessageGraphQL }
-    >(onDeleteMessage, key, { conversationId })
+    >(onDeleteMessage, key, null)
 
     if (metasubscription instanceof QIError) {
       if (!overrideHandlingUnauthorizedQIError) {
@@ -7833,12 +7745,11 @@ export class Chat
   }
 
   onAddReaction(
-    conversationId: string,
     callback: (
       response: QIError | Message,
       source: OperationResult<
         { onAddReaction: MessageGraphQL },
-        SubscriptionOnAddReactionArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
@@ -7846,9 +7757,9 @@ export class Chat
   ): QIError | SubscriptionGarbage {
     const key = "onAddReaction"
     const metasubscription = this._subscription<
-      SubscriptionOnAddReactionArgs,
+      null,
       { onAddReaction: MessageGraphQL }
-    >(onAddReaction, key, { conversationId })
+    >(onAddReaction, key, null)
 
     if (metasubscription instanceof QIError) {
       if (!overrideHandlingUnauthorizedQIError) {
@@ -7984,12 +7895,11 @@ export class Chat
   }
 
   onRemoveReaction(
-    conversationId: string,
     callback: (
       response: QIError | Message,
       source: OperationResult<
         { onRemoveReaction: MessageGraphQL },
-        SubscriptionOnRemoveReactionArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
@@ -7997,9 +7907,9 @@ export class Chat
   ): QIError | SubscriptionGarbage {
     const key = "onRemoveReaction"
     const metasubscription = this._subscription<
-      SubscriptionOnRemoveReactionArgs,
+      null,
       { onRemoveReaction: MessageGraphQL }
-    >(onRemoveReaction, key, { conversationId })
+    >(onRemoveReaction, key, null)
 
     if (metasubscription instanceof QIError) {
       if (!overrideHandlingUnauthorizedQIError) {
@@ -8135,12 +8045,11 @@ export class Chat
   }
 
   onAddPinMessage(
-    conversationId: string,
     callback: (
       response: QIError | Message,
       source: OperationResult<
         { onAddPinMessage: MessageGraphQL },
-        SubscriptionOnAddPinMessageArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
@@ -8148,9 +8057,9 @@ export class Chat
   ): QIError | SubscriptionGarbage {
     const key = "onAddPinMessage"
     const metasubscription = this._subscription<
-      SubscriptionOnAddPinMessageArgs,
+      null,
       { onAddPinMessage: MessageGraphQL }
-    >(onAddPinMessage, key, { conversationId })
+    >(onAddPinMessage, key, null)
 
     if (metasubscription instanceof QIError) {
       if (!overrideHandlingUnauthorizedQIError) {
@@ -8288,12 +8197,11 @@ export class Chat
   }
 
   onRemovePinMessage(
-    conversationId: string,
     callback: (
       response: QIError | Message,
       source: OperationResult<
         { onRemovePinMessage: MessageGraphQL },
-        SubscriptionOnRemovePinMessageArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
@@ -8301,9 +8209,9 @@ export class Chat
   ): QIError | SubscriptionGarbage {
     const key = "onRemovePinMessage"
     const metasubscription = this._subscription<
-      SubscriptionOnRemovePinMessageArgs,
+      null,
       { onRemovePinMessage: MessageGraphQL }
-    >(onRemovePinMessage, key, { conversationId })
+    >(onRemovePinMessage, key, null)
 
     if (metasubscription instanceof QIError) {
       if (!overrideHandlingUnauthorizedQIError) {
@@ -8439,12 +8347,11 @@ export class Chat
   }
 
   onUpdateConversationGroup(
-    id: string,
     callback: (
       response: QIError | Conversation,
       source: OperationResult<
         { onUpdateConversationGroup: ConversationGraphQL },
-        SubscriptionOnUpdateConversationGroupArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
@@ -8452,9 +8359,9 @@ export class Chat
   ): QIError | SubscriptionGarbage {
     const key = "onUpdateConversationGroup"
     const metasubscription = this._subscription<
-      SubscriptionOnUpdateConversationGroupArgs,
+      null,
       { onUpdateConversationGroup: ConversationGraphQL }
-    >(onUpdateConversationGroup, key, { id })
+    >(onUpdateConversationGroup, key, null)
 
     if (metasubscription instanceof QIError) {
       if (!overrideHandlingUnauthorizedQIError) {
@@ -8522,7 +8429,6 @@ export class Chat
   }
 
   onEjectMember(
-    conversationId: string,
     callback: (
       response:
         | QIError
@@ -8533,7 +8439,7 @@ export class Chat
           },
       source: OperationResult<
         { onEjectMember: MemberOutResultGraphQL },
-        SubscriptionOnEjectMemberArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
@@ -8541,9 +8447,9 @@ export class Chat
   ): QIError | SubscriptionGarbage {
     const key = "onEjectMember"
     const metasubscription = this._subscription<
-      SubscriptionOnEjectMemberArgs,
+      null,
       { onEjectMember: MemberOutResultGraphQL }
-    >(onEjectMember, key, { conversationId })
+    >(onEjectMember, key, null)
 
     if (metasubscription instanceof QIError) {
       if (!overrideHandlingUnauthorizedQIError) {
@@ -8686,7 +8592,6 @@ export class Chat
   }
 
   onLeaveConversation(
-    conversationId: string,
     callback: (
       response:
         | QIError
@@ -8697,7 +8602,7 @@ export class Chat
           },
       source: OperationResult<
         { onLeaveConversation: MemberOutResultGraphQL },
-        SubscriptionOnLeaveConversationArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
@@ -8705,9 +8610,9 @@ export class Chat
   ): QIError | SubscriptionGarbage {
     const key = "onLeaveConversation"
     const metasubscription = this._subscription<
-      SubscriptionOnLeaveConversationArgs,
+      null,
       { onLeaveConversation: MemberOutResultGraphQL }
-    >(onLeaveConversation, key, { conversationId })
+    >(onLeaveConversation, key, null)
 
     if (metasubscription instanceof QIError) {
       if (!overrideHandlingUnauthorizedQIError) {
@@ -8850,12 +8755,11 @@ export class Chat
   }
 
   onAddPinConversation(
-    conversationId: string,
     callback: (
       response: QIError | Conversation,
       source: OperationResult<
         { onAddPinConversation: ConversationGraphQL },
-        SubscriptionOnAddPinConversationArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
@@ -8863,9 +8767,9 @@ export class Chat
   ): QIError | SubscriptionGarbage {
     const key = "onAddPinConversation"
     const metasubscription = this._subscription<
-      SubscriptionOnAddPinConversationArgs,
+      null,
       { onAddPinConversation: ConversationGraphQL }
-    >(onAddPinConversation, key, { conversationId })
+    >(onAddPinConversation, key, null)
 
     if (metasubscription instanceof QIError) {
       if (!overrideHandlingUnauthorizedQIError) {
@@ -8933,12 +8837,11 @@ export class Chat
   }
 
   onRemovePinConversation(
-    conversationId: string,
     callback: (
       response: QIError | Conversation,
       source: OperationResult<
         { onRemovePinConversation: ConversationGraphQL },
-        SubscriptionOnRemovePinConversationArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
@@ -8946,9 +8849,9 @@ export class Chat
   ): QIError | SubscriptionGarbage {
     const key = "onRemovePinConversation"
     const metasubscription = this._subscription<
-      SubscriptionOnRemovePinConversationArgs,
+      null,
       { onRemovePinConversation: ConversationGraphQL }
-    >(onRemovePinConversation, key, { conversationId })
+    >(onRemovePinConversation, key, null)
 
     if (metasubscription instanceof QIError) {
       if (!overrideHandlingUnauthorizedQIError) {
@@ -9016,12 +8919,11 @@ export class Chat
   }
 
   onMuteConversation(
-    conversationId: string,
     callback: (
       response: QIError | Conversation,
       source: OperationResult<
         { onMuteConversation: ConversationGraphQL },
-        SubscriptionOnMuteConversationArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
@@ -9029,9 +8931,9 @@ export class Chat
   ): QIError | SubscriptionGarbage {
     const key = "onMuteConversation"
     const metasubscription = this._subscription<
-      SubscriptionOnMuteConversationArgs,
+      null,
       { onMuteConversation: ConversationGraphQL }
-    >(onMuteConversation, key, { conversationId })
+    >(onMuteConversation, key, null)
 
     if (metasubscription instanceof QIError) {
       if (!overrideHandlingUnauthorizedQIError) {
@@ -9099,12 +9001,11 @@ export class Chat
   }
 
   onUnmuteConversation(
-    conversationId: string,
     callback: (
       response: QIError | Conversation,
       source: OperationResult<
         { onUnmuteConversation: ConversationGraphQL },
-        SubscriptionOnUnmuteConversationArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
@@ -9112,9 +9013,9 @@ export class Chat
   ): QIError | SubscriptionGarbage {
     const key = "onUnmuteConversation"
     const metasubscription = this._subscription<
-      SubscriptionOnUnmuteConversationArgs,
+      null,
       { onUnmuteConversation: ConversationGraphQL }
-    >(onUnmuteConversation, key, { conversationId })
+    >(onUnmuteConversation, key, null)
 
     if (metasubscription instanceof QIError) {
       if (!overrideHandlingUnauthorizedQIError) {
@@ -9268,22 +9169,18 @@ export class Chat
   }
 
   onUpdateUser(
-    id: string,
     callback: (
       response: QIError | User,
-      source: OperationResult<
-        { onUpdateUser: UserGraphQL },
-        SubscriptionOnUpdateUserArgs & { jwt: string }
-      >,
+      source: OperationResult<{ onUpdateUser: UserGraphQL }, { jwt: string }>,
       uuid: string
     ) => void,
     overrideHandlingUnauthorizedQIError?: boolean
   ): QIError | SubscriptionGarbage {
     const key = "onUpdateUser"
     const metasubscription = this._subscription<
-      SubscriptionOnUpdateUserArgs,
+      null,
       { onUpdateUser: UserGraphQL }
-    >(onUpdateUser, key, { id })
+    >(onUpdateUser, key, null)
 
     if (metasubscription instanceof QIError) {
       if (!overrideHandlingUnauthorizedQIError) {
@@ -9370,12 +9267,11 @@ export class Chat
   }
 
   onRequestTrade(
-    conversationId: string,
     callback: (
       response: QIError | ConversationTradingPool,
       source: OperationResult<
         { onRequestTrade: ConversationTradingPoolGraphQL },
-        SubscriptionOnRequestTradeArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
@@ -9383,9 +9279,9 @@ export class Chat
   ): QIError | SubscriptionGarbage {
     const key = "onRequestTrade"
     const metasubscription = this._subscription<
-      SubscriptionOnRequestTradeArgs,
+      null,
       { onRequestTrade: ConversationTradingPoolGraphQL }
-    >(onRequestTrade, key, { conversationId })
+    >(onRequestTrade, key, null)
 
     if (metasubscription instanceof QIError) {
       if (!overrideHandlingUnauthorizedQIError) {
@@ -9447,12 +9343,11 @@ export class Chat
   }
 
   onDeleteRequestTrade(
-    conversationId: string,
     callback: (
       response: QIError | ConversationTradingPool,
       source: OperationResult<
         { onDeleteRequestTrade: ConversationTradingPoolGraphQL },
-        SubscriptionOnDeleteRequestTradeArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
@@ -9460,9 +9355,9 @@ export class Chat
   ): QIError | SubscriptionGarbage {
     const key = "onDeleteRequestTrade"
     const metasubscription = this._subscription<
-      SubscriptionOnDeleteRequestTradeArgs,
+      null,
       { onDeleteRequestTrade: ConversationTradingPoolGraphQL }
-    >(onDeleteRequestTrade, key, { conversationId })
+    >(onDeleteRequestTrade, key, null)
 
     if (metasubscription instanceof QIError) {
       if (!overrideHandlingUnauthorizedQIError) {
@@ -9524,12 +9419,11 @@ export class Chat
   }
 
   onUpdateRequestTrade(
-    conversationId: string,
     callback: (
       response: QIError | ConversationTradingPool,
       source: OperationResult<
         { onUpdateRequestTrade: ConversationTradingPoolGraphQL },
-        SubscriptionOnUpdateRequestTradeArgs & { jwt: string }
+        { jwt: string }
       >,
       uuid: string
     ) => void,
@@ -9537,9 +9431,9 @@ export class Chat
   ): QIError | SubscriptionGarbage {
     const key = "onUpdateRequestTrade"
     const metasubscription = this._subscription<
-      SubscriptionOnUpdateRequestTradeArgs,
+      null,
       { onUpdateRequestTrade: ConversationTradingPoolGraphQL }
-    >(onUpdateRequestTrade, key, { conversationId })
+    >(onUpdateRequestTrade, key, null)
 
     if (metasubscription instanceof QIError) {
       if (!overrideHandlingUnauthorizedQIError) {
@@ -9898,7 +9792,6 @@ export class Chat
         type: "onAddMembersToConversation",
         unsubscribe,
         uuid,
-        conversationId: "", //this value is updated inside the callback fired by the subscription
       })
     } else {
       const error = this._handleUnauthorizedQIError(onAddMembersToConversation)
@@ -9920,12 +9813,7 @@ export class Chat
     //let's call all the logics
     await this._sync(this._syncingCounter)
 
-    //now that we have a _conversationsMap array filled, we can add subscription for every conversation that is currently active
-    for (const { conversationId } of this._conversationsMap.filter(
-      (conversation) => conversation.type === "ACTIVE"
-    )) {
-      this._addSubscriptionsSync(conversationId)
-    }
+    this._addSubscriptionsSync()
   }
 
   /**
@@ -9960,11 +9848,9 @@ export class Chat
         if (this._syncTimeout) clearTimeout(this._syncTimeout)
         this._isSyncing = false
         this._syncingCounter = 0
-        for (const { conversationId } of this._conversationsMap.filter(
-          (conversation) => conversation.type === "ACTIVE"
-        )) {
-          this._removeSubscriptionsSync(conversationId)
-        }
+
+        this._removeSubscriptionsSync()
+
         this._unsubscribeSyncSet = [] //subscription mapping array
         this._conversationsMap = [] //conversations array
         this._keyPairsMap = [] //conversations public/private keys
