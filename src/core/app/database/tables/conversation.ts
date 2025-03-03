@@ -20,6 +20,7 @@ export interface LocalDBConversation {
   type: "ONE_TO_ONE" | "GROUP"
   lastMessageSentAt: Maybe<Date>
   lastMessageAuthor: Maybe<string>
+  lastMessageAuthorId: Maybe<string>
   lastMessageText: Maybe<string>
   lastMessageSentId: Maybe<string>
   lastMessageSentOrder: Maybe<number>

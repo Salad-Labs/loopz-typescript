@@ -10,6 +10,7 @@ export class Converter {
     authorId: Maybe<string>,
     isArchived: boolean,
     lastMessageAuthor: Maybe<string>,
+    lastMessageAuthorId: Maybe<string>,
     lastMessageText: Maybe<string>,
     lastMessageSentId: Maybe<string>,
     lastMessageSentOrder: Maybe<number>,
@@ -38,6 +39,7 @@ export class Converter {
         ? conversation.lastMessageSentAt
         : new Date("1970-01-01T00:00:00Z"),
       lastMessageAuthor,
+      lastMessageAuthorId,
       lastMessageText,
       messagesToRead,
       lastMessageReadId,
