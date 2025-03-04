@@ -317,7 +317,7 @@ export class Chat
 
   private static _detectiveMessage: DetectiveMessage
 
-  static readonly SYNCING_TIME = 60000
+  private SYNCING_TIME_MS: number = 60000
 
   private constructor() {
     if (!Chat._config)
@@ -814,20 +814,6 @@ export class Chat
 
       //stores/update the conversations into the local db
 
-      if (this._syncingCounter > 0) {
-        //if this sync is not the first one, we disable the hook for the creation and update of the conversations
-        //because potentially could be detrimental for the performance
-        this._storage.conversation
-          .hook("creating")
-          .unsubscribe(this._hookConversationCreatingFn!)
-        this._storage.conversation
-          .hook("updating")
-          .unsubscribe(this._hookConversationUpdatingFn!)
-
-        this._hookConversationCreated = false
-        this._hookConversationUpdated = false
-      }
-
       if (conversationsItems.length > 0) {
         const conversationsStored = await new Promise<LocalDBConversation[]>(
           (resolve, reject) => {
@@ -1122,20 +1108,6 @@ export class Chat
 
           //let's store the messages without create duplicates
           if (messages.length > 0) {
-            //if this sync is not the first one, we disable the hook for the creation and update of the messages
-            //because potentially could be detrimental for the performance
-            if (this._syncingCounter > 0) {
-              this._storage.message
-                .hook("creating")
-                .unsubscribe(this._hookMessageCreatingFn!)
-              this._storage.message
-                .hook("updating")
-                .unsubscribe(this._hookMessageUpdatingFn!)
-
-              this._hookMessageCreated = false
-              this._hookMessageUpdated = false
-            }
-
             //it's possible this array is empty when the chat history settings has value 'false'
             this._storage.insertBulkSafe(
               "message",
@@ -1248,20 +1220,6 @@ export class Chat
 
           //let's update the messages in the local table
           if (messagesUpdated.length > 0) {
-            //if this sync is not the first one, we disable the hook for the creation and update of the messages
-            //because potentially could be detrimental for the performance
-            if (this._syncingCounter > 0) {
-              this._storage.message
-                .hook("creating")
-                .unsubscribe(this._hookMessageCreatingFn!)
-              this._storage.message
-                .hook("updating")
-                .unsubscribe(this._hookMessageUpdatingFn!)
-
-              this._hookMessageCreated = false
-              this._hookMessageUpdated = false
-            }
-
             //it's possible this array is empty when the chat history settings has value 'false'
             this._storage.insertBulkSafe(
               "message",
@@ -1488,7 +1446,7 @@ export class Chat
     if (this._syncTimeout) clearTimeout(this._syncTimeout)
     this._syncTimeout = setTimeout(async () => {
       await this._sync(this._syncingCounter)
-    }, Chat.SYNCING_TIME)
+    }, this.SYNCING_TIME_MS)
   }
 
   private async _onAddMembersToConversationSync(
@@ -9738,33 +9696,6 @@ export class Chat
 
   disconnect() {
     super.disconnect()
-
-    //disabling all the hooks of Dexie - IndexedDB
-    if (this._hookMessageCreatingFn)
-      this._storage.message
-        .hook("creating")
-        .unsubscribe(this._hookMessageCreatingFn)
-
-    if (this._hookMessageUpdatingFn)
-      this._storage.message
-        .hook("updating")
-        .unsubscribe(this._hookMessageUpdatingFn)
-
-    if (this._hookConversationCreatingFn)
-      this._storage.conversation
-        .hook("creating")
-        .unsubscribe(this._hookConversationCreatingFn)
-
-    if (this._hookConversationUpdatingFn)
-      this._storage.conversation
-        .hook("updating")
-        .unsubscribe(this._hookConversationUpdatingFn)
-
-    this._hookMessageCreated = false
-    this._hookMessageUpdated = false
-    this._hookConversationCreated = false
-    this._hookConversationUpdated = false
-
     this._emit("disconnect")
   }
 
@@ -9853,6 +9784,14 @@ export class Chat
   }
 
   /**
+   * Set the syncing time to the time established by the param.
+   * @param ms - Number of milliseconds for the syncing time
+   */
+  setSyncingTime(ms: number) {
+    this.SYNCING_TIME_MS = ms
+  }
+
+  /**
    * An utility event method that allows the client to track the activity of the Chat object, while it's syncing with the backend.
    * @param {Function} callback - the callback that will run once the Chat object is syncing with the backend
    * @returns none
@@ -9887,6 +9826,31 @@ export class Chat
 
         this._removeSubscriptionsSync()
 
+        //disabling all the hooks of Dexie - IndexedDB
+        if (this._hookMessageCreatingFn)
+          this._storage.message
+            .hook("creating")
+            .unsubscribe(this._hookMessageCreatingFn)
+
+        if (this._hookMessageUpdatingFn)
+          this._storage.message
+            .hook("updating")
+            .unsubscribe(this._hookMessageUpdatingFn)
+
+        if (this._hookConversationCreatingFn)
+          this._storage.conversation
+            .hook("creating")
+            .unsubscribe(this._hookConversationCreatingFn)
+
+        if (this._hookConversationUpdatingFn)
+          this._storage.conversation
+            .hook("updating")
+            .unsubscribe(this._hookConversationUpdatingFn)
+
+        this._hookMessageCreated = false
+        this._hookMessageUpdated = false
+        this._hookConversationCreated = false
+        this._hookConversationUpdated = false
         this._unsubscribeSyncSet = [] //subscription mapping array
         this._conversationsMap = [] //conversations array
         this._keyPairsMap = [] //conversations public/private keys
