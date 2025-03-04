@@ -15,7 +15,7 @@ import { LoopzChatContextValue } from "../../types/react/loopzchatcontextvalue"
 
 export const LoopzChatProvider: FC<
   LoopzProviderChatConfig & { children?: ReactNode }
-> = ({ autoConnect, autoSync, children }) => {
+> = ({ autoConnect, autoSync, syncingTime, children }) => {
   const { instance, initialized } = useLoopz()
   const { isAuthenticated, account } = useLoopzAuth()
   const hasStartedConnection = useRef(false)
@@ -138,6 +138,7 @@ export const LoopzChatProvider: FC<
       })
 
     if (account.signupCompleted) {
+      if (syncingTime) instance.chat.setSyncingTime(syncingTime)
       instance.chat
         .sync()
         .then(() =>
@@ -163,6 +164,7 @@ export const LoopzChatProvider: FC<
       account.on(
         "onSignupCompleted",
         () => {
+          if (syncingTime) instance.chat.setSyncingTime(syncingTime)
           instance.chat
             .sync()
             .then(() =>
@@ -188,7 +190,7 @@ export const LoopzChatProvider: FC<
         true
       )
     }
-  }, [initialized, chatStatus, autoSync, instance, account])
+  }, [initialized, chatStatus, autoSync, syncingTime, instance, account])
 
   useEffect(() => {
     if (!initialized) return
