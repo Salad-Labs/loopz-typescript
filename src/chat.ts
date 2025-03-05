@@ -10086,11 +10086,18 @@ export class Chat
   async searchTermsOnLocalDB(
     query: string,
     options?: Partial<{ conversationId: string }>
-  ): Promise<Array<LocalDBMessage>> {
+  ): Promise<
+    Array<{ conversation: LocalDBConversation; messages: LocalDBMessage[] }>
+  > {
     if (!Auth.account) throw new Error("Account must be initialized.")
 
     try {
-      const searchResult: LocalDBMessage[] = []
+      const searchMessagesResult: LocalDBMessage[] = []
+      const searchConversationsResult: LocalDBConversation[] = []
+      let searchResults: Array<{
+        conversation: LocalDBConversation
+        messages: LocalDBMessage[]
+      }> = []
 
       await this._storage.message
         .filter((message) => {
@@ -10157,10 +10164,45 @@ export class Chat
               }
             : null
 
-          searchResult.push(decryptedMessage)
+          searchMessagesResult.push(decryptedMessage)
         })
 
-      return searchResult
+      await this._storage.conversation
+        .filter((conversation) => {
+          return (
+            conversation.name.includes(query) ||
+            conversation.description.includes(query)
+          )
+        })
+        .each((conversation) => {
+          searchConversationsResult.push(conversation)
+        })
+
+      for (const message of searchMessagesResult) {
+        if (
+          searchConversationsResult.findIndex(
+            (conversation) => conversation.id === message.conversationId
+          ) === -1
+        ) {
+          const conversation = await this._storage.conversation
+            .where("[id+userDid]")
+            .equals([message.conversationId, Auth.account!.did])
+            .first()
+          if (!conversation) continue
+          searchConversationsResult.push(conversation)
+        }
+      }
+
+      searchResults = searchConversationsResult.map((conversation) => {
+        return {
+          conversation,
+          messages: searchMessagesResult.filter(
+            (message) => message.conversationId === conversation.id
+          ),
+        }
+      })
+
+      return searchResults
     } catch (e) {
       throw e
     }
