@@ -10180,7 +10180,12 @@ export class Chat
             deletedAt: message.deletedAt ? new Date(message.deletedAt) : null,
           }
 
-          if (!decryptedMessage.content.includes(query)) return
+          if (
+            !decryptedMessage.content
+              .toLowerCase()
+              .includes(query.toLowerCase())
+          )
+            return
 
           decryptedMessage.messageRoot = message.messageRoot
             ? {
@@ -10214,8 +10219,10 @@ export class Chat
       await this._storage.conversation
         .filter((conversation) => {
           return (
-            (conversation.name.includes(query) ||
-              conversation.description.includes(query)) &&
+            (conversation.name.toLowerCase().includes(query.toLowerCase()) ||
+              conversation.description
+                .toLowerCase()
+                .includes(query.toLowerCase())) &&
             conversation.userDid === Auth.account!.did
           )
         })
