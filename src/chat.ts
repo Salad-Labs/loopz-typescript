@@ -10240,7 +10240,31 @@ export class Chat
 
       searchResults = searchConversationsResult.map((conversation) => {
         return {
-          conversation,
+          conversation: {
+            ...conversation,
+            name: Crypto.decryptAESorFail(
+              conversation.name,
+              this.findKeyPairById(conversation.id)
+            ),
+            description: Crypto.decryptAESorFail(
+              conversation.description,
+              this.findKeyPairById(conversation.id)
+            ),
+            bannerImageURL: Crypto.decryptAESorFail(
+              conversation.bannerImageURL,
+              this.findKeyPairById(conversation.id)
+            ),
+            imageURL: Crypto.decryptAESorFail(
+              conversation.imageURL,
+              this.findKeyPairById(conversation.id)
+            ),
+            lastMessageText: conversation.lastMessageText
+              ? Crypto.decryptAESorFail(
+                  conversation.lastMessageText,
+                  this.findKeyPairById(conversation.id)
+                )
+              : "",
+          },
           messages: searchMessagesResult.filter(
             (message) => message.conversationId === conversation.id
           ),
