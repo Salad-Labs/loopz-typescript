@@ -10107,8 +10107,15 @@ export class Chat
           const isFromUser = message.origin === "USER"
           const isTextual = message.type === "TEXTUAL"
           const isNotDeleted = !message.deletedAt
+          const thisUser = message.userDid === Auth.account!.did
 
-          return isInConversation && isFromUser && isTextual && isNotDeleted
+          return (
+            isInConversation &&
+            isFromUser &&
+            isTextual &&
+            isNotDeleted &&
+            thisUser
+          )
         })
         .each((message) => {
           const conversaitionKeyPair = this.findKeyPairById(
@@ -10170,8 +10177,9 @@ export class Chat
       await this._storage.conversation
         .filter((conversation) => {
           return (
-            conversation.name.includes(query) ||
-            conversation.description.includes(query)
+            (conversation.name.includes(query) ||
+              conversation.description.includes(query)) &&
+            conversation.userDid === Auth.account!.did
           )
         })
         .each((conversation) => {
