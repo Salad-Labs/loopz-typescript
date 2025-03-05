@@ -1859,6 +1859,26 @@ export class Chat
           ),
         ])
 
+        const conversation = await this._storage.get(
+          "conversation",
+          "[id+userDid]",
+          [response.conversationId, Auth.account!.did]
+        )
+
+        if (response.id === conversation.lastMessageSentId) {
+          await new Promise((resolve, reject) => {
+            Serpens.addAction(() => {
+              this._storage.conversation
+                .update(conversation, {
+                  deletedAt: null,
+                  lastMessageText: response.content,
+                })
+                .then(resolve)
+                .catch(reject)
+            })
+          })
+        }
+
         this._emit("messageUpdated", {
           message: response,
           conversationId: response.conversationId,
