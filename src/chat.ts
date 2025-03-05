@@ -10245,6 +10245,16 @@ export class Chat
         }
       }
 
+      searchConversationsResult.sort((a, b) => {
+        const dateA = a.lastMessageSentAt
+          ? new Date(a.lastMessageSentAt).getTime()
+          : 0
+        const dateB = b.lastMessageSentAt
+          ? new Date(b.lastMessageSentAt).getTime()
+          : 0
+        return dateB - dateA
+      })
+
       searchResults = searchConversationsResult.map((conversation) => {
         return {
           conversation: {
