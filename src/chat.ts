@@ -3611,6 +3611,24 @@ export class Chat
       return response
     }
 
+    try {
+      await new Promise((resolve, reject) => {
+        Serpens.addAction(() =>
+          this._storage.conversation
+            .where("[id+userDid]")
+            .equals([id, Auth.account!.did])
+            .modify((conversation: LocalDBConversation) => {
+              conversation.isArchived = true
+            })
+            .then(resolve)
+            .catch(reject)
+        )
+      })
+    } catch (error) {
+      console.log("[ERROR]: impossible update local db -> ")
+      console.log(error)
+    }
+
     return new User({
       ...this._parentConfig!,
       id: response.id,
@@ -3681,6 +3699,25 @@ export class Chat
       }
 
       return response
+    }
+
+    try {
+      for (const id of ids)
+        await new Promise((resolve, reject) => {
+          Serpens.addAction(() =>
+            this._storage.conversation
+              .where("[id+userDid]")
+              .equals([id, Auth.account!.did])
+              .modify((conversation: LocalDBConversation) => {
+                conversation.isArchived = true
+              })
+              .then(resolve)
+              .catch(reject)
+          )
+        })
+    } catch (error) {
+      console.log("[ERROR]: impossible update local db -> ")
+      console.log(error)
     }
 
     return new User({
