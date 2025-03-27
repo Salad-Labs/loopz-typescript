@@ -58,7 +58,7 @@ export class Notification {
     try {
       this._socket = new WebSocket(
         Notification._client.backendNotificationUrl(
-          `?jwt=${Auth.authToken}&organizationId=${Auth.apiKey}`
+          `?jwt=${Auth.authToken}&apiKey=${Auth.apiKey}&mode=loopz`
         )
       )
       this._socketInitialized = true
