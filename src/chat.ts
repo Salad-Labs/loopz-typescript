@@ -100,6 +100,9 @@ import {
   ListMessagesByRangeOrderResult as ListMessagesByRangeOrderGraphQL,
   ListMessagesUpdatedResult as ListMessagesUpdatedGraphQL,
   QueryListMessagesUpdatedArgs,
+  JoinConversationInput as JoinConversationInputArgs,
+  JoinConversationResult as JoinConversationResultGraphQL,
+  CreateConversationInput as CreateConversationInputArgs,
 } from "./graphql/generated/graphql"
 import {
   addBlockedUser,
@@ -120,6 +123,7 @@ import {
   editMessage,
   ejectMember,
   eraseConversationByAdmin,
+  joinConversation,
   leaveConversation,
   muteConversation,
   removeBlockedUser,
@@ -201,6 +205,9 @@ import {
   onUpdateRequestTrade,
   onAddMembersToConversation,
   onBatchDeleteMessages,
+  onChatMemberEvents,
+  onChatMessageEvents,
+  onChatJoinEvents,
 } from "./constants/chat/subscriptions"
 import { OperationResult } from "@urql/core"
 import { SubscriptionGarbage } from "./types/chat/subscriptiongarbage"
@@ -322,6 +329,13 @@ export class Chat
 
   private SYNCING_TIME_MS: number = 60000
 
+  private _currentPublicConversation: Maybe<{
+    conversationId: string
+    joinedAt: Date
+  }> = null
+
+  private static STORAGE_KEY = "loopz:current_public_conversation"
+
   private constructor() {
     if (!Chat._config)
       throw new Error("Chat must be configured before getting the instance")
@@ -335,6 +349,8 @@ export class Chat
     }
 
     this._defineHookFnLocalDB()
+    this._syncPublicConversationState()
+    this._setupStorageEventListener()
 
     Chat._instance = this
   }
@@ -479,6 +495,76 @@ export class Chat
   }
 
   /** private instance methods */
+
+  /**
+   * Internal method to set the current public conversation
+   * @param {string} conversationId
+   */
+  private _setCurrentPublicConversation(conversationId: string): void {
+    this._currentPublicConversation = {
+      conversationId,
+      joinedAt: new Date(),
+    }
+  }
+
+  /**
+   * Synchronize the public conversation state across windows
+   */
+  private _syncPublicConversationState() {
+    const storedConversation = localStorage.getItem(Chat.STORAGE_KEY)
+
+    if (storedConversation) {
+      const parsedConversation = JSON.parse(storedConversation)
+
+      // Check if the conversation has expired (e.g., after 24 hours)
+      const joinedAt = new Date(parsedConversation.joinedAt)
+      const now = new Date()
+      const hoursSinceJoin =
+        (now.getTime() - joinedAt.getTime()) / (1000 * 60 * 60)
+
+      if (hoursSinceJoin > 24) {
+        // Conversation expired, remove it
+        localStorage.removeItem(Chat.STORAGE_KEY)
+        this._currentPublicConversation = null
+      } else {
+        // Update the current state
+        this._currentPublicConversation = parsedConversation
+      }
+    } else {
+      this._currentPublicConversation = null
+    }
+  }
+
+  /**
+   * Updates the public conversation state in localStorage
+   */
+  private _updatePublicConversationStorage(conversationId?: string) {
+    if (conversationId) {
+      // Save the new conversation
+      localStorage.setItem(
+        Chat.STORAGE_KEY,
+        JSON.stringify({
+          conversationId,
+          joinedAt: new Date().toISOString(),
+        })
+      )
+    } else {
+      // Remove the current conversation
+      localStorage.removeItem(Chat.STORAGE_KEY)
+    }
+  }
+
+  /**
+   * Adds a listener for cross-window storage events
+   */
+  private _setupStorageEventListener() {
+    window.addEventListener("storage", (event) => {
+      if (event.key === Chat.STORAGE_KEY) {
+        // Another window has changed the conversation state
+        this._syncPublicConversationState()
+      }
+    })
+  }
 
   private _defineHookFnLocalDB() {
     this._hookMessageCreatingFn = (primaryKey, record) => {
@@ -3356,6 +3442,88 @@ export class Chat
   /** public instance methods */
 
   /** Mutations */
+  /**
+   * Let user to join a conversation
+   * @param {object} [args] - The arguments to join the conversation.
+   * @returns {Promise<Conversation | QIError>} A promise that resolves to a Conversation object if successful, or a QIError object if there was an error.
+   */
+  async joinConversation(
+    args: {
+      conversationId: string
+      encryptedConversationAESKey: string
+      encryptedConversationIVKey: string
+    },
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | Conversation> {
+    this._syncPublicConversationState()
+
+    // First, check if the user is already in the conversation
+    // If already in a public conversation, throw an error
+    if (this.isInPublicConversation()) {
+      throw new Error(
+        "Already in a public conversation. Leave the current one first."
+      )
+    }
+
+    try {
+      const membershipCheck =
+        await this.listConversationMembersByConversationId(args.conversationId)
+
+      if (membershipCheck instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(membershipCheck)
+          if (error) await Auth.fetchAuthToken()
+        }
+        return membershipCheck
+      }
+
+      const isAlreadyMember = membershipCheck.some(
+        (member) => member.userId === Auth.account!.dynamoDBUserID
+      )
+
+      if (isAlreadyMember) {
+        // Retrieve and return the conversation
+        const conversationResponse = await this.getConversationById(
+          args.conversationId
+        )
+        return conversationResponse
+      }
+
+      // Perform the actual join mutation
+      const response = await this._mutation<
+        { input: JoinConversationInputArgs },
+        { joinConversation: JoinConversationResultGraphQL },
+        JoinConversationResultGraphQL
+      >(
+        "joinConversation",
+        joinConversation,
+        "_mutation() -> joinConversation()",
+        {
+          input: {
+            conversationId: args.conversationId,
+            encryptedConversationAESKey: args.encryptedConversationAESKey,
+            encryptedConversationIVKey: args.encryptedConversationIVKey,
+          },
+        }
+      )
+
+      if (response instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(response)
+          if (error) await Auth.fetchAuthToken()
+        }
+        return response
+      }
+
+      this._setCurrentPublicConversation(args.conversationId)
+      this._updatePublicConversationStorage(args.conversationId)
+
+      return this._makeConversation(response.conversation)
+    } catch (error) {
+      console.error("Error joining conversation:", error)
+      throw error
+    }
+  }
 
   /**
    * Blocks a user by their ID.
@@ -5348,6 +5516,216 @@ export class Chat
    * Subscriptions
    */
 
+  onChatMessageEvents(
+    conversationId: string,
+    callback: (
+      response: Message | QIError,
+      source: OperationResult<
+        {
+          onChatMessageEvents: MessageGraphQL
+        },
+        { jwt: string }
+      >,
+      uuid: string
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): QIError | SubscriptionGarbage {
+    const key = "onChatMessageEvents"
+    const metasubscription = this._subscription<
+      { conversationId: string },
+      { onChatMessageEvents: MessageGraphQL }
+    >(onChatMessageEvents, key, { conversationId })
+
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
+    const { unsubscribe } = subscribe((result) => {
+      const r = this._handleResponse<
+        typeof key,
+        { onChatMessageEvents: MessageGraphQL },
+        MessageGraphQL
+      >("onChatMessageEvents", result)
+
+      if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
+        callback(r, result, uuid)
+        return
+      }
+
+      callback(this._makeMessage(r), result, uuid)
+    })
+
+    return { unsubscribe, uuid }
+  }
+  onChatMemberEvents(
+    conversationId: string,
+    callback: (
+      response:
+        | QIError
+        | {
+            conversationId: string
+            conversation: Conversation
+            memberOut: User
+          },
+      source: OperationResult<
+        {
+          onChatMemberEvents: MemberOutResultGraphQL
+        },
+        { jwt: string }
+      >,
+      uuid: string
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): QIError | SubscriptionGarbage {
+    const key = "onChatMemberEvents"
+    const metasubscription = this._subscription<
+      { conversationId: string },
+      { onChatMemberEvents: MemberOutResultGraphQL }
+    >(onChatMemberEvents, key, { conversationId })
+
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
+    const { unsubscribe } = subscribe((result) => {
+      const r = this._handleResponse<
+        typeof key,
+        { onChatMemberEvents: MemberOutResultGraphQL },
+        MemberOutResultGraphQL
+      >("onChatMemberEvents", result)
+
+      if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
+        callback(r, result, uuid)
+        return
+      }
+
+      callback(
+        {
+          conversationId: r.conversationId,
+          conversation: this._makeConversation(r.conversation),
+          memberOut: this._makeUser(r.memberOut),
+        },
+        result,
+        uuid
+      )
+    })
+
+    return { unsubscribe, uuid }
+  }
+
+  onChatJoinEvents(
+    conversationId: string,
+    callback: (
+      response:
+        | QIError
+        | {
+            conversationId: string
+            conversation: Conversation
+            member: User
+          },
+      source: OperationResult<
+        {
+          onChatJoinEvents: JoinConversationResultGraphQL
+        },
+        { jwt: string }
+      >,
+      uuid: string
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): QIError | SubscriptionGarbage {
+    const key = "onChatJoinEvents"
+    const metasubscription = this._subscription<
+      { conversationId: string },
+      { onChatJoinEvents: JoinConversationResultGraphQL }
+    >(onChatJoinEvents, key, { conversationId })
+
+    if (metasubscription instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(metasubscription)
+        if (error) {
+          ;(async () => {
+            await Auth.fetchAuthToken()
+          })()
+        }
+      }
+
+      return metasubscription
+    }
+
+    const { subscribe, uuid } = metasubscription
+    const { unsubscribe } = subscribe((result) => {
+      const r = this._handleResponse<
+        typeof key,
+        { onChatJoinEvents: JoinConversationResultGraphQL },
+        JoinConversationResultGraphQL
+      >("onChatJoinEvents", result)
+
+      if (r instanceof QIError) {
+        if (!overrideHandlingUnauthorizedQIError) {
+          const error = this._handleUnauthorizedQIError(r)
+          if (error) {
+            ;(async () => {
+              await Auth.fetchAuthToken()
+            })()
+          }
+        }
+
+        callback(r, result, uuid)
+        return
+      }
+
+      callback(
+        {
+          conversationId: r.conversationId,
+          conversation: this._makeConversation(r.conversation),
+          member: this._makeUser(r.member),
+        },
+        result,
+        uuid
+      )
+    })
+
+    return { unsubscribe, uuid }
+  }
+
   onSendMessage(
     callback: (
       response: Message | QIError,
@@ -6684,6 +7062,111 @@ export class Chat
     return conversation
   }
 
+  async createPublicConversation(
+    args: CreateConversationOneToOneArgs & {
+      conversationKeys: {
+        conversationAESKey: string
+        conversationIVKey: string
+      }
+    },
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<QIError | { conversationId: string; conversation: Conversation }> {
+    if (!Auth.account)
+      throw new Error("You must be logged in to create a public conversation.")
+
+    const response = await this._mutation<
+      { input: CreateConversationInputArgs },
+      { createConversationOneToOne: ConversationGraphQL },
+      ConversationGraphQL
+    >(
+      "createConversationOneToOne",
+      createConversationOneToOne,
+      "_mutation() -> createPublicConversation()",
+      {
+        input: {
+          name: Crypto.encryptAES_CBC(
+            args.name,
+            args.conversationKeys.conversationAESKey,
+            args.conversationKeys.conversationIVKey
+          ),
+          description: Crypto.encryptAES_CBC(
+            args.description ?? "",
+            args.conversationKeys.conversationAESKey,
+            args.conversationKeys.conversationIVKey
+          ),
+          imageURL: args.imageURL
+            ? Crypto.encryptAES_CBC(
+                args.imageURL,
+                args.conversationKeys.conversationAESKey,
+                args.conversationKeys.conversationIVKey
+              )
+            : "",
+          bannerImageURL: args.bannerImageURL
+            ? Crypto.encryptAES_CBC(
+                args.bannerImageURL,
+                args.conversationKeys.conversationAESKey,
+                args.conversationKeys.conversationIVKey
+              )
+            : "",
+          imageSettings: JSON.stringify(args.imageSettings ?? {}),
+          conversationKeys: {
+            conversationAESKey: args.conversationKeys.conversationAESKey,
+            conversationIVKey: args.conversationKeys.conversationIVKey,
+          },
+        },
+      }
+    )
+
+    if (response instanceof QIError) {
+      if (!overrideHandlingUnauthorizedQIError) {
+        const error = this._handleUnauthorizedQIError(response)
+        if (error) await Auth.fetchAuthToken()
+      }
+
+      return response
+    }
+
+    // Automatically join the conversation for the creator
+    const joinResponse = await this.joinConversation({
+      conversationId: response.id,
+      encryptedConversationAESKey: Crypto.encryptStringOrFail(
+        this.getUserKeyPair()!.publicKey,
+        args.conversationKeys.conversationAESKey
+      ),
+      encryptedConversationIVKey: Crypto.encryptStringOrFail(
+        this.getUserKeyPair()!.publicKey,
+        args.conversationKeys.conversationIVKey
+      ),
+    })
+
+    return {
+      conversationId: response.id,
+      conversation: this._makeConversation(response),
+    }
+  }
+
+  /**
+   * Leave the current public conversation
+   * @returns {Promise<void>}
+   */
+  async leaveCurrentPublicConversation(): Promise<void> {
+    if (!this._currentPublicConversation) return
+
+    try {
+      // Attempt to leave the conversation
+      await this.leaveConversation(
+        this._currentPublicConversation.conversationId
+      )
+
+      // Reset the current public conversation
+      this._currentPublicConversation = null
+      this._updatePublicConversationStorage()
+    } catch (error) {
+      console.error("Error leaving public conversation:", error)
+      throw error
+    }
+  }
+
   /** Chat events methods */
 
   /**
@@ -6944,6 +7427,24 @@ export class Chat
    */
   isSyncing(): boolean {
     return this._isSyncing
+  }
+
+  /**
+   * Check if user is already participating in a public conversation
+   * @returns {boolean} Whether user is in a public conversation
+   */
+  isInPublicConversation(): boolean {
+    this._syncPublicConversationState()
+    return !!this._currentPublicConversation
+  }
+
+  /**
+   * Get the current public conversation ID
+   * @returns {Maybe<string>} Current public conversation ID or null
+   */
+  getCurrentPublicConversationId(): Maybe<string> {
+    this._syncPublicConversationState()
+    return this._currentPublicConversation?.conversationId ?? null
   }
 
   /** read local database */

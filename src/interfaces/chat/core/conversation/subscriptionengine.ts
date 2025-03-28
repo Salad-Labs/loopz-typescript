@@ -4,12 +4,15 @@ import {
   ConversationMember,
   QIError,
   User,
+  Message,
 } from "../../../../core/chat"
 import { SubscriptionGarbage } from "../../../../types/chat/subscriptiongarbage"
 import {
   Conversation as ConversationGraphQL,
   ListConversationMembers as ListConversationMembersGraphQL,
   MemberOutResult as MemberOutResultGraphQL,
+  JoinConversationResult as JoinConversationResultGraphQL,
+  Message as MessageGraphQL,
 } from "../../../../graphql/generated/graphql"
 
 /**
@@ -117,6 +120,54 @@ export interface ConversationSubscriptionEngine {
           },
       source: OperationResult<
         { onAddMembersToConversation: ListConversationMembersGraphQL },
+        { jwt: string }
+      >,
+      uuid: string
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): QIError | SubscriptionGarbage
+  onChatMessageEvents(
+    conversationId: string,
+    callback: (
+      response: Message | QIError,
+      source: OperationResult<
+        { onChatMessageEvents: MessageGraphQL },
+        { jwt: string }
+      >,
+      uuid: string
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): QIError | SubscriptionGarbage
+  onChatMemberEvents(
+    conversationId: string,
+    callback: (
+      response:
+        | QIError
+        | {
+            conversationId: string
+            conversation: Conversation
+            memberOut: User
+          },
+      source: OperationResult<
+        { onChatMemberEvents: MemberOutResultGraphQL },
+        { jwt: string }
+      >,
+      uuid: string
+    ) => void,
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): QIError | SubscriptionGarbage
+  onChatJoinEvents(
+    conversationId: string,
+    callback: (
+      response:
+        | QIError
+        | {
+            conversationId: string
+            conversation: Conversation
+            member: User
+          },
+      source: OperationResult<
+        { onChatJoinEvents: JoinConversationResultGraphQL },
         { jwt: string }
       >,
       uuid: string
