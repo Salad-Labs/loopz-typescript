@@ -23,6 +23,9 @@ import {
   MutationRemoveReactionFromMessageArgs,
   MutationAddImportantToMessageArgs,
   MutationRemoveImportantFromMessageArgs,
+  Conversation as ConversationGraphQL,
+  Reaction as ReactionGraphQL,
+  User as UserGraphQL,
 } from "../../graphql/generated/graphql"
 import { MessageMutationEngine } from "../../interfaces/chat/core/message"
 import { EngineInitConfig, MessageInitConfig } from "../../types"
@@ -151,6 +154,191 @@ export class Message
     this.chatParent = config.chatParent
   }
 
+  private _makeConversation(conversation: ConversationGraphQL) {
+    return new Conversation({
+      ...this._parentConfig!,
+      id: conversation.id,
+      name: conversation.name,
+      description: conversation.description ? conversation.description : null,
+      imageURL: conversation.imageURL ? conversation.imageURL : null,
+      bannerImageURL: conversation.bannerImageURL
+        ? conversation.bannerImageURL
+        : null,
+      imageSettings: conversation.imageSettings
+        ? conversation.imageSettings
+        : null,
+      settings: conversation.settings ? conversation.settings : null,
+      membersIds: conversation.membersIds ? conversation.membersIds : null,
+      mutedBy: conversation.mutedBy ? conversation.mutedBy : null,
+      type: conversation.type,
+      lastMessageSentAt: conversation.lastMessageSentAt
+        ? conversation.lastMessageSentAt
+        : null,
+      ownerId: conversation.ownerId ? conversation.ownerId : null,
+      publicConversationAESKey: conversation.publicConversationAESKey
+        ? conversation.publicConversationAESKey
+        : null,
+      publicConversationIVKey: conversation.publicConversationIVKey
+        ? conversation.publicConversationIVKey
+        : null,
+      createdAt: conversation.createdAt,
+      updatedAt: conversation.updatedAt ? conversation.updatedAt : null,
+      deletedAt: conversation.deletedAt ? conversation.deletedAt : null,
+      client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
+    })
+  }
+
+  private _makeUser(user: UserGraphQL) {
+    return new User({
+      ...this._parentConfig!,
+      id: user.id,
+      username: user.username ? user.username : null,
+      did: user.did,
+      address: user.address,
+      email: user.email ? user.email : null,
+      bio: user.bio ? user.bio : null,
+      avatarUrl: user.avatarUrl ? new URL(user.avatarUrl) : null,
+      imageSettings: user.imageSettings ? user.imageSettings : null,
+      isVerified: user.isVerified ? user.isVerified : false,
+      isPfpNft: user.isPfpNft ? user.isPfpNft : false,
+      blacklistIds: user.blacklistIds ? user.blacklistIds : null,
+      allowNotification: user.allowNotification
+        ? user.allowNotification
+        : false,
+      allowNotificationSound: user.allowNotificationSound
+        ? user.allowNotificationSound
+        : false,
+      visibility: user.visibility ? user.visibility : false,
+      archivedConversations: user.archivedConversations
+        ? user.archivedConversations
+        : null,
+      onlineStatus: user.onlineStatus ? user.onlineStatus : null,
+      allowReadReceipt: user.allowReadReceipt ? user.allowReadReceipt : false,
+      allowReceiveMessageFrom: user.allowReceiveMessageFrom
+        ? user.allowReceiveMessageFrom
+        : null,
+      allowAddToGroupsFrom: user.allowAddToGroupsFrom
+        ? user.allowAddToGroupsFrom
+        : null,
+      allowGroupsSuggestion: user.allowGroupsSuggestion
+        ? user.allowGroupsSuggestion
+        : false,
+      e2ePublicKey: user.e2ePublicKey ? user.e2ePublicKey : null,
+      e2eSecret: user.e2eSecret ? user.e2eSecret : null,
+      e2eSecretIV: user.e2eSecretIV ? user.e2eSecretIV : null,
+      createdAt: new Date(user.createdAt),
+      updatedAt: user.updatedAt ? new Date(user.updatedAt) : null,
+      client: this._client!,
+      realtimeClient: this._realtimeClient!,
+    })
+  }
+
+  private _makeReaction(reaction: ReactionGraphQL) {
+    return new Reaction({
+      ...this._parentConfig!,
+      userId: reaction.userId,
+      content: reaction.content,
+      createdAt: reaction.createdAt,
+      client: this._client!,
+      realtimeClient: this._realtimeClient!,
+    })
+  }
+
+  private _makeMessage(message: MessageGraphQL) {
+    return new Message({
+      ...this._parentConfig!,
+      id: message.id,
+      content: message.content,
+      conversationId: message.conversationId,
+      reactions: message.reactions
+        ? message.reactions.map((reaction) => {
+            return this._makeReaction(reaction)
+          })
+        : null,
+      userId: message.userId,
+      messageRoot: message.messageRoot
+        ? new Message({
+            ...this._parentConfig!,
+            id: message.messageRoot.id,
+            content: message.messageRoot.content,
+            conversationId: message.messageRoot.conversationId,
+            reactions: message.messageRoot.reactions
+              ? message.messageRoot.reactions.map((reaction) => {
+                  return this._makeReaction(reaction)
+                })
+              : null,
+            userId: message.messageRoot.userId,
+            messageRoot: null,
+            messageRootId: null,
+            type: message.messageRoot.type
+              ? (message.messageRoot.type as
+                  | "TEXTUAL"
+                  | "ATTACHMENT"
+                  | "TRADE_PROPOSAL"
+                  | "RENT")
+              : null,
+            user: {
+              id: message.messageRoot.user!.id,
+              username: message.messageRoot.user!.username
+                ? message.messageRoot.user!.username
+                : "",
+              avatarURL: message.messageRoot.user!.avatarUrl
+                ? message.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: message.messageRoot.user!.imageSettings
+                ? JSON.parse(message.messageRoot.user!.imageSettings)
+                : null,
+            },
+            order: message.messageRoot.order,
+            createdAt: message.messageRoot.createdAt,
+            updatedAt: message.messageRoot.updatedAt
+              ? message.messageRoot.updatedAt
+              : null,
+            deletedAt: message.messageRoot.deletedAt
+              ? message.messageRoot.deletedAt
+              : null,
+            client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this.chatParent,
+          })
+        : null,
+      messageRootId: message.messageRootId ? message.messageRootId : null,
+      type: message.type
+        ? (message.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
+        : null,
+      user: {
+        id: message.user!.id,
+        username: message.user!.username ? message.user!.username : "",
+        avatarURL: message.user!.avatarUrl ? message.user!.avatarUrl : "",
+        imageSettings: message.user!.imageSettings
+          ? JSON.parse(message.user!.imageSettings)
+          : null,
+      },
+      order: message.order,
+      createdAt: message.createdAt,
+      updatedAt: message.updatedAt ? message.updatedAt : null,
+      deletedAt: message.deletedAt ? message.deletedAt : null,
+      client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
+    })
+  }
+
+  private _makeMessageReport(messageReport: MessageReportGraphQL) {
+    return new MessageReport({
+      ...this._parentConfig!,
+      id: messageReport.id,
+      description: messageReport.description,
+      userId: messageReport.userId ? messageReport.userId : null,
+      createdAt: messageReport.createdAt,
+      updatedAt: messageReport.updatedAt,
+      client: this._client!,
+      realtimeClient: this._realtimeClient!,
+    })
+  }
+
   /**
    * Asynchronously pins this message to the conversation.
    * If id is provided, it throws an error.
@@ -189,101 +377,7 @@ export class Message
       return response
     }
 
-    return new Message({
-      ...this._parentConfig!,
-      id: response.id,
-      content: response.content,
-      conversationId: response.conversationId,
-      reactions: response.reactions
-        ? response.reactions.map((reaction) => {
-            return new Reaction({
-              ...this._parentConfig!,
-              userId: reaction.userId,
-              content: reaction.content,
-              createdAt: reaction.createdAt,
-              client: this._client!,
-              realtimeClient: this._realtimeClient!,
-            })
-          })
-        : null,
-      userId: response.userId,
-      messageRoot: response.messageRoot
-        ? new Message({
-            ...this._parentConfig!,
-            id: response.messageRoot.id,
-            content: response.messageRoot.content,
-            conversationId: response.messageRoot.conversationId,
-            reactions: response.messageRoot.reactions
-              ? response.messageRoot.reactions.map((reaction) => {
-                  return new Reaction({
-                    ...this._parentConfig!,
-                    userId: reaction.userId,
-                    content: reaction.content,
-                    createdAt: reaction.createdAt,
-                    client: this._client!,
-                    realtimeClient: this._realtimeClient!,
-                  })
-                })
-              : null,
-            userId: response.messageRoot.userId,
-            messageRoot: null,
-            messageRootId: null,
-            type: response.messageRoot.type
-              ? (response.messageRoot.type as
-                  | "TEXTUAL"
-                  | "ATTACHMENT"
-                  | "TRADE_PROPOSAL"
-                  | "RENT")
-              : null,
-            user: {
-              id: response.messageRoot.user!.id,
-              username: response.messageRoot.user!.username
-                ? response.messageRoot.user!.username
-                : "",
-              avatarURL: response.messageRoot.user!.avatarUrl
-                ? response.messageRoot.user!.avatarUrl
-                : "",
-              imageSettings: response.messageRoot.user!.imageSettings
-                ? JSON.parse(response.messageRoot.user!.imageSettings)
-                : null,
-            },
-            order: response.messageRoot.order,
-            createdAt: response.messageRoot.createdAt,
-            updatedAt: response.messageRoot.updatedAt
-              ? response.messageRoot.updatedAt
-              : null,
-            deletedAt: response.messageRoot.deletedAt
-              ? response.messageRoot.deletedAt
-              : null,
-            client: this._client!,
-            realtimeClient: this._realtimeClient!,
-            chatParent: this.chatParent,
-          })
-        : null,
-      messageRootId: response.messageRootId ? response.messageRootId : null,
-      type: response.type
-        ? (response.type as
-            | "TEXTUAL"
-            | "ATTACHMENT"
-            | "TRADE_PROPOSAL"
-            | "RENT")
-        : null,
-      user: {
-        id: response.user!.id,
-        username: response.user!.username ? response.user!.username : "",
-        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
-        imageSettings: response.user!.imageSettings
-          ? JSON.parse(response.user!.imageSettings)
-          : null,
-      },
-      order: response.order,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt ? response.updatedAt : null,
-      deletedAt: response.deletedAt ? response.deletedAt : null,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-      chatParent: this.chatParent,
-    })
+    return this._makeMessage(response)
   }
 
   /**
@@ -324,101 +418,7 @@ export class Message
       return response
     }
 
-    return new Message({
-      ...this._parentConfig!,
-      id: response.id,
-      content: response.content,
-      conversationId: response.conversationId,
-      reactions: response.reactions
-        ? response.reactions.map((reaction) => {
-            return new Reaction({
-              ...this._parentConfig!,
-              userId: reaction.userId,
-              content: reaction.content,
-              createdAt: reaction.createdAt,
-              client: this._client!,
-              realtimeClient: this._realtimeClient!,
-            })
-          })
-        : null,
-      userId: response.userId,
-      messageRoot: response.messageRoot
-        ? new Message({
-            ...this._parentConfig!,
-            id: response.messageRoot.id,
-            content: response.messageRoot.content,
-            conversationId: response.messageRoot.conversationId,
-            reactions: response.messageRoot.reactions
-              ? response.messageRoot.reactions.map((reaction) => {
-                  return new Reaction({
-                    ...this._parentConfig!,
-                    userId: reaction.userId,
-                    content: reaction.content,
-                    createdAt: reaction.createdAt,
-                    client: this._client!,
-                    realtimeClient: this._realtimeClient!,
-                  })
-                })
-              : null,
-            userId: response.messageRoot.userId,
-            messageRoot: null,
-            messageRootId: null,
-            type: response.messageRoot.type
-              ? (response.messageRoot.type as
-                  | "TEXTUAL"
-                  | "ATTACHMENT"
-                  | "TRADE_PROPOSAL"
-                  | "RENT")
-              : null,
-            user: {
-              id: response.messageRoot.user!.id,
-              username: response.messageRoot.user!.username
-                ? response.messageRoot.user!.username
-                : "",
-              avatarURL: response.messageRoot.user!.avatarUrl
-                ? response.messageRoot.user!.avatarUrl
-                : "",
-              imageSettings: response.messageRoot.user!.imageSettings
-                ? JSON.parse(response.messageRoot.user!.imageSettings)
-                : null,
-            },
-            order: response.messageRoot.order,
-            createdAt: response.messageRoot.createdAt,
-            updatedAt: response.messageRoot.updatedAt
-              ? response.messageRoot.updatedAt
-              : null,
-            deletedAt: response.messageRoot.deletedAt
-              ? response.messageRoot.deletedAt
-              : null,
-            client: this._client!,
-            realtimeClient: this._realtimeClient!,
-            chatParent: this.chatParent,
-          })
-        : null,
-      messageRootId: response.messageRootId ? response.messageRootId : null,
-      type: response.type
-        ? (response.type as
-            | "TEXTUAL"
-            | "ATTACHMENT"
-            | "TRADE_PROPOSAL"
-            | "RENT")
-        : null,
-      user: {
-        id: response.user!.id,
-        username: response.user!.username ? response.user!.username : "",
-        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
-        imageSettings: response.user!.imageSettings
-          ? JSON.parse(response.user!.imageSettings)
-          : null,
-      },
-      order: response.order,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt ? response.updatedAt : null,
-      deletedAt: response.deletedAt ? response.deletedAt : null,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-      chatParent: this.chatParent,
-    })
+    return this._makeMessage(response)
   }
 
   /**
@@ -455,16 +455,7 @@ export class Message
       return response
     }
 
-    return new MessageReport({
-      ...this._parentConfig!,
-      id: response.id,
-      description: response.description,
-      userId: response.userId ? response.userId : null,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-    })
+    return this._makeMessageReport(response)
   }
 
   /**
@@ -500,101 +491,7 @@ export class Message
       return response
     }
 
-    return new Message({
-      ...this._parentConfig!,
-      id: response.id,
-      content: response.content,
-      conversationId: response.conversationId,
-      reactions: response.reactions
-        ? response.reactions.map((reaction) => {
-            return new Reaction({
-              ...this._parentConfig!,
-              userId: reaction.userId,
-              content: reaction.content,
-              createdAt: reaction.createdAt,
-              client: this._client!,
-              realtimeClient: this._realtimeClient!,
-            })
-          })
-        : null,
-      userId: response.userId,
-      messageRoot: response.messageRoot
-        ? new Message({
-            ...this._parentConfig!,
-            id: response.messageRoot.id,
-            content: response.messageRoot.content,
-            conversationId: response.messageRoot.conversationId,
-            reactions: response.messageRoot.reactions
-              ? response.messageRoot.reactions.map((reaction) => {
-                  return new Reaction({
-                    ...this._parentConfig!,
-                    userId: reaction.userId,
-                    content: reaction.content,
-                    createdAt: reaction.createdAt,
-                    client: this._client!,
-                    realtimeClient: this._realtimeClient!,
-                  })
-                })
-              : null,
-            userId: response.messageRoot.userId,
-            messageRoot: null,
-            messageRootId: null,
-            type: response.messageRoot.type
-              ? (response.messageRoot.type as
-                  | "TEXTUAL"
-                  | "ATTACHMENT"
-                  | "TRADE_PROPOSAL"
-                  | "RENT")
-              : null,
-            user: {
-              id: response.messageRoot.user!.id,
-              username: response.messageRoot.user!.username
-                ? response.messageRoot.user!.username
-                : "",
-              avatarURL: response.messageRoot.user!.avatarUrl
-                ? response.messageRoot.user!.avatarUrl
-                : "",
-              imageSettings: response.messageRoot.user!.imageSettings
-                ? JSON.parse(response.messageRoot.user!.imageSettings)
-                : null,
-            },
-            order: response.messageRoot.order,
-            createdAt: response.messageRoot.createdAt,
-            updatedAt: response.messageRoot.updatedAt
-              ? response.messageRoot.updatedAt
-              : null,
-            deletedAt: response.messageRoot.deletedAt
-              ? response.messageRoot.deletedAt
-              : null,
-            client: this._client!,
-            realtimeClient: this._realtimeClient!,
-            chatParent: this.chatParent,
-          })
-        : null,
-      messageRootId: response.messageRootId ? response.messageRootId : null,
-      type: response.type
-        ? (response.type as
-            | "TEXTUAL"
-            | "ATTACHMENT"
-            | "TRADE_PROPOSAL"
-            | "RENT")
-        : null,
-      user: {
-        id: response.user!.id,
-        username: response.user!.username ? response.user!.username : "",
-        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
-        imageSettings: response.user!.imageSettings
-          ? JSON.parse(response.user!.imageSettings)
-          : null,
-      },
-      order: response.order,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt ? response.updatedAt : null,
-      deletedAt: response.deletedAt ? response.deletedAt : null,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-      chatParent: this.chatParent,
-    })
+    return this._makeMessage(response)
   }
 
   /**
@@ -640,101 +537,7 @@ export class Message
       return response
     }
 
-    return new Message({
-      ...this._parentConfig!,
-      id: response.id,
-      content: response.content,
-      conversationId: response.conversationId,
-      reactions: response.reactions
-        ? response.reactions.map((reaction) => {
-            return new Reaction({
-              ...this._parentConfig!,
-              userId: reaction.userId,
-              content: reaction.content,
-              createdAt: reaction.createdAt,
-              client: this._client!,
-              realtimeClient: this._realtimeClient!,
-            })
-          })
-        : null,
-      userId: response.userId,
-      messageRoot: response.messageRoot
-        ? new Message({
-            ...this._parentConfig!,
-            id: response.messageRoot.id,
-            content: response.messageRoot.content,
-            conversationId: response.messageRoot.conversationId,
-            reactions: response.messageRoot.reactions
-              ? response.messageRoot.reactions.map((reaction) => {
-                  return new Reaction({
-                    ...this._parentConfig!,
-                    userId: reaction.userId,
-                    content: reaction.content,
-                    createdAt: reaction.createdAt,
-                    client: this._client!,
-                    realtimeClient: this._realtimeClient!,
-                  })
-                })
-              : null,
-            userId: response.messageRoot.userId,
-            user: {
-              id: response.messageRoot.user!.id,
-              username: response.messageRoot.user!.username
-                ? response.messageRoot.user!.username
-                : "",
-              avatarURL: response.messageRoot.user!.avatarUrl
-                ? response.messageRoot.user!.avatarUrl
-                : "",
-              imageSettings: response.user!.imageSettings
-                ? JSON.parse(response.user!.imageSettings)
-                : null,
-            },
-            messageRoot: null,
-            messageRootId: null,
-            type: response.messageRoot.type
-              ? (response.messageRoot.type as
-                  | "TEXTUAL"
-                  | "ATTACHMENT"
-                  | "TRADE_PROPOSAL"
-                  | "RENT")
-              : null,
-            order: response.messageRoot.order,
-            createdAt: response.messageRoot.createdAt,
-            updatedAt: response.messageRoot.updatedAt
-              ? response.messageRoot.updatedAt
-              : null,
-            deletedAt: response.messageRoot.deletedAt
-              ? response.messageRoot.deletedAt
-              : null,
-            client: this._client!,
-            realtimeClient: this._realtimeClient!,
-            chatParent: this.chatParent,
-          })
-        : null,
-      messageRootId: response.messageRootId ? response.messageRootId : null,
-      type: response.type
-        ? (response.type as
-            | "TEXTUAL"
-            | "ATTACHMENT"
-            | "TRADE_PROPOSAL"
-            | "RENT")
-        : null,
-      user: {
-        id: response.user!.id,
-        username: response.user!.username ? response.user!.username : "",
-        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
-        imageSettings: response.user!.imageSettings
-          ? JSON.parse(response.user!.imageSettings)
-          : null,
-      },
-      order: response.order,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt ? response.updatedAt : null,
-      deletedAt: response.deletedAt ? response.deletedAt : null,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-      chatParent: this.chatParent,
-    })
+    return this._makeMessage(response)
   }
 
   /**
@@ -775,101 +578,7 @@ export class Message
       return response
     }
 
-    return new Message({
-      ...this._parentConfig!,
-      id: response.id,
-      content: response.content,
-      conversationId: response.conversationId,
-      reactions: response.reactions
-        ? response.reactions.map((reaction) => {
-            return new Reaction({
-              ...this._parentConfig!,
-              userId: reaction.userId,
-              content: reaction.content,
-              createdAt: reaction.createdAt,
-              client: this._client!,
-              realtimeClient: this._realtimeClient!,
-            })
-          })
-        : null,
-      userId: response.userId,
-      messageRoot: response.messageRoot
-        ? new Message({
-            ...this._parentConfig!,
-            id: response.messageRoot.id,
-            content: response.messageRoot.content,
-            conversationId: response.messageRoot.conversationId,
-            reactions: response.messageRoot.reactions
-              ? response.messageRoot.reactions.map((reaction) => {
-                  return new Reaction({
-                    ...this._parentConfig!,
-                    userId: reaction.userId,
-                    content: reaction.content,
-                    createdAt: reaction.createdAt,
-                    client: this._client!,
-                    realtimeClient: this._realtimeClient!,
-                  })
-                })
-              : null,
-            userId: response.messageRoot.userId,
-            messageRoot: null,
-            messageRootId: null,
-            type: response.messageRoot.type
-              ? (response.messageRoot.type as
-                  | "TEXTUAL"
-                  | "ATTACHMENT"
-                  | "TRADE_PROPOSAL"
-                  | "RENT")
-              : null,
-            user: {
-              id: response.messageRoot.user!.id,
-              username: response.messageRoot.user!.username
-                ? response.messageRoot.user!.username
-                : "",
-              avatarURL: response.messageRoot.user!.avatarUrl
-                ? response.messageRoot.user!.avatarUrl
-                : "",
-              imageSettings: response.messageRoot.user!.imageSettings
-                ? JSON.parse(response.messageRoot.user!.imageSettings)
-                : null,
-            },
-            order: response.messageRoot.order,
-            createdAt: response.messageRoot.createdAt,
-            updatedAt: response.messageRoot.updatedAt
-              ? response.messageRoot.updatedAt
-              : null,
-            deletedAt: response.messageRoot.deletedAt
-              ? response.messageRoot.deletedAt
-              : null,
-            client: this._client!,
-            realtimeClient: this._realtimeClient!,
-            chatParent: this.chatParent,
-          })
-        : null,
-      messageRootId: response.messageRootId ? response.messageRootId : null,
-      type: response.type
-        ? (response.type as
-            | "TEXTUAL"
-            | "ATTACHMENT"
-            | "TRADE_PROPOSAL"
-            | "RENT")
-        : null,
-      user: {
-        id: response.user!.id,
-        username: response.user!.username ? response.user!.username : "",
-        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
-        imageSettings: response.user!.imageSettings
-          ? JSON.parse(response.user!.imageSettings)
-          : null,
-      },
-      order: response.order,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt ? response.updatedAt : null,
-      deletedAt: response.deletedAt ? response.deletedAt : null,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-      chatParent: this.chatParent,
-    })
+    return this._makeMessage(response)
   }
 
   /**
@@ -915,101 +624,7 @@ export class Message
       return response
     }
 
-    const message = new Message({
-      ...this._parentConfig!,
-      id: response.id,
-      content: response.content,
-      conversationId: response.conversationId,
-      reactions: response.reactions
-        ? response.reactions.map((reaction) => {
-            return new Reaction({
-              ...this._parentConfig!,
-              userId: reaction.userId,
-              content: reaction.content,
-              createdAt: reaction.createdAt,
-              client: this._client!,
-              realtimeClient: this._realtimeClient!,
-            })
-          })
-        : null,
-      userId: response.userId,
-      messageRoot: response.messageRoot
-        ? new Message({
-            ...this._parentConfig!,
-            id: response.messageRoot.id,
-            content: response.messageRoot.content,
-            conversationId: response.messageRoot.conversationId,
-            reactions: response.messageRoot.reactions
-              ? response.messageRoot.reactions.map((reaction) => {
-                  return new Reaction({
-                    ...this._parentConfig!,
-                    userId: reaction.userId,
-                    content: reaction.content,
-                    createdAt: reaction.createdAt,
-                    client: this._client!,
-                    realtimeClient: this._realtimeClient!,
-                  })
-                })
-              : null,
-            userId: response.messageRoot.userId,
-            messageRoot: null,
-            messageRootId: null,
-            type: response.messageRoot.type
-              ? (response.messageRoot.type as
-                  | "TEXTUAL"
-                  | "ATTACHMENT"
-                  | "TRADE_PROPOSAL"
-                  | "RENT")
-              : null,
-            user: {
-              id: response.messageRoot.user!.id,
-              username: response.messageRoot.user!.username
-                ? response.messageRoot.user!.username
-                : "",
-              avatarURL: response.messageRoot.user!.avatarUrl
-                ? response.messageRoot.user!.avatarUrl
-                : "",
-              imageSettings: response.messageRoot.user!.imageSettings
-                ? JSON.parse(response.messageRoot.user!.imageSettings)
-                : null,
-            },
-            order: response.messageRoot.order,
-            createdAt: response.messageRoot.createdAt,
-            updatedAt: response.messageRoot.updatedAt
-              ? response.messageRoot.updatedAt
-              : null,
-            deletedAt: response.messageRoot.deletedAt
-              ? response.messageRoot.deletedAt
-              : null,
-            client: this._client!,
-            realtimeClient: this._realtimeClient!,
-            chatParent: this.chatParent,
-          })
-        : null,
-      messageRootId: response.messageRootId ? response.messageRootId : null,
-      type: response.type
-        ? (response.type as
-            | "TEXTUAL"
-            | "ATTACHMENT"
-            | "TRADE_PROPOSAL"
-            | "RENT")
-        : null,
-      user: {
-        id: response.user!.id,
-        username: response.user!.username ? response.user!.username : "",
-        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
-        imageSettings: response.user!.imageSettings
-          ? JSON.parse(response.user!.imageSettings)
-          : null,
-      },
-      order: response.order,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt ? response.updatedAt : null,
-      deletedAt: response.deletedAt ? response.deletedAt : null,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-      chatParent: this.chatParent,
-    })
+    const message = this._makeMessage(response)
 
     this._storage.insertBulkSafe("message", [
       Converter.fromMessageToLocalDBMessage(
@@ -1068,101 +683,7 @@ export class Message
       return response
     }
 
-    const message = new Message({
-      ...this._parentConfig!,
-      id: response.id,
-      content: response.content,
-      conversationId: response.conversationId,
-      reactions: response.reactions
-        ? response.reactions.map((reaction) => {
-            return new Reaction({
-              ...this._parentConfig!,
-              userId: reaction.userId,
-              content: reaction.content,
-              createdAt: reaction.createdAt,
-              client: this._client!,
-              realtimeClient: this._realtimeClient!,
-            })
-          })
-        : null,
-      userId: response.userId,
-      messageRoot: response.messageRoot
-        ? new Message({
-            ...this._parentConfig!,
-            id: response.messageRoot.id,
-            content: response.messageRoot.content,
-            conversationId: response.messageRoot.conversationId,
-            reactions: response.messageRoot.reactions
-              ? response.messageRoot.reactions.map((reaction) => {
-                  return new Reaction({
-                    ...this._parentConfig!,
-                    userId: reaction.userId,
-                    content: reaction.content,
-                    createdAt: reaction.createdAt,
-                    client: this._client!,
-                    realtimeClient: this._realtimeClient!,
-                  })
-                })
-              : null,
-            userId: response.messageRoot.userId,
-            messageRoot: null,
-            messageRootId: null,
-            type: response.messageRoot.type
-              ? (response.messageRoot.type as
-                  | "TEXTUAL"
-                  | "ATTACHMENT"
-                  | "TRADE_PROPOSAL"
-                  | "RENT")
-              : null,
-            user: {
-              id: response.messageRoot.user!.id,
-              username: response.messageRoot.user!.username
-                ? response.messageRoot.user!.username
-                : "",
-              avatarURL: response.user!.avatarUrl
-                ? response.user!.avatarUrl
-                : "",
-              imageSettings: response.user!.imageSettings
-                ? JSON.parse(response.user!.imageSettings)
-                : null,
-            },
-            order: response.messageRoot.order,
-            createdAt: response.messageRoot.createdAt,
-            updatedAt: response.messageRoot.updatedAt
-              ? response.messageRoot.updatedAt
-              : null,
-            deletedAt: response.messageRoot.deletedAt
-              ? response.messageRoot.deletedAt
-              : null,
-            client: this._client!,
-            realtimeClient: this._realtimeClient!,
-            chatParent: this.chatParent,
-          })
-        : null,
-      messageRootId: response.messageRootId ? response.messageRootId : null,
-      type: response.type
-        ? (response.type as
-            | "TEXTUAL"
-            | "ATTACHMENT"
-            | "TRADE_PROPOSAL"
-            | "RENT")
-        : null,
-      user: {
-        id: response.user!.id,
-        username: response.user!.username ? response.user!.username : "",
-        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
-        imageSettings: response.user!.imageSettings
-          ? JSON.parse(response.user!.imageSettings)
-          : null,
-      },
-      order: response.order,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt ? response.updatedAt : null,
-      deletedAt: response.deletedAt ? response.deletedAt : null,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-      chatParent: this.chatParent,
-    })
+    const message = this._makeMessage(response)
 
     this._storage.insertBulkSafe("message", [
       Converter.fromMessageToLocalDBMessage(
@@ -1206,45 +727,7 @@ export class Message
       return response
     }
 
-    return new Conversation({
-      ...this._parentConfig!,
-      id: response.conversation!.id,
-      name: response.conversation!.name,
-      description: response.conversation!.description
-        ? response.conversation!.description
-        : null,
-      imageURL: response.conversation!.imageURL
-        ? response.conversation!.imageURL
-        : null,
-      bannerImageURL: response.conversation!.bannerImageURL
-        ? response.conversation!.bannerImageURL
-        : null,
-      imageSettings: response.conversation!.imageSettings
-        ? response.conversation!.imageSettings
-        : null,
-      settings: response.conversation!.settings
-        ? JSON.parse(response.conversation!.settings)
-        : null,
-      membersIds: response.conversation!.membersIds
-        ? response.conversation!.membersIds
-        : null,
-      mutedBy: response.conversation!.mutedBy
-        ? response.conversation!.mutedBy
-        : null,
-      type: response.conversation!.type,
-      lastMessageSentAt: response.conversation!.lastMessageSentAt
-        ? response.conversation!.lastMessageSentAt
-        : null,
-      ownerId: response.conversation!.ownerId
-        ? response.conversation!.ownerId
-        : null,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt ? response.updatedAt : null,
-      deletedAt: response.deletedAt ? response.deletedAt : null,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-      chatParent: this.chatParent,
-    })
+    return this._makeConversation(response.conversation!)
   }
 
   /**
@@ -1271,64 +754,7 @@ export class Message
       return response
     }
 
-    return new User({
-      ...this._parentConfig!,
-      id: response.user!.id,
-      username: response.user!.username ? response.user!.username : null,
-      did: response.user!.did,
-      address: response.user!.address,
-      email: response.user!.email ? response.user!.email : null,
-      bio: response.user!.bio ? response.user!.bio : null,
-      avatarUrl: response.user!.avatarUrl
-        ? new URL(response.user!.avatarUrl)
-        : null,
-      imageSettings: response.user!.imageSettings
-        ? response.user!.imageSettings
-        : null,
-      isVerified: response.user!.isVerified ? response.user!.isVerified : false,
-      isPfpNft: response.user!.isPfpNft ? response.user!.isPfpNft : false,
-      blacklistIds: response.user!.blacklistIds
-        ? response.user!.blacklistIds
-        : null,
-      allowNotification: response.user!.allowNotification
-        ? response.user!.allowNotification
-        : false,
-      allowNotificationSound: response.user!.allowNotificationSound
-        ? response.user!.allowNotificationSound
-        : false,
-      visibility: response.user!.visibility ? response.user!.visibility : false,
-      archivedConversations: response.user!.archivedConversations
-        ? response.user!.archivedConversations
-        : null,
-      onlineStatus: response.user!.onlineStatus
-        ? response.user!.onlineStatus
-        : null,
-      allowReadReceipt: response.user!.allowReadReceipt
-        ? response.user!.allowReadReceipt
-        : false,
-      allowReceiveMessageFrom: response.user!.allowReceiveMessageFrom
-        ? response.user!.allowReceiveMessageFrom
-        : null,
-      allowAddToGroupsFrom: response.user!.allowAddToGroupsFrom
-        ? response.user!.allowAddToGroupsFrom
-        : null,
-      allowGroupsSuggestion: response.user!.allowGroupsSuggestion
-        ? response.user!.allowGroupsSuggestion
-        : false,
-      e2ePublicKey: response.user!.e2ePublicKey
-        ? response.user!.e2ePublicKey
-        : null,
-      e2eSecret: response.user!.e2eSecret ? response.user!.e2eSecret : null,
-      e2eSecretIV: response.user!.e2eSecretIV
-        ? response.user!.e2eSecretIV
-        : null,
-      createdAt: new Date(response.user!.createdAt),
-      updatedAt: response.user!.updatedAt
-        ? new Date(response.user!.updatedAt)
-        : null,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-    })
+    return this._makeUser(response.user!)
   }
 
   getContentDecrypted(): Maybe<string> {
