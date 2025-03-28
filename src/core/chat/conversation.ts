@@ -18,6 +18,8 @@ import {
   ListConversationMembers as ListConversationMembersGraphQL,
   Conversation as ConversationGraphQL,
   Message as MessageGraphQL,
+  Reaction as ReactionGraphQL,
+  ConversationMember as ConversationMemberGraphQL,
   MutationAddReportToConversationArgs,
   ConversationReport as ConversationReportGraphQL,
   MutationArchiveConversationArgs,
@@ -44,6 +46,7 @@ import { ConversationSchema } from "../../interfaces/chat/schema"
 import {
   AddMembersToConversationArgs,
   AddReportToConversationArgs,
+  CreateConversationGroupArgs,
   EjectMemberArgs,
   MuteConversationArgs,
   SendMessageArgs,
@@ -129,6 +132,14 @@ export class Conversation
    */
   readonly ownerId: Maybe<string>
   /**
+   * @property {Maybe<string>} publicConversationAESKey - The public AES key of the conversation, if available.
+   */
+  readonly publicConversationAESKey: Maybe<string>
+  /**
+   * @property {Maybe<string>} publicConversationIVKey - The public IV key of the conversation, if available.
+   */
+  readonly publicConversationIVKey: Maybe<string>
+  /**
    * @property {Date} createdAt - The date when the chat group was created.
    */
   readonly createdAt: Date
@@ -168,6 +179,8 @@ export class Conversation
     this.type = config.type
     this.lastMessageSentAt = config.lastMessageSentAt
     this.ownerId = config.ownerId
+    this.publicConversationAESKey = config.publicConversationAESKey
+    this.publicConversationIVKey = config.publicConversationIVKey
     this.createdAt = config.createdAt
     this.updatedAt = config.updatedAt
     this.deletedAt = config.deletedAt
@@ -175,6 +188,236 @@ export class Conversation
     this._client = config.client
     this._realtimeClient = config.realtimeClient
     this.chatParent = config.chatParent
+  }
+
+  private _makeConversation(conversation: ConversationGraphQL) {
+    return new Conversation({
+      ...this._parentConfig!,
+      id: conversation.id,
+      name: conversation.name,
+      description: conversation.description ? conversation.description : null,
+      imageURL: conversation.imageURL ? conversation.imageURL : null,
+      bannerImageURL: conversation.bannerImageURL
+        ? conversation.bannerImageURL
+        : null,
+      imageSettings: conversation.imageSettings
+        ? conversation.imageSettings
+        : null,
+      settings: conversation.settings ? conversation.settings : null,
+      membersIds: conversation.membersIds ? conversation.membersIds : null,
+      mutedBy: conversation.mutedBy ? conversation.mutedBy : null,
+      type: conversation.type,
+      lastMessageSentAt: conversation.lastMessageSentAt
+        ? conversation.lastMessageSentAt
+        : null,
+      ownerId: conversation.ownerId ? conversation.ownerId : null,
+      publicConversationAESKey: conversation.publicConversationAESKey
+        ? conversation.publicConversationAESKey
+        : null,
+      publicConversationIVKey: conversation.publicConversationIVKey
+        ? conversation.publicConversationIVKey
+        : null,
+      createdAt: conversation.createdAt,
+      updatedAt: conversation.updatedAt ? conversation.updatedAt : null,
+      deletedAt: conversation.deletedAt ? conversation.deletedAt : null,
+      client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
+    })
+  }
+
+  private _makeUser(user: UserGraphQL) {
+    return new User({
+      ...this._parentConfig!,
+      id: user.id,
+      username: user.username ? user.username : null,
+      did: user.did,
+      address: user.address,
+      email: user.email ? user.email : null,
+      bio: user.bio ? user.bio : null,
+      avatarUrl: user.avatarUrl ? new URL(user.avatarUrl) : null,
+      imageSettings: user.imageSettings ? user.imageSettings : null,
+      isVerified: user.isVerified ? user.isVerified : false,
+      isPfpNft: user.isPfpNft ? user.isPfpNft : false,
+      blacklistIds: user.blacklistIds ? user.blacklistIds : null,
+      allowNotification: user.allowNotification
+        ? user.allowNotification
+        : false,
+      allowNotificationSound: user.allowNotificationSound
+        ? user.allowNotificationSound
+        : false,
+      visibility: user.visibility ? user.visibility : false,
+      archivedConversations: user.archivedConversations
+        ? user.archivedConversations
+        : null,
+      onlineStatus: user.onlineStatus ? user.onlineStatus : null,
+      allowReadReceipt: user.allowReadReceipt ? user.allowReadReceipt : false,
+      allowReceiveMessageFrom: user.allowReceiveMessageFrom
+        ? user.allowReceiveMessageFrom
+        : null,
+      allowAddToGroupsFrom: user.allowAddToGroupsFrom
+        ? user.allowAddToGroupsFrom
+        : null,
+      allowGroupsSuggestion: user.allowGroupsSuggestion
+        ? user.allowGroupsSuggestion
+        : false,
+      e2ePublicKey: user.e2ePublicKey ? user.e2ePublicKey : null,
+      e2eSecret: user.e2eSecret ? user.e2eSecret : null,
+      e2eSecretIV: user.e2eSecretIV ? user.e2eSecretIV : null,
+      createdAt: new Date(user.createdAt),
+      updatedAt: user.updatedAt ? new Date(user.updatedAt) : null,
+      client: this._client!,
+      realtimeClient: this._realtimeClient!,
+    })
+  }
+
+  private _makeReaction(reaction: ReactionGraphQL) {
+    return new Reaction({
+      ...this._parentConfig!,
+      userId: reaction.userId,
+      content: reaction.content,
+      createdAt: reaction.createdAt,
+      client: this._client!,
+      realtimeClient: this._realtimeClient!,
+    })
+  }
+
+  private _makeMessage(message: MessageGraphQL) {
+    return new Message({
+      ...this._parentConfig!,
+      id: message.id,
+      content: message.content,
+      conversationId: message.conversationId,
+      reactions: message.reactions
+        ? message.reactions.map((reaction) => {
+            return this._makeReaction(reaction)
+          })
+        : null,
+      userId: message.userId,
+      messageRoot: message.messageRoot
+        ? new Message({
+            ...this._parentConfig!,
+            id: message.messageRoot.id,
+            content: message.messageRoot.content,
+            conversationId: message.messageRoot.conversationId,
+            reactions: message.messageRoot.reactions
+              ? message.messageRoot.reactions.map((reaction) => {
+                  return this._makeReaction(reaction)
+                })
+              : null,
+            userId: message.messageRoot.userId,
+            messageRoot: null,
+            messageRootId: null,
+            type: message.messageRoot.type
+              ? (message.messageRoot.type as
+                  | "TEXTUAL"
+                  | "ATTACHMENT"
+                  | "TRADE_PROPOSAL"
+                  | "RENT")
+              : null,
+            user: {
+              id: message.messageRoot.user!.id,
+              username: message.messageRoot.user!.username
+                ? message.messageRoot.user!.username
+                : "",
+              avatarURL: message.messageRoot.user!.avatarUrl
+                ? message.messageRoot.user!.avatarUrl
+                : "",
+              imageSettings: message.messageRoot.user!.imageSettings
+                ? JSON.parse(message.messageRoot.user!.imageSettings)
+                : null,
+            },
+            order: message.messageRoot.order,
+            createdAt: message.messageRoot.createdAt,
+            updatedAt: message.messageRoot.updatedAt
+              ? message.messageRoot.updatedAt
+              : null,
+            deletedAt: message.messageRoot.deletedAt
+              ? message.messageRoot.deletedAt
+              : null,
+            client: this._client!,
+            realtimeClient: this._realtimeClient!,
+            chatParent: this.chatParent,
+          })
+        : null,
+      messageRootId: message.messageRootId ? message.messageRootId : null,
+      type: message.type
+        ? (message.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
+        : null,
+      user: {
+        id: message.user!.id,
+        username: message.user!.username ? message.user!.username : "",
+        avatarURL: message.user!.avatarUrl ? message.user!.avatarUrl : "",
+        imageSettings: message.user!.imageSettings
+          ? JSON.parse(message.user!.imageSettings)
+          : null,
+      },
+      order: message.order,
+      createdAt: message.createdAt,
+      updatedAt: message.updatedAt ? message.updatedAt : null,
+      deletedAt: message.deletedAt ? message.deletedAt : null,
+      client: this._client!,
+      realtimeClient: this._realtimeClient!,
+      chatParent: this.chatParent,
+    })
+  }
+
+  private _makeConversationMember(
+    conversationMember: ConversationMemberGraphQL
+  ) {
+    return new ConversationMember({
+      ...this._parentConfig!,
+      id: conversationMember.id,
+      conversationId: conversationMember.conversationId,
+      userId: conversationMember.userId,
+      type: conversationMember.type,
+      encryptedConversationAESKey:
+        conversationMember.encryptedConversationAESKey,
+      encryptedConversationIVKey: conversationMember.encryptedConversationIVKey,
+      createdAt: conversationMember.createdAt,
+      updatedAt: conversationMember.updatedAt,
+      client: this._client!,
+      realtimeClient: this._realtimeClient!,
+    })
+  }
+
+  private _makeConversationReport(
+    conversationReport: ConversationReportGraphQL
+  ) {
+    return new ConversationReport({
+      ...this._parentConfig!,
+      id: conversationReport.id,
+      description: conversationReport.description
+        ? conversationReport.description
+        : null,
+      userId: conversationReport.userId ? conversationReport.userId : null,
+      createdAt: conversationReport.createdAt,
+      updatedAt: conversationReport.updatedAt,
+      client: this._client!,
+      realtimeClient: this._realtimeClient!,
+    })
+  }
+
+  createPublicConversation?(
+    args: CreateConversationGroupArgs & {
+      conversationKeys: {
+        conversationAESKey: string
+        conversationIVKey: string
+      }
+    },
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<{ conversationId: string; conversation: Conversation } | QIError> {
+    throw new Error("Method not implemented.")
+  }
+  joinConversation?(
+    args: {
+      conversationId: string
+      encryptedConversationAESKey: string
+      encryptedConversationIVKey: string
+    },
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Conversation | QIError> {
+    throw new Error("Method not implemented.")
   }
 
   /**
@@ -219,117 +462,8 @@ export class Conversation
 
     return {
       conversationId: response.conversationId,
-      conversation: new Conversation({
-        ...this._parentConfig!,
-        id: response.conversation.id,
-        name: response.conversation.name,
-        description: response.conversation.description
-          ? response.conversation.description
-          : null,
-        imageURL: response.conversation.imageURL
-          ? response.conversation.imageURL
-          : null,
-        bannerImageURL: response.conversation.bannerImageURL
-          ? response.conversation.bannerImageURL
-          : null,
-        imageSettings: response.conversation.imageSettings
-          ? response.conversation.imageSettings
-          : null,
-        settings: response.conversation.settings
-          ? response.conversation.settings
-          : null,
-        membersIds: response.conversation.membersIds
-          ? response.conversation.membersIds
-          : null,
-        mutedBy: response.conversation.mutedBy
-          ? response.conversation.mutedBy
-          : null,
-        type: response.conversation.type,
-        lastMessageSentAt: response.conversation.lastMessageSentAt
-          ? response.conversation.lastMessageSentAt
-          : null,
-        ownerId: response.conversation.ownerId
-          ? response.conversation.ownerId
-          : null,
-        createdAt: response.conversation.createdAt,
-        updatedAt: response.conversation.updatedAt
-          ? response.conversation.updatedAt
-          : null,
-        deletedAt: response.conversation.deletedAt
-          ? response.conversation.deletedAt
-          : null,
-        client: this._client!,
-        realtimeClient: this._realtimeClient!,
-        chatParent: this.chatParent,
-      }),
-      memberOut: new User({
-        ...this._parentConfig!,
-        id: response.memberOut.id,
-        username: response.memberOut.username
-          ? response.memberOut.username
-          : null,
-        did: response.memberOut.did,
-        address: response.memberOut.address,
-        email: response.memberOut.email ? response.memberOut.email : null,
-        bio: response.memberOut.bio ? response.memberOut.bio : null,
-        avatarUrl: response.memberOut.avatarUrl
-          ? new URL(response.memberOut.avatarUrl)
-          : null,
-        imageSettings: response.memberOut.imageSettings
-          ? response.memberOut.imageSettings
-          : null,
-        isVerified: response.memberOut.isVerified
-          ? response.memberOut.isVerified
-          : false,
-        isPfpNft: response.memberOut.isPfpNft
-          ? response.memberOut.isPfpNft
-          : false,
-        blacklistIds: response.memberOut.blacklistIds
-          ? response.memberOut.blacklistIds
-          : null,
-        allowNotification: response.memberOut.allowNotification
-          ? response.memberOut.allowNotification
-          : false,
-        allowNotificationSound: response.memberOut.allowNotificationSound
-          ? response.memberOut.allowNotificationSound
-          : false,
-        visibility: response.memberOut.visibility
-          ? response.memberOut.visibility
-          : false,
-        archivedConversations: response.memberOut.archivedConversations
-          ? response.memberOut.archivedConversations
-          : null,
-        onlineStatus: response.memberOut.onlineStatus
-          ? response.memberOut.onlineStatus
-          : null,
-        allowReadReceipt: response.memberOut.allowReadReceipt
-          ? response.memberOut.allowReadReceipt
-          : false,
-        allowReceiveMessageFrom: response.memberOut.allowReceiveMessageFrom
-          ? response.memberOut.allowReceiveMessageFrom
-          : null,
-        allowAddToGroupsFrom: response.memberOut.allowAddToGroupsFrom
-          ? response.memberOut.allowAddToGroupsFrom
-          : null,
-        allowGroupsSuggestion: response.memberOut.allowGroupsSuggestion
-          ? response.memberOut.allowGroupsSuggestion
-          : false,
-        e2ePublicKey: response.memberOut.e2ePublicKey
-          ? response.memberOut.e2ePublicKey
-          : null,
-        e2eSecret: response.memberOut.e2eSecret
-          ? response.memberOut.e2eSecret
-          : null,
-        e2eSecretIV: response.memberOut.e2eSecretIV
-          ? response.memberOut.e2eSecretIV
-          : null,
-        createdAt: new Date(response.memberOut.createdAt),
-        updatedAt: response.memberOut.updatedAt
-          ? new Date(response.memberOut.updatedAt)
-          : null,
-        client: this._client!,
-        realtimeClient: this._realtimeClient!,
-      }),
+      conversation: this._makeConversation(response.conversation),
+      memberOut: this._makeUser(response.memberOut),
     }
   }
 
@@ -381,19 +515,7 @@ export class Conversation
     } = {
       conversationId: response.conversationId,
       items: response.items.map((item) => {
-        return new ConversationMember({
-          ...this._parentConfig!,
-          id: item.id,
-          conversationId: item.conversationId,
-          userId: item.userId,
-          type: item.type,
-          encryptedConversationAESKey: item.encryptedConversationAESKey,
-          encryptedConversationIVKey: item.encryptedConversationIVKey,
-          createdAt: item.createdAt,
-          updatedAt: item.updatedAt,
-          client: this._client!,
-          realtimeClient: this._realtimeClient!,
-        })
+        return this._makeConversationMember(item)
       }),
       membersIds: response.membersIds,
     }
@@ -435,16 +557,7 @@ export class Conversation
       return response
     }
 
-    return new ConversationReport({
-      ...this._parentConfig!,
-      id: response.id,
-      description: response.description ? response.description : null,
-      userId: response.userId ? response.userId : null,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-    })
+    return this._makeConversationReport(response)
   }
 
   /**
@@ -492,50 +605,7 @@ export class Conversation
       return response
     }
 
-    return new User({
-      ...this._parentConfig!,
-      id: response.id,
-      username: response.username ? response.username : null,
-      did: response.did,
-      address: response.address,
-      email: response.email ? response.email : null,
-      bio: response.bio ? response.bio : null,
-      avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
-      imageSettings: response.imageSettings ? response.imageSettings : null,
-      isVerified: response.isVerified ? response.isVerified : false,
-      isPfpNft: response.isPfpNft ? response.isPfpNft : false,
-      blacklistIds: response.blacklistIds ? response.blacklistIds : null,
-      allowNotification: response.allowNotification
-        ? response.allowNotification
-        : false,
-      allowNotificationSound: response.allowNotificationSound
-        ? response.allowNotificationSound
-        : false,
-      visibility: response.visibility ? response.visibility : false,
-      archivedConversations: response.archivedConversations
-        ? response.archivedConversations
-        : null,
-      onlineStatus: response.onlineStatus ? response.onlineStatus : null,
-      allowReadReceipt: response.allowReadReceipt
-        ? response.allowReadReceipt
-        : false,
-      allowReceiveMessageFrom: response.allowReceiveMessageFrom
-        ? response.allowReceiveMessageFrom
-        : null,
-      allowAddToGroupsFrom: response.allowAddToGroupsFrom
-        ? response.allowAddToGroupsFrom
-        : null,
-      allowGroupsSuggestion: response.allowGroupsSuggestion
-        ? response.allowGroupsSuggestion
-        : false,
-      e2ePublicKey: response.e2ePublicKey ? response.e2ePublicKey : null,
-      e2eSecret: response.e2eSecret ? response.e2eSecret : null,
-      e2eSecretIV: response.e2eSecretIV ? response.e2eSecretIV : null,
-      createdAt: new Date(response.createdAt),
-      updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-    })
+    return this._makeUser(response)
   }
 
   /**
@@ -572,101 +642,7 @@ export class Conversation
       return response
     }
 
-    return new Message({
-      ...this._parentConfig!,
-      id: response.id,
-      content: response.content,
-      conversationId: response.conversationId,
-      reactions: response.reactions
-        ? response.reactions.map((reaction) => {
-            return new Reaction({
-              ...this._parentConfig!,
-              userId: reaction.userId,
-              content: reaction.content,
-              createdAt: reaction.createdAt,
-              client: this._client!,
-              realtimeClient: this._realtimeClient!,
-            })
-          })
-        : null,
-      userId: response.userId,
-      messageRootId: response.messageRootId ? response.messageRootId : null,
-      messageRoot: response.messageRoot
-        ? new Message({
-            ...this._parentConfig!,
-            id: response.messageRoot.id,
-            content: response.messageRoot.content,
-            conversationId: response.messageRoot.conversationId,
-            reactions: response.messageRoot.reactions
-              ? response.messageRoot.reactions.map((reaction) => {
-                  return new Reaction({
-                    ...this._parentConfig!,
-                    userId: reaction.userId,
-                    content: reaction.content,
-                    createdAt: reaction.createdAt,
-                    client: this._client!,
-                    realtimeClient: this._realtimeClient!,
-                  })
-                })
-              : null,
-            userId: response.messageRoot.userId,
-            messageRoot: null,
-            messageRootId: null,
-            type: response.messageRoot.type
-              ? (response.messageRoot.type as
-                  | "TEXTUAL"
-                  | "ATTACHMENT"
-                  | "TRADE_PROPOSAL"
-                  | "RENT")
-              : null,
-            user: {
-              id: response.messageRoot.user!.id,
-              username: response.messageRoot.user!.username
-                ? response.messageRoot.user!.username
-                : "",
-              avatarURL: response.messageRoot.user!.avatarUrl
-                ? response.messageRoot.user!.avatarUrl
-                : "",
-              imageSettings: response.messageRoot.user!.imageSettings
-                ? JSON.parse(response.messageRoot.user!.imageSettings)
-                : null,
-            },
-            order: response.messageRoot.order,
-            createdAt: response.messageRoot.createdAt,
-            updatedAt: response.messageRoot.updatedAt
-              ? response.messageRoot.updatedAt
-              : null,
-            deletedAt: response.messageRoot.deletedAt
-              ? response.messageRoot.deletedAt
-              : null,
-            client: this._client!,
-            realtimeClient: this._realtimeClient!,
-            chatParent: this.chatParent,
-          })
-        : null,
-      type: response.type
-        ? (response.type as
-            | "TEXTUAL"
-            | "ATTACHMENT"
-            | "TRADE_PROPOSAL"
-            | "RENT")
-        : null,
-      user: {
-        id: response.user!.id,
-        username: response.user!.username ? response.user!.username : "",
-        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
-        imageSettings: response.user!.imageSettings
-          ? JSON.parse(response.user!.imageSettings)
-          : null,
-      },
-      order: response.order,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt ? response.updatedAt : null,
-      deletedAt: response.deletedAt ? response.deletedAt : null,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-      chatParent: this.chatParent,
-    })
+    return this._makeMessage(response)
   }
 
   /**
@@ -739,117 +715,8 @@ export class Conversation
 
     return {
       conversationId: response.conversationId,
-      conversation: new Conversation({
-        ...this._parentConfig!,
-        id: response.conversation.id,
-        name: response.conversation.name,
-        description: response.conversation.description
-          ? response.conversation.description
-          : null,
-        imageURL: response.conversation.imageURL
-          ? response.conversation.imageURL
-          : null,
-        bannerImageURL: response.conversation.bannerImageURL
-          ? response.conversation.bannerImageURL
-          : null,
-        imageSettings: response.conversation.imageSettings
-          ? response.conversation.imageSettings
-          : null,
-        settings: response.conversation.settings
-          ? response.conversation.settings
-          : null,
-        membersIds: response.conversation.membersIds
-          ? response.conversation.membersIds
-          : null,
-        mutedBy: response.conversation.mutedBy
-          ? response.conversation.mutedBy
-          : null,
-        type: response.conversation.type,
-        lastMessageSentAt: response.conversation.lastMessageSentAt
-          ? response.conversation.lastMessageSentAt
-          : null,
-        ownerId: response.conversation.ownerId
-          ? response.conversation.ownerId
-          : null,
-        createdAt: response.conversation.createdAt,
-        updatedAt: response.conversation.updatedAt
-          ? response.conversation.updatedAt
-          : null,
-        deletedAt: response.conversation.deletedAt
-          ? response.conversation.deletedAt
-          : null,
-        client: this._client!,
-        realtimeClient: this._realtimeClient!,
-        chatParent: this.chatParent,
-      }),
-      memberOut: new User({
-        ...this._parentConfig!,
-        id: response.memberOut.id,
-        username: response.memberOut.username
-          ? response.memberOut.username
-          : null,
-        did: response.memberOut.did,
-        address: response.memberOut.address,
-        email: response.memberOut.email ? response.memberOut.email : null,
-        bio: response.memberOut.bio ? response.memberOut.bio : null,
-        avatarUrl: response.memberOut.avatarUrl
-          ? new URL(response.memberOut.avatarUrl)
-          : null,
-        imageSettings: response.memberOut.imageSettings
-          ? response.memberOut.imageSettings
-          : null,
-        isVerified: response.memberOut.isVerified
-          ? response.memberOut.isVerified
-          : false,
-        isPfpNft: response.memberOut.isPfpNft
-          ? response.memberOut.isPfpNft
-          : false,
-        blacklistIds: response.memberOut.blacklistIds
-          ? response.memberOut.blacklistIds
-          : null,
-        allowNotification: response.memberOut.allowNotification
-          ? response.memberOut.allowNotification
-          : false,
-        allowNotificationSound: response.memberOut.allowNotificationSound
-          ? response.memberOut.allowNotificationSound
-          : false,
-        visibility: response.memberOut.visibility
-          ? response.memberOut.visibility
-          : false,
-        archivedConversations: response.memberOut.archivedConversations
-          ? response.memberOut.archivedConversations
-          : null,
-        onlineStatus: response.memberOut.onlineStatus
-          ? response.memberOut.onlineStatus
-          : null,
-        allowReadReceipt: response.memberOut.allowReadReceipt
-          ? response.memberOut.allowReadReceipt
-          : false,
-        allowReceiveMessageFrom: response.memberOut.allowReceiveMessageFrom
-          ? response.memberOut.allowReceiveMessageFrom
-          : null,
-        allowAddToGroupsFrom: response.memberOut.allowAddToGroupsFrom
-          ? response.memberOut.allowAddToGroupsFrom
-          : null,
-        allowGroupsSuggestion: response.memberOut.allowGroupsSuggestion
-          ? response.memberOut.allowGroupsSuggestion
-          : false,
-        e2ePublicKey: response.memberOut.e2ePublicKey
-          ? response.memberOut.e2ePublicKey
-          : null,
-        e2eSecret: response.memberOut.e2eSecret
-          ? response.memberOut.e2eSecret
-          : null,
-        e2eSecretIV: response.memberOut.e2eSecretIV
-          ? response.memberOut.e2eSecretIV
-          : null,
-        createdAt: new Date(response.memberOut.createdAt),
-        updatedAt: response.memberOut.updatedAt
-          ? new Date(response.memberOut.updatedAt)
-          : null,
-        client: this._client!,
-        realtimeClient: this._realtimeClient!,
-      }),
+      conversation: this._makeConversation(response.conversation),
+      memberOut: this._makeUser(response.memberOut),
     }
   }
 
@@ -884,29 +751,7 @@ export class Conversation
       return response
     }
 
-    return new Conversation({
-      ...this._parentConfig!,
-      id: response.id,
-      name: response.name,
-      description: response.description ? response.description : null,
-      imageURL: response.imageURL ? response.imageURL : null,
-      bannerImageURL: response.bannerImageURL ? response.bannerImageURL : null,
-      imageSettings: response.imageSettings ? response.imageSettings : null,
-      settings: response.settings ? response.settings : null,
-      membersIds: response.membersIds ? response.membersIds : null,
-      mutedBy: response.mutedBy ? response.mutedBy : null,
-      type: response.type,
-      lastMessageSentAt: response.lastMessageSentAt
-        ? response.lastMessageSentAt
-        : null,
-      ownerId: response.ownerId ? response.ownerId : null,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt ? response.updatedAt : null,
-      deletedAt: response.deletedAt ? response.deletedAt : null,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-      chatParent: this.chatParent,
-    })
+    return this._makeConversation(response)
   }
 
   /**
@@ -947,101 +792,7 @@ export class Conversation
       return response
     }
 
-    return new Message({
-      ...this._parentConfig!,
-      id: response.id,
-      content: response.content,
-      conversationId: response.conversationId,
-      reactions: response.reactions
-        ? response.reactions.map((reaction) => {
-            return new Reaction({
-              ...this._parentConfig!,
-              userId: reaction.userId,
-              content: reaction.content,
-              createdAt: reaction.createdAt,
-              client: this._client!,
-              realtimeClient: this._realtimeClient!,
-            })
-          })
-        : null,
-      userId: response.userId,
-      messageRootId: response.messageRootId ? response.messageRootId : null,
-      messageRoot: response.messageRoot
-        ? new Message({
-            ...this._parentConfig!,
-            id: response.messageRoot.id,
-            content: response.messageRoot.content,
-            conversationId: response.messageRoot.conversationId,
-            reactions: response.messageRoot.reactions
-              ? response.messageRoot.reactions.map((reaction) => {
-                  return new Reaction({
-                    ...this._parentConfig!,
-                    userId: reaction.userId,
-                    content: reaction.content,
-                    createdAt: reaction.createdAt,
-                    client: this._client!,
-                    realtimeClient: this._realtimeClient!,
-                  })
-                })
-              : null,
-            userId: response.messageRoot.userId,
-            messageRoot: null,
-            messageRootId: null,
-            type: response.messageRoot.type
-              ? (response.messageRoot.type as
-                  | "TEXTUAL"
-                  | "ATTACHMENT"
-                  | "TRADE_PROPOSAL"
-                  | "RENT")
-              : null,
-            user: {
-              id: response.messageRoot.user!.id,
-              username: response.messageRoot.user!.username
-                ? response.messageRoot.user!.username
-                : "",
-              avatarURL: response.messageRoot.user!.avatarUrl
-                ? response.messageRoot.user!.avatarUrl
-                : "",
-              imageSettings: response.messageRoot.user!.imageSettings
-                ? JSON.parse(response.messageRoot.user!.imageSettings)
-                : null,
-            },
-            order: response.messageRoot.order,
-            createdAt: response.messageRoot.createdAt,
-            updatedAt: response.messageRoot.updatedAt
-              ? response.messageRoot.updatedAt
-              : null,
-            deletedAt: response.messageRoot.deletedAt
-              ? response.messageRoot.deletedAt
-              : null,
-            client: this._client!,
-            realtimeClient: this._realtimeClient!,
-            chatParent: this.chatParent,
-          })
-        : null,
-      type: response.type
-        ? (response.type as
-            | "TEXTUAL"
-            | "ATTACHMENT"
-            | "TRADE_PROPOSAL"
-            | "RENT")
-        : null,
-      user: {
-        id: response.user!.id,
-        username: response.user!.username ? response.user!.username : "",
-        avatarURL: response.user!.avatarUrl ? response.user!.avatarUrl : "",
-        imageSettings: response.user!.imageSettings
-          ? JSON.parse(response.user!.imageSettings)
-          : null,
-      },
-      order: response.order,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt ? response.updatedAt : null,
-      deletedAt: response.deletedAt ? response.deletedAt : null,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-      chatParent: this.chatParent,
-    })
+    return this._makeMessage(response)
   }
 
   /**
@@ -1087,50 +838,7 @@ export class Conversation
       return response
     }
 
-    return new User({
-      ...this._parentConfig!,
-      id: response.id,
-      username: response.username ? response.username : null,
-      did: response.did,
-      address: response.address,
-      email: response.email ? response.email : null,
-      bio: response.bio ? response.bio : null,
-      avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
-      imageSettings: response.imageSettings ? response.imageSettings : null,
-      isVerified: response.isVerified ? response.isVerified : false,
-      isPfpNft: response.isPfpNft ? response.isPfpNft : false,
-      blacklistIds: response.blacklistIds ? response.blacklistIds : null,
-      allowNotification: response.allowNotification
-        ? response.allowNotification
-        : false,
-      allowNotificationSound: response.allowNotificationSound
-        ? response.allowNotificationSound
-        : false,
-      visibility: response.visibility ? response.visibility : false,
-      archivedConversations: response.archivedConversations
-        ? response.archivedConversations
-        : null,
-      onlineStatus: response.onlineStatus ? response.onlineStatus : null,
-      allowReadReceipt: response.allowReadReceipt
-        ? response.allowReadReceipt
-        : false,
-      allowReceiveMessageFrom: response.allowReceiveMessageFrom
-        ? response.allowReceiveMessageFrom
-        : null,
-      allowAddToGroupsFrom: response.allowAddToGroupsFrom
-        ? response.allowAddToGroupsFrom
-        : null,
-      allowGroupsSuggestion: response.allowGroupsSuggestion
-        ? response.allowGroupsSuggestion
-        : false,
-      e2ePublicKey: response.e2ePublicKey ? response.e2ePublicKey : null,
-      e2eSecret: response.e2eSecret ? response.e2eSecret : null,
-      e2eSecretIV: response.e2eSecretIV ? response.e2eSecretIV : null,
-      createdAt: new Date(response.createdAt),
-      updatedAt: response.updatedAt ? new Date(response.updatedAt) : null,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-    })
+    return this._makeUser(response)
   }
 
   /**
@@ -1176,29 +884,7 @@ export class Conversation
       return response
     }
 
-    return new Conversation({
-      ...this._parentConfig!,
-      id: response.id,
-      name: response.name,
-      description: response.description ? response.description : null,
-      imageURL: response.imageURL ? response.imageURL : null,
-      bannerImageURL: response.bannerImageURL ? response.bannerImageURL : null,
-      imageSettings: response.imageSettings ? response.imageSettings : null,
-      settings: response.settings ? response.settings : null,
-      membersIds: response.membersIds ? response.membersIds : null,
-      mutedBy: response.mutedBy ? response.mutedBy : null,
-      type: response.type,
-      lastMessageSentAt: response.lastMessageSentAt
-        ? response.lastMessageSentAt
-        : null,
-      ownerId: response.ownerId ? response.ownerId : null,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt ? response.updatedAt : null,
-      deletedAt: response.deletedAt ? response.deletedAt : null,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-      chatParent: this.chatParent,
-    })
+    return this._makeConversation(response)
   }
 
   /**
@@ -1258,29 +944,7 @@ export class Conversation
       return response
     }
 
-    return new Conversation({
-      ...this._parentConfig!,
-      id: response.id,
-      name: response.name,
-      description: response.description ? response.description : null,
-      imageURL: response.imageURL ? response.imageURL : null,
-      bannerImageURL: response.bannerImageURL ? response.bannerImageURL : null,
-      imageSettings: response.imageSettings ? response.imageSettings : null,
-      settings: response.settings ? response.settings : null,
-      membersIds: response.membersIds ? response.membersIds : null,
-      mutedBy: response.mutedBy ? response.mutedBy : null,
-      type: response.type,
-      lastMessageSentAt: response.lastMessageSentAt
-        ? response.lastMessageSentAt
-        : null,
-      ownerId: response.ownerId ? response.ownerId : null,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt ? response.updatedAt : null,
-      deletedAt: response.deletedAt ? response.deletedAt : null,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-      chatParent: this.chatParent,
-    })
+    return this._makeConversation(response)
   }
 
   /**
@@ -1326,29 +990,7 @@ export class Conversation
       return response
     }
 
-    return new Conversation({
-      ...this._parentConfig!,
-      id: response.id,
-      name: response.name,
-      description: response.description ? response.description : null,
-      imageURL: response.imageURL ? response.imageURL : null,
-      bannerImageURL: response.bannerImageURL ? response.bannerImageURL : null,
-      imageSettings: response.imageSettings ? response.imageSettings : null,
-      settings: response.settings ? response.settings : null,
-      membersIds: response.membersIds ? response.membersIds : null,
-      mutedBy: response.mutedBy ? response.mutedBy : null,
-      type: response.type,
-      lastMessageSentAt: response.lastMessageSentAt
-        ? response.lastMessageSentAt
-        : null,
-      ownerId: response.ownerId ? response.ownerId : null,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt ? response.updatedAt : null,
-      deletedAt: response.deletedAt ? response.deletedAt : null,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-      chatParent: this.chatParent,
-    })
+    return this._makeConversation(response)
   }
 
   /**
@@ -1426,66 +1068,7 @@ export class Conversation
       return response
     }
 
-    return new User({
-      ...this._parentConfig!,
-      id: response.owner!.id,
-      username: response.owner!.username ? response.owner!.username : null,
-      did: response.owner!.did,
-      address: response.owner!.address,
-      email: response.owner!.email ? response.owner!.email : null,
-      bio: response.owner!.bio ? response.owner!.bio : null,
-      avatarUrl: response.owner!.avatarUrl
-        ? new URL(response.owner!.avatarUrl)
-        : null,
-      imageSettings: response.imageSettings ? response.imageSettings : null,
-      isVerified: response.owner!.isVerified
-        ? response.owner!.isVerified
-        : false,
-      isPfpNft: response.owner!.isPfpNft ? response.owner!.isPfpNft : false,
-      blacklistIds: response.owner!.blacklistIds
-        ? response.owner!.blacklistIds
-        : null,
-      allowNotification: response.owner!.allowNotification
-        ? response.owner!.allowNotification
-        : false,
-      allowNotificationSound: response.owner!.allowNotificationSound
-        ? response.owner!.allowNotificationSound
-        : false,
-      visibility: response.owner!.visibility
-        ? response.owner!.visibility
-        : false,
-      archivedConversations: response.owner!.archivedConversations
-        ? response.owner!.archivedConversations
-        : null,
-      onlineStatus: response.owner!.onlineStatus
-        ? response.owner!.onlineStatus
-        : null,
-      allowReadReceipt: response.owner!.allowReadReceipt
-        ? response.owner!.allowReadReceipt
-        : false,
-      allowReceiveMessageFrom: response.owner!.allowReceiveMessageFrom
-        ? response.owner!.allowReceiveMessageFrom
-        : null,
-      allowAddToGroupsFrom: response.owner!.allowAddToGroupsFrom
-        ? response.owner!.allowAddToGroupsFrom
-        : null,
-      allowGroupsSuggestion: response.owner!.allowGroupsSuggestion
-        ? response.owner!.allowGroupsSuggestion
-        : false,
-      e2ePublicKey: response.owner!.e2ePublicKey
-        ? response.owner!.e2ePublicKey
-        : null,
-      e2eSecret: response.owner!.e2eSecret ? response.owner!.e2eSecret : null,
-      e2eSecretIV: response.owner!.e2eSecretIV
-        ? response.owner!.e2eSecretIV
-        : null,
-      createdAt: new Date(response.owner!.createdAt),
-      updatedAt: response.owner!.updatedAt
-        ? new Date(response.owner!.updatedAt)
-        : null,
-      client: this._client!,
-      realtimeClient: this._realtimeClient!,
-    })
+    return this._makeUser(response.owner!)
   }
 
   /**
@@ -1522,19 +1105,7 @@ export class Conversation
     const listConversationMembers: Array<ConversationMember> =
       // TODO why response.members is of type array and not { items: Array }?
       (response.members as any).items.map((item) => {
-        return new ConversationMember({
-          ...this._parentConfig!,
-          id: item!.id,
-          conversationId: item!.conversationId,
-          userId: item!.userId,
-          type: item!.type,
-          encryptedConversationAESKey: item!.encryptedConversationAESKey,
-          encryptedConversationIVKey: item!.encryptedConversationIVKey,
-          createdAt: item!.createdAt,
-          updatedAt: item!.updatedAt,
-          client: this._client!,
-          realtimeClient: this._realtimeClient!,
-        })
+        return this._makeConversationMember(item)
       })
 
     return listConversationMembers
@@ -1570,97 +1141,7 @@ export class Conversation
     }
 
     const listMessages: Array<Message> = response.messages!.map((item) => {
-      return new Message({
-        ...this._parentConfig!,
-        id: response.id,
-        content: item!.content,
-        conversationId: item!.conversationId,
-        reactions: item!.reactions
-          ? item!.reactions.map((reaction) => {
-              return new Reaction({
-                ...this._parentConfig!,
-                userId: reaction.userId,
-                content: reaction.content,
-                createdAt: reaction.createdAt,
-                client: this._client!,
-                realtimeClient: this._realtimeClient!,
-              })
-            })
-          : null,
-        userId: item!.userId,
-        messageRoot: item!.messageRoot
-          ? new Message({
-              ...this._parentConfig!,
-              id: item!.messageRoot.id,
-              content: item!.messageRoot.content,
-              conversationId: item!.messageRoot.conversationId,
-              reactions: item!.messageRoot.reactions
-                ? item!.messageRoot.reactions.map((reaction) => {
-                    return new Reaction({
-                      ...this._parentConfig!,
-                      userId: reaction.userId,
-                      content: reaction.content,
-                      createdAt: reaction.createdAt,
-                      client: this._client!,
-                      realtimeClient: this._realtimeClient!,
-                    })
-                  })
-                : null,
-              userId: item!.messageRoot.userId,
-              messageRoot: null,
-              messageRootId: null,
-              type: item!.messageRoot.type
-                ? (item!.messageRoot.type as
-                    | "TEXTUAL"
-                    | "ATTACHMENT"
-                    | "TRADE_PROPOSAL"
-                    | "RENT")
-                : null,
-              user: {
-                id: item!.messageRoot.user!.id,
-                username: item!.messageRoot.user!.username
-                  ? item!.messageRoot.user!.username
-                  : "",
-                avatarURL: item!.messageRoot.user!.avatarUrl
-                  ? item!.messageRoot.user!.avatarUrl
-                  : "",
-                imageSettings: item?.messageRoot.user!.imageSettings
-                  ? JSON.parse(item.messageRoot.user!.imageSettings)
-                  : null,
-              },
-              order: item!.messageRoot.order,
-              createdAt: item!.messageRoot.createdAt,
-              updatedAt: item!.messageRoot.updatedAt
-                ? item!.messageRoot.updatedAt
-                : null,
-              deletedAt: item!.messageRoot.deletedAt
-                ? item!.messageRoot.deletedAt
-                : null,
-              client: this._client!,
-              realtimeClient: this._realtimeClient!,
-              chatParent: this.chatParent,
-            })
-          : null,
-        messageRootId: item!.messageRootId ? item!.messageRootId : null,
-        type: item!.type
-          ? (item!.type as "TEXTUAL" | "ATTACHMENT" | "TRADE_PROPOSAL" | "RENT")
-          : null,
-        user: {
-          id: item!.user!.id,
-          username: item!.user!.username ? item!.user!.username : "",
-          avatarURL: item!.user!.avatarUrl ? item!.user!.avatarUrl : "",
-          imageSettings: item!.user!.imageSettings
-            ? JSON.parse(item!.user!.imageSettings)
-            : null,
-        },
-        order: item!.order,
-        createdAt: item!.createdAt,
-        updatedAt: item!.updatedAt ? item!.updatedAt : null,
-        deletedAt: item!.deletedAt ? item!.deletedAt : null,
-        client: this._client!,
-        realtimeClient: this._realtimeClient!,
-        chatParent: this.chatParent,
-      })
+      return this._makeMessage(item!)
     })
 
     return listMessages

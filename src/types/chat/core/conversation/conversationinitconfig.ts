@@ -57,6 +57,14 @@ export type ConversationInitConfig = {
    */
   ownerId: Maybe<string>
   /**
+   * @property {Maybe<string>} publicConversationAESKey - The public AES key of the conversation, if available.
+   */
+  publicConversationAESKey: Maybe<string>
+  /**
+   * @property {Maybe<string>} publicConversationIVKey - The public IV key of the conversation, if available.
+   */
+  publicConversationIVKey: Maybe<string>
+  /**
    * @property {Date} createdAt - The date when the chat group was created.
    */
   createdAt: Date

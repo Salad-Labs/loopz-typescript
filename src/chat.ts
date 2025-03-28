@@ -3239,6 +3239,12 @@ export class Chat
         ? conversation.lastMessageSentAt
         : null,
       ownerId: conversation.ownerId ? conversation.ownerId : null,
+      publicConversationAESKey: conversation.publicConversationAESKey
+        ? conversation.publicConversationAESKey
+        : null,
+      publicConversationIVKey: conversation.publicConversationIVKey
+        ? conversation.publicConversationIVKey
+        : null,
       createdAt: conversation.createdAt,
       updatedAt: conversation.updatedAt ? conversation.updatedAt : null,
       deletedAt: conversation.deletedAt ? conversation.deletedAt : null,
