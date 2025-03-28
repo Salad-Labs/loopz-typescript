@@ -7082,11 +7082,11 @@ export class Chat
 
     const response = await this._mutation<
       { input: CreateConversationInputArgs },
-      { createConversationOneToOne: ConversationGraphQL },
+      { createConversationGroup: ConversationGraphQL },
       ConversationGraphQL
     >(
-      "createConversationOneToOne",
-      createConversationOneToOne,
+      "createConversationGroup",
+      createConversationGroup,
       "_mutation() -> createPublicConversation()",
       {
         input: {
