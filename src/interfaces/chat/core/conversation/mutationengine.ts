@@ -9,6 +9,7 @@ import {
 import {
   AddMembersToConversationArgs,
   AddReportToConversationArgs,
+  CreateConversationGroupArgs,
   EjectMemberArgs,
   MuteConversationArgs,
   SendMessageArgs,
@@ -101,4 +102,21 @@ export interface ConversationMutationEngine {
     id: string,
     overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<boolean | QIError>
+  createPublicConversation?(
+    args: CreateConversationGroupArgs & {
+      conversationKeys: {
+        conversationAESKey: string
+        conversationIVKey: string
+      }
+    },
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<{ conversationId: string; conversation: Conversation } | QIError>
+  joinConversation?(
+    args: {
+      conversationId: string
+      encryptedConversationAESKey: string
+      encryptedConversationIVKey: string
+    },
+    overrideHandlingUnauthorizedQIError?: boolean
+  ): Promise<Conversation | QIError>
 }
