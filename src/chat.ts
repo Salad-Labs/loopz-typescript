@@ -3524,7 +3524,11 @@ export class Chat
       if (response instanceof QIError) {
         if (!overrideHandlingUnauthorizedQIError) {
           const error = this._handleUnauthorizedQIError(response)
-          if (error) await Auth.fetchAuthToken()
+          if (error) {
+            await Auth.fetchAuthToken()
+            this._setCurrentPublicConversation(args.conversationId)
+            this._updatePublicConversationStorage(args.conversationId)
+          }
         }
         return response
       }
