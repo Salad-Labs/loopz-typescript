@@ -3478,14 +3478,22 @@ export class Chat
       if (membershipCheck instanceof QIError) {
         if (!overrideHandlingUnauthorizedQIError) {
           const error = this._handleUnauthorizedQIError(membershipCheck)
-          if (error) await Auth.fetchAuthToken()
+          if (error) {
+            await Auth.fetchAuthToken()
+            return this.joinConversation(
+              args,
+              overrideHandlingUnauthorizedQIError
+            )
+          }
         }
-        return membershipCheck
       }
 
-      const isAlreadyMember = membershipCheck.some(
-        (member) => member.userId === Auth.account!.dynamoDBUserID
-      )
+      const isAlreadyMember =
+        membershipCheck instanceof QIError
+          ? false
+          : membershipCheck.some(
+              (member) => member.userId === Auth.account!.dynamoDBUserID
+            )
 
       if (isAlreadyMember) {
         // Retrieve and return the conversation
@@ -3516,7 +3524,11 @@ export class Chat
       if (response instanceof QIError) {
         if (!overrideHandlingUnauthorizedQIError) {
           const error = this._handleUnauthorizedQIError(response)
-          if (error) await Auth.fetchAuthToken()
+          if (error) {
+            await Auth.fetchAuthToken()
+            this._setCurrentPublicConversation(args.conversationId)
+            this._updatePublicConversationStorage(args.conversationId)
+          }
         }
         return response
       }
