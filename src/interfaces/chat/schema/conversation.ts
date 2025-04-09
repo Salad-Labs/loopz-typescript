@@ -43,9 +43,9 @@ export interface ConversationSchema {
    */
   mutedBy: Maybe<Array<{ userId: string; createdAt: Date }>>
   /**
-   * @property {'GROUP' | 'ONE_TO_ONE' | 'COMMUNITY'} type - Represents a message type which can be one of "GROUP", "ONE_TO_ONE", or "COMMUNITY".
+   * @property {GROUP | ONE_TO_ONE | COMMUNITY | PUBLIC} type - Represents a message type which can be one of "GROUP", "ONE_TO_ONE", or "COMMUNITY".
    */
-  type: "GROUP" | "ONE_TO_ONE" | "COMMUNITY"
+  type: "GROUP" | "ONE_TO_ONE" | "COMMUNITY" | "PUBLIC"
   /**
    * @property {Maybe<Date>} lastMessageSentAt - The date when the message was last sent, if available.
    */
