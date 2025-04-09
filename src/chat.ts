@@ -3465,11 +3465,11 @@ export class Chat
 
     // First, check if the user is already in the conversation
     // If already in a public conversation, throw an error
-    if (this.isInPublicConversation()) {
+    /*if (this.isInPublicConversation()) {
       throw new Error(
         "Already in a public conversation. Leave the current one first."
       )
-    }
+    }*/
 
     try {
       const membershipCheck =
@@ -5594,6 +5594,7 @@ export class Chat
 
     return { unsubscribe, uuid }
   }
+
   onChatMemberEvents(
     conversationId: string,
     callback: (
