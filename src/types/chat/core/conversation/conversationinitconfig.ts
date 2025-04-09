@@ -45,9 +45,9 @@ export type ConversationInitConfig = {
    */
   mutedBy: Maybe<Array<{ userId: string; createdAt: Date }>>
   /**
-   * @property {"GROUP" | "ONE_TO_ONE" | "COMMUNITY"} type - The type of the chat group.
+   * @property {"GROUP" | "ONE_TO_ONE" | "COMMUNITY" | "PUBLIC"} type - The type of the chat group.
    */
-  type: "GROUP" | "ONE_TO_ONE" | "COMMUNITY"
+  type: "GROUP" | "ONE_TO_ONE" | "COMMUNITY" | "PUBLIC"
   /**
    * @property {Maybe<Date>} lastMessageSentAt - The date when the last message was sent in the group.
    */

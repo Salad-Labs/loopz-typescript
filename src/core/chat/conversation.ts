@@ -120,9 +120,9 @@ export class Conversation
    */
   readonly mutedBy: Maybe<Array<{ userId: string; createdAt: Date }>>
   /**
-   * @property {"GROUP" | "ONE_TO_ONE" | "COMMUNITY"} type - The type of chat group.
+   * @property {"GROUP" | "ONE_TO_ONE" | "COMMUNITY" | "PUBLIC"} type - The type of chat group.
    */
-  readonly type: "GROUP" | "ONE_TO_ONE" | "COMMUNITY"
+  readonly type: "GROUP" | "ONE_TO_ONE" | "COMMUNITY" | "PUBLIC"
   /**
    * @property {Maybe<Date>} lastMessageSentAt - The date when the last message was sent in the chat group.
    */
