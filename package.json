@@ -1,6 +1,6 @@
 {
   "name": "@salad-labs/loopz-typescript",
-  "version": "1.0.65",
+  "version": "1.0.66",
   "description": "The Official Loopz TypeScript SDK",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
