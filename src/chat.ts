@@ -7299,7 +7299,7 @@ export class Chat
     this._syncRunning = true
 
     //let's call the detective message scan method
-    Chat._detectiveMessage.scan()
+    //Chat._detectiveMessage.scan()
 
     //add member to conversation. This event is global, basically the user is always listening if
     //someone wants to add him into a conversation.
