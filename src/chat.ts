@@ -1011,7 +1011,9 @@ export class Chat
         else break
       }
 
-      console.log("user key pair ", this.getUserKeyPair())
+      Chat._config &&
+        Chat._config.devMode &&
+        console.log("user key pair ", this.getUserKeyPair())
 
       //now, from the private key of the user, we will decrypt all the information about the conversation member.
       //we will store these decrypted pairs public keys/private keys into the _keyPairsMap array.
@@ -1042,7 +1044,10 @@ export class Chat
 
       this.setKeyPairMap(_keyPairsMap)
 
-      console.log("key pair map is ", _keyPairsMap)
+      Chat._config &&
+        Chat._config.devMode &&
+        console.log("user key pair ", this.getUserKeyPair()) &&
+        console.log("key pair map is ", _keyPairsMap)
 
       return true
     } catch (error) {
@@ -1241,11 +1246,11 @@ export class Chat
             //let's collect these messages for our detective message instance (only if this sync is not the first)
             if (this._syncingCounter > 0)
               messages.forEach((message) => {
-                Chat._detectiveMessage.collectClue(
+                /*Chat._detectiveMessage.collectClue(
                   message,
                   Auth.account!.did,
                   Auth.account!.organizationId
-                )
+                )*/
               })
           }
         }
@@ -1357,8 +1362,14 @@ export class Chat
       ActiveUserConversationType.Canceled
     )
 
-    console.log("activeConversations", activeConversations)
-    console.log("unactiveConversations", unactiveConversations)
+    Chat._config &&
+      Chat._config.devMode &&
+      console.log("user key pair ", this.getUserKeyPair()) &&
+      console.log("activeConversations", activeConversations)
+    Chat._config &&
+      Chat._config.devMode &&
+      console.log("user key pair ", this.getUserKeyPair()) &&
+      console.log("unactiveConversations", unactiveConversations)
 
     if (!activeConversations || !unactiveConversations) {
       this._emit("syncError", { error: `error during conversation syncing.` })
@@ -1370,13 +1381,19 @@ export class Chat
     if (activeConversations === "_401_" || unactiveConversations === "_401_")
       return
 
-    console.log(
-      "after check if (!activeConversations || !unactiveConversations)"
-    )
+    Chat._config &&
+      Chat._config.devMode &&
+      console.log("user key pair ", this.getUserKeyPair()) &&
+      console.log(
+        "after check if (!activeConversations || !unactiveConversations)"
+      )
 
     //second operation. Recover the list of conversation member objects, in order to retrieve the public & private keys of all conversations.
     const keysRecovered = await this._recoverKeysFromConversations()
-    console.log("keysRecovered", keysRecovered)
+    Chat._config &&
+      Chat._config.devMode &&
+      console.log("user key pair ", this.getUserKeyPair()) &&
+      console.log("keysRecovered", keysRecovered)
 
     if (typeof keysRecovered === "boolean" && !keysRecovered) {
       this._emit("syncError", {
@@ -1389,7 +1406,10 @@ export class Chat
     //_sync(..) is called internally by silentReset()
     if (keysRecovered === "_401_") return
 
-    console.log("after check if (!keysRecovered)")
+    Chat._config &&
+      Chat._config.devMode &&
+      console.log("user key pair ", this.getUserKeyPair()) &&
+      console.log("after check if (!keysRecovered)")
 
     //third operation. For each conversation, we need to download the messages if the lastMessageSentAt of the conversation is != null
     //and the date of the last message stored in the local db is less recent than the lastMessageSentAt date.
@@ -1398,7 +1418,10 @@ export class Chat
       ...unactiveConversations,
     ])
 
-    console.log("messagesRecovered", messagesRecovered)
+    Chat._config &&
+      Chat._config.devMode &&
+      console.log("user key pair ", this.getUserKeyPair()) &&
+      console.log("messagesRecovered", messagesRecovered)
 
     if (!messagesRecovered) {
       this._emit("syncError", {
@@ -1411,12 +1434,18 @@ export class Chat
     //_sync(..) is called internally by silentReset()
     if (messagesRecovered === "_401_") return
 
-    console.log("after check if (!messagesRecovered)")
+    Chat._config &&
+      Chat._config.devMode &&
+      console.log("user key pair ", this.getUserKeyPair()) &&
+      console.log("after check if (!messagesRecovered)")
 
     //let's setup an array of the conversations in the first sync cycle.
     //This will allow to map the conversations in every single cycle that comes after the first one.
     if (syncingCounter === 0) {
-      console.log("inside check if (syncingCounter === 0)")
+      Chat._config &&
+        Chat._config.devMode &&
+        console.log("user key pair ", this.getUserKeyPair()) &&
+        console.log("inside check if (syncingCounter === 0)")
 
       for (const activeConversation of activeConversations)
         this._conversationsMap.push({
@@ -1432,10 +1461,13 @@ export class Chat
           conversation: unactiveConversation,
         })
 
-      console.log(
-        "inside check if (syncingCounter === 0) this._conversationsMap is ",
-        this._conversationsMap
-      )
+      Chat._config &&
+        Chat._config.devMode &&
+        console.log("user key pair ", this.getUserKeyPair()) &&
+        console.log(
+          "inside check if (syncingCounter === 0) this._conversationsMap is ",
+          this._conversationsMap
+        )
     } else {
       //this situation happens when a subscription between onAddMembersToConversation, onEjectMember, onLeaveConversation doesn't fire properly.
       //here we can check if there are differences between the previous sync and the current one
@@ -1444,10 +1476,13 @@ export class Chat
       //But it can be also the opposite. So inside this block we will check if there are conversations that need
       //subscriptions to be added or the opposite (so subscriptions that need to be removed)
 
-      console.log(
-        "inside else syncingCounter is > 0, now its value is ",
-        this._syncingCounter
-      )
+      Chat._config &&
+        Chat._config.devMode &&
+        console.log("user key pair ", this.getUserKeyPair()) &&
+        console.log(
+          "inside else syncingCounter is > 0, now its value is ",
+          this._syncingCounter
+        )
 
       const conversations = [...activeConversations, ...unactiveConversations]
       const flatConversationMap = this._conversationsMap.map(
@@ -1459,7 +1494,10 @@ export class Chat
         conversations
       )
 
-      console.log("added and removed are ", added, removed)
+      Chat._config &&
+        Chat._config.devMode &&
+        console.log("user key pair ", this.getUserKeyPair()) &&
+        console.log("added and removed are ", added, removed)
 
       if (added.length > 0)
         for (const conversation of added) {
@@ -1501,10 +1539,13 @@ export class Chat
 
     this._isSyncing = false
 
-    console.log(
-      "ready to emit sync or syncUpdate, this._syncingCounter is ",
-      this._syncingCounter
-    )
+    Chat._config &&
+      Chat._config.devMode &&
+      console.log("user key pair ", this.getUserKeyPair()) &&
+      console.log(
+        "ready to emit sync or syncUpdate, this._syncingCounter is ",
+        this._syncingCounter
+      )
 
     syncingCounter === 0
       ? this._emit("sync")
@@ -1512,7 +1553,10 @@ export class Chat
 
     this._syncingCounter++
 
-    console.log("let's update the last sync date...")
+    Chat._config &&
+      Chat._config.devMode &&
+      console.log("user key pair ", this.getUserKeyPair()) &&
+      console.log("let's update the last sync date...")
 
     let user = (await this._storage.get("user", "[did+organizationId]", [
       Auth.account!.did,
@@ -1530,7 +1574,10 @@ export class Chat
       })
     })
 
-    console.log("calling another _sync()")
+    Chat._config &&
+      Chat._config.devMode &&
+      console.log("user key pair ", this.getUserKeyPair()) &&
+      console.log("calling another _sync()")
 
     if (this._syncTimeout) clearTimeout(this._syncTimeout)
     this._syncTimeout = setTimeout(async () => {
@@ -1879,11 +1926,11 @@ export class Chat
           ),
         ])
 
-        Chat._detectiveMessage.collectClue(
+        /*Chat._detectiveMessage.collectClue(
           response,
           Auth.account!.did,
           Auth.account!.organizationId
-        )
+        )*/
         //let's update the conversation in the case it was deleted locally by the user.
         //the conversation if it is deleted, returns visible for the user.
 
@@ -7431,7 +7478,7 @@ export class Chat
         this._keyPairsMap = [] //conversations public/private keys
         this._userKeyPair = null //user private/public key
         this._syncRunning = false
-        Chat._detectiveMessage.clear()
+        //Chat._detectiveMessage.clear()
         resolve()
       } catch (error) {
         console.log("unsync() error:", error)
@@ -7931,9 +7978,8 @@ export class Chat
     } catch (error: any) {
       console.error(error)
 
-      if ("statusCode" in error && error.statusCode === 401) {
-        await Auth.getInstance().logout()
-      }
+      if ("statusCode" in error && error.statusCode === 401)
+        Auth.getInstance().logout()
 
       return false
     }
@@ -7986,9 +8032,8 @@ export class Chat
     } catch (error: any) {
       console.error(error)
 
-      if ("statusCode" in error && error.statusCode === 401) {
-        await Auth.getInstance().logout()
-      }
+      if ("statusCode" in error && error.statusCode === 401)
+        Auth.getInstance().logout()
 
       return false
     }
@@ -8007,9 +8052,8 @@ export class Chat
     } catch (error: any) {
       console.error(error)
 
-      if ("statusCode" in error && error.statusCode === 401) {
-        await Auth.getInstance().logout()
-      }
+      if ("statusCode" in error && error.statusCode === 401)
+        Auth.getInstance().logout()
 
       return false
     }

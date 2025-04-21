@@ -145,18 +145,18 @@ export class Engine implements IEngine {
 
       const offConnecting = this._realtimeClient.on("connecting", () => {
         this._isConnecting = true
-        console.log("connecting...")
+        this._parentConfig?.devMode && console.log("connecting...")
       })
 
       const offReconnecting = this._realtimeClient.on("reconnecting", () => {
         this._isConnecting = true
-        console.log("reconnecting...")
+        this._parentConfig?.devMode && console.log("reconnecting...")
       })
 
       const offDisconnected = this._realtimeClient.on("disconnected", () => {
         this._isConnecting = false
         this._isConnected = false
-        console.log("disconnected.")
+        this._parentConfig?.devMode && console.log("disconnected.")
       })
 
       const offReconnected = this._realtimeClient.on(
@@ -332,11 +332,12 @@ export class Engine implements IEngine {
         _error.originalError &&
         "errorType" in _error.originalError
       ) {
-        console.log(
-          "the qi error is ",
-          _error.originalError,
-          _error.originalError.errorType
-        )
+        this._parentConfig?.devMode &&
+          console.log(
+            "the qi error is ",
+            _error.originalError,
+            _error.originalError.errorType
+          )
         if (_error.originalError.errorType === "UnauthorizedException")
           return "_401_"
       }
@@ -564,7 +565,7 @@ export class Engine implements IEngine {
   silentReset() {
     if (!this._realtimeClient) return
 
-    console.log("silent reset! shhhh...")
+    this._parentConfig?.devMode && console.log("silent reset! shhhh...")
 
     this._reset()
     this._makeWSClient() //silent creation of a new realtimeClient instance
