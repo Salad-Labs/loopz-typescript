@@ -1199,29 +1199,39 @@ export class Auth implements AuthInternalEvents {
       console.log("Error during rebuilding phase for account.")
       console.error(error)
       if ("statusCode" in error && error.statusCode === 401)
-        await Auth._instance.logout()
+        Auth._instance.logout()
     }
   }
 
   public static async fetchAuthToken() {
     try {
-      console.log("fetch new token")
+      Auth._config && Auth._config.devMode && console.log("fetch new token")
       const token = await getAccessToken()
 
-      console.log(
-        "old real time auth token is",
-        Auth._realtimeAuthorizationToken
-      )
-      console.log("old token is ", Auth.authToken)
-      console.log("new token is ", token)
+      Auth._config &&
+        Auth._config.devMode &&
+        console.log(
+          "old real time auth token is",
+          Auth._realtimeAuthorizationToken
+        )
+      Auth._config &&
+        Auth._config.devMode &&
+        console.log("old token is ", Auth.authToken)
+      Auth._config &&
+        Auth._config.devMode &&
+        console.log("new token is ", token)
 
       Auth.authToken = token
 
-      console.log("confirmation for new token ", Auth.authToken)
-      console.log(
-        "confirmation for new real time auth token ",
-        Auth._realtimeAuthorizationToken
-      )
+      Auth._config &&
+        Auth._config.devMode &&
+        console.log("confirmation for new token ", Auth.authToken)
+      Auth._config &&
+        Auth._config.devMode &&
+        console.log(
+          "confirmation for new real time auth token ",
+          Auth._realtimeAuthorizationToken
+        )
 
       let lastUserLoggedKey = window.localStorage.getItem(
         CLIENT_DB_KEY_LAST_USER_LOGGED
@@ -1232,10 +1242,12 @@ export class Auth implements AuthInternalEvents {
       if (!lastUserLoggedKey)
         throw new Error("Impossible to detect a logged user key.")
 
-      console.log(
-        "lastuserlogged key from local storage is ",
-        JSON.parse(lastUserLoggedKey)
-      )
+      Auth._config &&
+        Auth._config.devMode &&
+        console.log(
+          "lastuserlogged key from local storage is ",
+          JSON.parse(lastUserLoggedKey)
+        )
 
       lastUserLoggedKey = JSON.parse(lastUserLoggedKey)
       ;(
@@ -1250,10 +1262,12 @@ export class Auth implements AuthInternalEvents {
         JSON.stringify(lastUserLoggedKey)
       )
 
-      console.log(
-        "setItem performed on local storage with value",
-        lastUserLoggedKey
-      )
+      Auth._config &&
+        Auth._config.devMode &&
+        console.log(
+          "setItem performed on local storage with value",
+          lastUserLoggedKey
+        )
     } catch (error) {
       console.log("[fetchAuthToken error]:", error)
       console.log("logging out...")
