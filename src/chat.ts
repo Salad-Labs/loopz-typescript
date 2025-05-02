@@ -1923,6 +1923,13 @@ export class Chat
         //let's update the conversation in the case it was deleted locally by the user.
         //the conversation if it is deleted, returns visible for the user.
 
+        //avoid useless query (this event is emitted when a message is sent into a public conversation, so we avoid the logic below)
+        if (
+          this._currentPublicConversation?.conversationId ===
+          response.conversationId
+        )
+          return
+
         const conversation = await this._storage.get(
           "conversation",
           "[id+userDid]",
@@ -1974,6 +1981,13 @@ export class Chat
   ) {
     try {
       if (!(response instanceof QIError)) {
+        //avoid useless query (this event is emitted when a message is sent into a public conversation, so we avoid the logic below)
+        if (
+          this._currentPublicConversation?.conversationId ===
+          response.conversationId
+        )
+          return
+
         this._storage.insertBulkSafe("message", [
           Converter.fromMessageToLocalDBMessage(
             response,
