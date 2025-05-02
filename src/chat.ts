@@ -331,10 +331,9 @@ export class Chat
 
   private _currentPublicConversation: Maybe<{
     conversationId: string
-    joinedAt: Date
   }> = null
 
-  private static STORAGE_KEY = "loopz:current_public_conversation"
+  private static PUBLIC_CONVERSATION_KEY = "loopz:current_public_conversation"
 
   private constructor() {
     if (!Chat._config)
@@ -503,7 +502,6 @@ export class Chat
   private _setCurrentPublicConversation(conversationId: string): void {
     this._currentPublicConversation = {
       conversationId,
-      joinedAt: new Date(),
     }
   }
 
@@ -511,25 +509,13 @@ export class Chat
    * Synchronize the public conversation state across windows
    */
   private _syncPublicConversationState() {
-    const storedConversation = localStorage.getItem(Chat.STORAGE_KEY)
+    const storedConversation = localStorage.getItem(
+      Chat.PUBLIC_CONVERSATION_KEY
+    )
 
     if (storedConversation) {
       const parsedConversation = JSON.parse(storedConversation)
-
-      // Check if the conversation has expired (e.g., after 24 hours)
-      const joinedAt = new Date(parsedConversation.joinedAt)
-      const now = new Date()
-      const hoursSinceJoin =
-        (now.getTime() - joinedAt.getTime()) / (1000 * 60 * 60)
-
-      if (hoursSinceJoin > 24) {
-        // Conversation expired, remove it
-        localStorage.removeItem(Chat.STORAGE_KEY)
-        this._currentPublicConversation = null
-      } else {
-        // Update the current state
-        this._currentPublicConversation = parsedConversation
-      }
+      this._currentPublicConversation = parsedConversation
     } else {
       this._currentPublicConversation = null
     }
@@ -542,15 +528,14 @@ export class Chat
     if (conversationId) {
       // Save the new conversation
       localStorage.setItem(
-        Chat.STORAGE_KEY,
+        Chat.PUBLIC_CONVERSATION_KEY,
         JSON.stringify({
           conversationId,
-          joinedAt: new Date().toISOString(),
         })
       )
     } else {
       // Remove the current conversation
-      localStorage.removeItem(Chat.STORAGE_KEY)
+      localStorage.removeItem(Chat.PUBLIC_CONVERSATION_KEY)
     }
   }
 
@@ -559,9 +544,13 @@ export class Chat
    */
   private _setupStorageEventListener() {
     window.addEventListener("storage", (event) => {
-      if (event.key === Chat.STORAGE_KEY) {
+      if (event.key === Chat.PUBLIC_CONVERSATION_KEY) {
         // Another window has changed the conversation state
         this._syncPublicConversationState()
+        this._emit("publicConversationChange", {
+          oldConversation: event.oldValue,
+          newConversation: event.newValue,
+        })
       }
     })
   }
@@ -3508,16 +3497,6 @@ export class Chat
     },
     overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Conversation> {
-    this._syncPublicConversationState()
-
-    // First, check if the user is already in the conversation
-    // If already in a public conversation, throw an error
-    /*if (this.isInPublicConversation()) {
-      throw new Error(
-        "Already in a public conversation. Leave the current one first."
-      )
-    }*/
-
     try {
       const membershipCheck =
         await this.listConversationMembersByConversationId(args.conversationId)
@@ -7193,7 +7172,7 @@ export class Chat
     }
 
     // Automatically join the conversation for the creator
-    const joinResponse = await this.joinConversation({
+    await this.joinConversation({
       conversationId: response.id,
       encryptedConversationAESKey: Crypto.encryptStringOrFail(
         this.getUserKeyPair()!.publicKey,
