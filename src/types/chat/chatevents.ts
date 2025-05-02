@@ -44,3 +44,4 @@ export type ChatEvents =
   | "requestTradeError"
   | "updateRequestTradeError"
   | "canChat"
+  | "publicConversationChange"
