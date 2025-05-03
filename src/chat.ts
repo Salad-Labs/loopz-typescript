@@ -7698,6 +7698,7 @@ export class Chat
 
   async fetchLocalDBConversationsByUserId(
     userId: string,
+    type: "ONE_TO_ONE" | "GROUP" | "ALL" = "ALL",
     page: number,
     numberElements: number
   ): Promise<LocalDBConversation[]> {
@@ -7730,7 +7731,7 @@ export class Chat
           return (
             conversation.membersIds.findIndex((memberId) => {
               return memberId.toLowerCase() === userId.toLowerCase()
-            }) > -1
+            }) > -1 && (type === "ALL" ? true : conversation.type === type)
           )
         })
         .slice(offset, offset + numberElements)
