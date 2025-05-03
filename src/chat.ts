@@ -7700,7 +7700,7 @@ export class Chat
     userId: string,
     page: number,
     numberElements: number
-  ) {
+  ): Promise<LocalDBConversation[]> {
     if (!Auth.account) throw new Error("Account must be initialized.")
     if (page < 0 || numberElements <= 0) return []
 
@@ -7769,6 +7769,8 @@ export class Chat
       console.log("[ERROR]: fetchLocalDBConversationsByUserId() -> ", error)
       return []
     }
+
+    return conversations
   }
 
   async searchTermsOnLocalDB(
