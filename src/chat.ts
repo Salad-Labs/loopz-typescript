@@ -7696,6 +7696,81 @@ export class Chat
     return conversations
   }
 
+  async fetchLocalDBConversationsByUserId(
+    userId: string,
+    page: number,
+    numberElements: number
+  ) {
+    if (!Auth.account) throw new Error("Account must be initialized.")
+    if (page < 0 || numberElements <= 0) return []
+
+    const offset = (page - 1) * numberElements
+    const conversations: LocalDBConversation[] = []
+
+    try {
+      const allConversations = await new Promise<LocalDBConversation[]>(
+        (resolve, reject) => {
+          Serpens.addAction(() =>
+            this._storage.conversation
+              .where("indexDid")
+              .equals(Auth.account!.did)
+              .filter(
+                (element) =>
+                  typeof element.deletedAt !== "undefined" && !element.deletedAt
+              )
+              .toArray()
+              .then(resolve)
+              .catch(reject)
+          )
+        }
+      )
+
+      const filteredConversations = allConversations
+        .filter((conversation) => {
+          return (
+            conversation.membersIds.findIndex((memberId) => {
+              return memberId.toLowerCase() === userId.toLowerCase()
+            }) > -1
+          )
+        })
+        .slice(offset, offset + numberElements)
+
+      for (let conversation of filteredConversations) {
+        try {
+          const keyPair = this.findKeyPairById(conversation.id)
+          if (!keyPair) continue
+
+          conversations.push({
+            ...conversation,
+            name: Crypto.decryptAESorFail(conversation.name, keyPair),
+            description: Crypto.decryptAESorFail(
+              conversation.description,
+              keyPair
+            ),
+            imageURL: Crypto.decryptAESorFail(conversation.imageURL, keyPair),
+            bannerImageURL: Crypto.decryptAESorFail(
+              conversation.bannerImageURL,
+              keyPair
+            ),
+            lastMessageText: conversation.lastMessageText
+              ? Crypto.decryptAESorFail(conversation.lastMessageText, keyPair)
+              : null,
+          })
+        } catch (error) {
+          console.log(
+            "[ERROR]: fetchLocalDBConversationsByUserId() item -> ",
+            conversation,
+            error
+          )
+          continue
+        }
+      }
+    } catch (error) {
+      console.log("[ERROR]: fetchLocalDBConversationsByUserId() -> ", error)
+      return []
+    }
+  }
+
   async searchTermsOnLocalDB(
     query: string,
     options?: Partial<{ conversationId: string }>

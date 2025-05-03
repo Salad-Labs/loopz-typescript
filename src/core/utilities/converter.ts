@@ -34,6 +34,7 @@ export class Converter {
         ? JSON.parse(conversation.imageSettings)
         : null,
       settings: JSON.stringify(conversation.settings),
+      membersIds: conversation.membersIds ? conversation.membersIds : [],
       isArchived,
       lastMessageSentAt: conversation.lastMessageSentAt
         ? conversation.lastMessageSentAt
