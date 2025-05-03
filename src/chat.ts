@@ -3512,8 +3512,11 @@ export class Chat
     overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Conversation> {
     try {
+      console.log("listConversationMembersByConversationId")
       const membershipCheck =
         await this.listConversationMembersByConversationId(args.conversationId)
+
+      console.log(membershipCheck)
 
       if (membershipCheck instanceof QIError) {
         if (!overrideHandlingUnauthorizedQIError) {
@@ -3534,7 +3537,7 @@ export class Chat
           : membershipCheck.some(
               (member) => member.userId === Auth.account!.dynamoDBUserID
             )
-
+      console.log("isAlreadyMember", isAlreadyMember)
       if (isAlreadyMember) {
         // Retrieve and return the conversation
         const conversationResponse = await this.getConversationById(
@@ -3575,6 +3578,18 @@ export class Chat
 
       this._setCurrentPublicConversation(args.conversationId)
       this._updatePublicConversationStorage(args.conversationId)
+
+      this.addKeyPairItem({
+        id: args.conversationId,
+        AES: Crypto.decryptStringOrFail(
+          this.getUserKeyPair()!.privateKey,
+          args.encryptedConversationAESKey
+        ),
+        iv: Crypto.decryptStringOrFail(
+          this.getUserKeyPair()!.privateKey,
+          args.encryptedConversationIVKey
+        ),
+      })
 
       return this._makeConversation(response.conversation)
     } catch (error) {
@@ -5016,11 +5031,11 @@ export class Chat
       return response
     }
 
-    const listConversationMembers: Array<ConversationMember> =
-      // TODO why response.members is of type array and not { items: Array }?
-      (response.members as any).items.map((item) => {
-        return this._makeConversationMember(item)
-      })
+    const listConversationMembers: Array<ConversationMember> = (
+      response.members as any
+    ).items.map((item) => {
+      return this._makeConversationMember(item)
+    })
 
     return listConversationMembers
   }
@@ -7185,6 +7200,12 @@ export class Chat
       return response
     }
 
+    console.log(
+      "joinConversation",
+      response.id,
+      args.conversationKeys.conversationAESKey,
+      args.conversationKeys.conversationIVKey
+    )
     // Automatically join the conversation for the creator
     await this.joinConversation({
       conversationId: response.id,
