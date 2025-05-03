@@ -1035,7 +1035,9 @@ export class Chat
 
       Chat._config &&
         Chat._config.devMode &&
-        console.log("user key pair ", this.getUserKeyPair()) &&
+        console.log("user key pair ", this.getUserKeyPair())
+      Chat._config &&
+        Chat._config.devMode &&
         console.log("key pair map is ", _keyPairsMap)
 
       return true
@@ -1353,11 +1355,9 @@ export class Chat
 
     Chat._config &&
       Chat._config.devMode &&
-      console.log("user key pair ", this.getUserKeyPair()) &&
       console.log("activeConversations", activeConversations)
     Chat._config &&
       Chat._config.devMode &&
-      console.log("user key pair ", this.getUserKeyPair()) &&
       console.log("unactiveConversations", unactiveConversations)
 
     if (!activeConversations || !unactiveConversations) {
@@ -1372,7 +1372,6 @@ export class Chat
 
     Chat._config &&
       Chat._config.devMode &&
-      console.log("user key pair ", this.getUserKeyPair()) &&
       console.log(
         "after check if (!activeConversations || !unactiveConversations)"
       )
@@ -1381,7 +1380,6 @@ export class Chat
     const keysRecovered = await this._recoverKeysFromConversations()
     Chat._config &&
       Chat._config.devMode &&
-      console.log("user key pair ", this.getUserKeyPair()) &&
       console.log("keysRecovered", keysRecovered)
 
     if (typeof keysRecovered === "boolean" && !keysRecovered) {
@@ -1397,7 +1395,6 @@ export class Chat
 
     Chat._config &&
       Chat._config.devMode &&
-      console.log("user key pair ", this.getUserKeyPair()) &&
       console.log("after check if (!keysRecovered)")
 
     //third operation. For each conversation, we need to download the messages if the lastMessageSentAt of the conversation is != null
@@ -1409,7 +1406,6 @@ export class Chat
 
     Chat._config &&
       Chat._config.devMode &&
-      console.log("user key pair ", this.getUserKeyPair()) &&
       console.log("messagesRecovered", messagesRecovered)
 
     if (!messagesRecovered) {
@@ -1425,7 +1421,6 @@ export class Chat
 
     Chat._config &&
       Chat._config.devMode &&
-      console.log("user key pair ", this.getUserKeyPair()) &&
       console.log("after check if (!messagesRecovered)")
 
     //let's setup an array of the conversations in the first sync cycle.
@@ -1433,7 +1428,6 @@ export class Chat
     if (syncingCounter === 0) {
       Chat._config &&
         Chat._config.devMode &&
-        console.log("user key pair ", this.getUserKeyPair()) &&
         console.log("inside check if (syncingCounter === 0)")
 
       for (const activeConversation of activeConversations)
@@ -1452,7 +1446,6 @@ export class Chat
 
       Chat._config &&
         Chat._config.devMode &&
-        console.log("user key pair ", this.getUserKeyPair()) &&
         console.log(
           "inside check if (syncingCounter === 0) this._conversationsMap is ",
           this._conversationsMap
@@ -1467,7 +1460,6 @@ export class Chat
 
       Chat._config &&
         Chat._config.devMode &&
-        console.log("user key pair ", this.getUserKeyPair()) &&
         console.log(
           "inside else syncingCounter is > 0, now its value is ",
           this._syncingCounter
@@ -1485,7 +1477,6 @@ export class Chat
 
       Chat._config &&
         Chat._config.devMode &&
-        console.log("user key pair ", this.getUserKeyPair()) &&
         console.log("added and removed are ", added, removed)
 
       if (added.length > 0)
@@ -1530,7 +1521,6 @@ export class Chat
 
     Chat._config &&
       Chat._config.devMode &&
-      console.log("user key pair ", this.getUserKeyPair()) &&
       console.log(
         "ready to emit sync or syncUpdate, this._syncingCounter is ",
         this._syncingCounter
@@ -1544,7 +1534,6 @@ export class Chat
 
     Chat._config &&
       Chat._config.devMode &&
-      console.log("user key pair ", this.getUserKeyPair()) &&
       console.log("let's update the last sync date...")
 
     let user = (await this._storage.get("user", "[did+organizationId]", [
@@ -1565,7 +1554,6 @@ export class Chat
 
     Chat._config &&
       Chat._config.devMode &&
-      console.log("user key pair ", this.getUserKeyPair()) &&
       console.log("calling another _sync()")
 
     if (this._syncTimeout) clearTimeout(this._syncTimeout)
@@ -3512,11 +3500,8 @@ export class Chat
     overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | Conversation> {
     try {
-      console.log("listConversationMembersByConversationId")
       const membershipCheck =
         await this.listConversationMembersByConversationId(args.conversationId)
-
-      console.log(membershipCheck)
 
       if (membershipCheck instanceof QIError) {
         if (!overrideHandlingUnauthorizedQIError) {
@@ -3537,7 +3522,7 @@ export class Chat
           : membershipCheck.some(
               (member) => member.userId === Auth.account!.dynamoDBUserID
             )
-      console.log("isAlreadyMember", isAlreadyMember)
+
       if (isAlreadyMember) {
         // Retrieve and return the conversation
         const conversationResponse = await this.getConversationById(
@@ -7200,12 +7185,6 @@ export class Chat
       return response
     }
 
-    console.log(
-      "joinConversation",
-      response.id,
-      args.conversationKeys.conversationAESKey,
-      args.conversationKeys.conversationIVKey
-    )
     // Automatically join the conversation for the creator
     await this.joinConversation({
       conversationId: response.id,
