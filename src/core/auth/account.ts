@@ -599,7 +599,7 @@ export class Account implements AccountSchema, AccountEngine {
           if (typeof signupCompleted !== "undefined")
             updateData.signupCompleted = signupCompleted
               ? signupCompleted
-              : user.signupCompleted
+              : updateData.signupCompleted
 
           this._storage.user
             .update(user, updateData)
