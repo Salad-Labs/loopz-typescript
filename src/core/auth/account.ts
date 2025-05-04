@@ -575,33 +575,34 @@ export class Account implements AccountSchema, AccountEngine {
 
       await new Promise((resolve, reject) => {
         Serpens.addAction(() => {
+          const updateData: Partial<LocalDBUser> = {}
+          if (username) updateData.username = username
+          if ((this as any).avatarUrl)
+            updateData.avatarUrl = (this as any).avatarUrl.toString()
+          if ((this as any).bannerImageUrl)
+            updateData.bannerImageUrl = (this as any).bannerImageUrl.toString()
+          if (bio) updateData.bio = bio
+          if (imageSettings) updateData.imageSettings = imageSettings
+          if (city) updateData.city = city
+          if (country) updateData.country = country
+          if (typeof lat !== "undefined") updateData.lat = lat ? lat : user.lat
+          if (typeof lng !== "undefined") updateData.lng = lng ? lng : user.lng
+          if (typeof isCreator !== "undefined")
+            updateData.isCreator = isCreator ? isCreator : user.isCreator
+          if (instagramPublicUrl)
+            updateData.instagramPublicUrl = instagramPublicUrl
+          if (xPublicUrl) updateData.xPublicUrl = xPublicUrl
+          if (tiktokPublicUrl) updateData.tiktokPublicUrl = tiktokPublicUrl
+          if (personalWebsiteUrl)
+            updateData.personalWebsiteUrl = personalWebsiteUrl
+          if (gender) updateData.gender = gender
+          if (typeof signupCompleted !== "undefined")
+            updateData.signupCompleted = signupCompleted
+              ? signupCompleted
+              : updateData.signupCompleted
+
           this._storage.user
-            .update(user, {
-              username: username ? username : undefined,
-              avatarUrl: (this as any).avatarUrl
-                ? (this as any).avatarUrl.toString()
-                : undefined,
-              bannerImageUrl: (this as any).bannerImageUrl
-                ? (this as any).bannerImageUrl.toString()
-                : undefined,
-              bio: bio ? bio : undefined,
-              imageSettings: imageSettings ? imageSettings : undefined,
-              city: city ? city : undefined,
-              country: country ? country : undefined,
-              lat: lat ? lat : undefined,
-              lng: lng ? lng : undefined,
-              isCreator: isCreator ? isCreator : undefined,
-              instagramPublicUrl: instagramPublicUrl
-                ? instagramPublicUrl
-                : undefined,
-              xPublicUrl: xPublicUrl ? xPublicUrl : undefined,
-              tiktokPublicUrl: tiktokPublicUrl ? tiktokPublicUrl : undefined,
-              personalWebsiteUrl: personalWebsiteUrl
-                ? personalWebsiteUrl
-                : undefined,
-              gender: gender ? gender : undefined,
-              signupCompleted: signupCompleted ? signupCompleted : undefined,
-            })
+            .update(user, updateData)
             .then(resolve)
             .catch(reject)
         })
@@ -664,7 +665,7 @@ export class Account implements AccountSchema, AccountEngine {
     } catch (error: any) {
       console.error(error)
       if ("statusCode" in error && error.statusCode === 401)
-        await Auth.getInstance().logout()
+        Auth.getInstance().logout()
 
       throw error
     }
