@@ -5,7 +5,7 @@ import { NotInitializedError } from "../../errors/NotInitializedError"
 import { UnauthenticatedError } from "../../errors/UnauthenticatedError"
 import { NotConnectedError } from "../../errors/NotConnectedError"
 import { LoopzContext } from "../context/loopzcontext"
-import { LoopzAuthContext } from "../context/loopzauthcontext"
+import { LoopzAuthProviderContext } from "../context/loopzauthprovidercontext"
 import { LoadingError } from "../../errors/AuthLoadingError"
 import { ClientCantChatError } from "../../errors/ClientCantChatError"
 import { useLoopzChatEvent } from "./useLoopzChatEvent"
@@ -51,7 +51,7 @@ export const useLoopzChat: UseLoopzChat = ({
   onReactionRemovedError,
 } = {}) => {
   const loopzContext = useContext(LoopzContext)
-  const authContext = useContext(LoopzAuthContext)
+  const authContext = useContext(LoopzAuthProviderContext)
   const chatContext = useContext(LoopzChatContext)
   if (!loopzContext || !authContext || !chatContext)
     throw new Error("useLoopzChat() must be used within a <LoopzProvider />.")

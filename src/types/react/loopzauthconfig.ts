@@ -1,12 +1,6 @@
-import { PrivyClientConfig } from "@privy-io/react-auth"
-import { DexieStorage } from "../../core/app"
-
-export type LoopzConfig = {
+export type LoopzAuthConfig = {
   apiKey: string
-  privyAppId: string
-  privyClientConfig: PrivyClientConfig
-  storage: DexieStorage
-  intl: {
+  intl?: {
     stepEmailAuthLabel?: string
     stepVerificationCodeLabel?: string
     emailAddressFieldLabel?: string

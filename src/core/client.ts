@@ -1,5 +1,11 @@
 import { HTTPRequestInit, HTTPResponse } from "../interfaces/base"
 import { Auth } from ".."
+import {
+  BACKEND_CHAT_URLS,
+  BACKEND_URLS,
+  WEBSOCKET_CHAT_ENDPOINTS,
+  WEBSOCKET_ENDPOINTS,
+} from "src/constants/app"
 
 /**
  * Class representing an HTTP client for making HTTP requests.
@@ -132,26 +138,28 @@ export class Client {
   }
 
   public backendUrl(path?: string) {
-    return `https://${
-      this._isDevelopment ? `develop.api.` : `api.`
-    }loopz.xyz/v1${path ?? ""}`
+    return `${
+      this._isDevelopment ? BACKEND_URLS.development : BACKEND_URLS.production
+    }${path ?? ""}`
   }
 
   public backendChatUrl() {
     return this._isDevelopment
-      ? "https://develop.api.loopz.xyz/graphql"
-      : "https://api.loopz.xyz/graphql"
+      ? BACKEND_CHAT_URLS.development
+      : BACKEND_CHAT_URLS.production
   }
 
   public backendNotificationUrl(path?: string) {
-    return `wss://${this._isDevelopment ? `develop.wss.` : `wss.`}loopz.xyz${
-      path ?? ""
-    }`
+    return `${
+      this._isDevelopment
+        ? WEBSOCKET_ENDPOINTS.development
+        : WEBSOCKET_ENDPOINTS.production
+    }${path ?? ""}`
   }
 
   public backendChatRealtimeUrl() {
     return this._isDevelopment
-      ? "wss://develop.api.graphql.loopz.xyz/graphql/realtime" //url server chat graphql development
-      : "wss://api.graphql.loopz.xyz/graphql/realtime" //url server chat graphql production
+      ? WEBSOCKET_CHAT_ENDPOINTS.development
+      : WEBSOCKET_CHAT_ENDPOINTS.production
   }
 }

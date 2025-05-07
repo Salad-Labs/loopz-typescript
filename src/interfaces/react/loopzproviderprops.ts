@@ -1,11 +1,10 @@
-import { LoopzProviderAuthConfig } from "../../types/react/loopzproviderauthconfig"
+import { LoopzAuthConfig } from "../../types/react/loopzauthconfig"
 import { LoopzProviderChatConfig } from "../../types/react/loopzproviderchatconfig"
 import { LoopzProviderConfig } from "../../types/react/loopzproviderconfig"
 import { ReactNode } from "react"
 
 export interface LoopzProviderProps {
   config: LoopzProviderConfig
-  authConfig?: LoopzProviderAuthConfig
   chatConfig?: LoopzProviderChatConfig
   /**
    * @default false

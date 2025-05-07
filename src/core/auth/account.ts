@@ -16,6 +16,7 @@ import { LocalDBUser } from "../app/database"
 export class Account implements AccountSchema, AccountEngine {
   readonly did: string
   readonly organizationId: string
+  readonly didPrivy: string
   readonly walletAddress: string
   readonly walletConnectorType: string
   readonly walletImported: boolean
@@ -140,6 +141,7 @@ export class Account implements AccountSchema, AccountEngine {
 
     this.did = config.did
     this.organizationId = config.organizationId
+    this.didPrivy = config.didPrivy
     this.token = config.token
     this.walletAddress = config.walletAddress
     this.walletConnectorType = config.walletConnectorType
