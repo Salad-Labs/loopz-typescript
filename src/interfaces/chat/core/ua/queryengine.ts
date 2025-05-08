@@ -1,4 +1,4 @@
-import { ListMessagesUpdatedArgs } from "src/types/chat/schema/args/listmessagesupdated"
+import { ListMessagesUpdatedArgs } from "../../../../types/chat/schema/args/listmessagesupdated"
 import {
   Conversation,
   ConversationPin,

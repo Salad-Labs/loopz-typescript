@@ -1,7 +1,7 @@
 import { AuthInfo } from ".."
 import { Account } from "../../core"
 
-export type LoopzAuthContextValue =
+export type LoopzAuthProviderContextValue =
   | {
       isLoading: true
       isAuthenticated: false

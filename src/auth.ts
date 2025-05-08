@@ -1,21 +1,12 @@
 import { Client } from "./core/client"
-import {
-  AuthConfig,
-  AuthEvents,
-  AuthInfo,
-  AuthParams,
-  LinkAccountInfo,
-} from "./types/auth"
+import { AuthConfig, AuthEvents, AuthInfo, AuthParams } from "./types/auth"
 import { ApiResponse } from "./types/base/apiresponse"
 import { ApiKeyAuthorized, Maybe } from "./types/base"
 import { Crypto } from "./core"
 import { DexieStorage } from "./core/app"
 import { AuthInternalEvents } from "./interfaces/auth/authinternalevents"
-import { PrivyErrorCode } from "./enums/adapter/auth/privyerrorcode"
-import { PrivyAuthInfo } from "./types/adapter"
 import { AccountInitConfig } from "./types/auth/account"
 import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "./constants/app"
-import { AuthLinkMethod } from "./types/auth/authlinkmethod"
 import { getAccessToken } from "@privy-io/react-auth"
 import { Account, Chat, Serpens } from "."
 import { LocalDBUser } from "./core/app/database"
@@ -39,7 +30,6 @@ export class Auth implements AuthInternalEvents {
     callbacks: Function[]
     event: AuthEvents
   }> = []
-  private static _isLoggingOut: boolean = false
   private static _isAuthenticated: boolean = false
 
   private static set authToken(authToken: Maybe<string>) {
@@ -86,27 +76,8 @@ export class Auth implements AuthInternalEvents {
     Auth._apiKey = Auth._config.apiKey
     Auth._client = new Client(Auth._config.devMode)
 
-    //OAuth providers like Google, Instagram etc bring the user from the current web application page to
-    //their authentication pages. When the user is redirect from their auth pages to the web application page again
-    //this event is fired.
-    this.on(
-      "__onOAuthAuthenticatedDesktop",
-      Auth._callBackendAuthAfterOAuthRedirect
-    )
-
-    // same but for linking an account to a user already registered
-    this.on(
-      "__onOAuthLinkAuthenticatedDesktop",
-      Auth._callBackendLinkAfterOAuthRedirect
-    )
-
-    //OAuth providers login error handling
-    this.on("__onLoginError", (error: PrivyErrorCode) => {
+    this.on("__onLoginError", (error) => {
       Auth._emit("onAuthError", error)
-    })
-
-    this.on("__onLinkAccountError", (error: PrivyErrorCode) => {
-      Auth._emit("onLinkError", error)
     })
 
     Auth._instance = this
@@ -226,6 +197,7 @@ export class Auth implements AuthInternalEvents {
             .add({
               did: Auth._account.did,
               organizationId: Auth._account.organizationId,
+              didPrivy: Auth._account.didPrivy,
               dynamoDBUserID: Auth._account.dynamoDBUserID,
               username: Auth._account.username,
               email: Auth._account.email,
@@ -381,117 +353,7 @@ export class Auth implements AuthInternalEvents {
     }
   }
 
-  private static async _callBackendAuthAfterOAuthRedirect(
-    authInfo: PrivyAuthInfo
-  ) {
-    if (!Auth._config || !Auth._instance || !Auth._client)
-      throw new Error("Auth has not been configured")
-
-    Auth.authToken = authInfo.authToken
-
-    try {
-      const keys = await Auth._getOrCreateUserKeys(
-        authInfo.user.id,
-        Auth._apiKey
-      )
-
-      const { response } = await Auth._client.fetch<
-        ApiResponse<{
-          user: AccountInitConfig
-        }>
-      >(Auth._client.backendUrl("/auth"), {
-        method: "POST",
-        body: {
-          ...Auth._formatAuthParams(authInfo),
-          e2ePublicKey: keys.e2ePublicKeyPem,
-        },
-      })
-
-      if (!response || !response.data)
-        return Auth._emit(
-          "onAuthError",
-          new Error("No response from backend during authentication.")
-        )
-
-      const { user } = response.data[0]
-
-      if (!user)
-        return Auth._emit("onAuthError", new Error("Access not granted."))
-
-      //let's check if it's the first login of the user.
-      //this is needed to understand if the user is doing the login on a different device
-
-      //this is needed to understand if the user is doing the login on a different device
-      if (
-        user.e2ePublicKey.toLowerCase() === keys.e2ePublicKeyPem.toLowerCase()
-      ) {
-        //this means the user is accessing from the same device/the devices it owns share the same keys OR he's/she's doing the signup
-        if (keys.e2eEncryptedPrivateKey) {
-          //it means i've recovered the private key from the local database. So the user has the possibility to have chats
-          Chat.getInstance().setCanChat(true)
-
-          //so now we have the following situation:
-          //keys.e2eEncryptedPrivateKey = string
-          //keys.e2ePrivateKeyPem = string
-          //keys.e2ePublicKeyPem = string
-        } else {
-          //in the case of a signup, i generate now the private key so the user can chat
-          Chat.getInstance().setCanChat(true)
-          const encryptedPrivateKey = Crypto.encryptAES_CBC(
-            keys.e2ePrivateKeyPem!,
-            Buffer.from(user.e2eSecret, "hex").toString("base64"),
-            Buffer.from(user.e2eSecretIV, "hex").toString("base64")
-          )
-
-          keys.e2eEncryptedPrivateKey = encryptedPrivateKey
-
-          //so now we have the following situation:
-          //keys.e2eEncryptedPrivateKey = string
-          //keys.e2ePrivateKeyPem = string
-          //keys.e2ePublicKeyPem = string
-        }
-      } else {
-        //this means the user is accessing from another device, so the keys needs to be overwritten
-        Chat.getInstance().setCanChat(false)
-        keys.e2ePublicKeyPem = user.e2ePublicKey
-        keys.e2ePrivateKeyPem = null
-
-        //so now we have the following situation:
-        //keys.e2eEncryptedPrivateKey = null
-        //keys.e2ePrivateKeyPem = null
-        //keys.e2ePublicKeyPem = string
-      }
-
-      Auth._isAuthenticated = true
-      Auth.account = new Account({
-        enableDevMode: Auth._config.devMode,
-        storage: Auth._config.storage,
-        ...user,
-      })
-      //store the key of the last user logged in the local storage, this allow to recover the user and rebuild the account object when
-      //the user refresh the page
-      Auth._account!.storeLastUserLoggedKey()
-
-      //generation of the table and local keys for e2e encryption
-      await Auth._storeUserOnLocalDB(keys)
-
-      //clear all the internal callbacks connected to the authentication...
-      Auth._clearEventsCallbacks([
-        "__onOAuthAuthenticatedDesktop",
-        "__onLoginError",
-      ])
-    } catch (error) {
-      //clear all the internal callbacks connected to the authentication...
-      this._clearEventsCallbacks([
-        "__onOAuthAuthenticatedDesktop",
-        "__onLoginError",
-      ])
-      await Auth._instance.logout()
-      Auth._emit("onAuthError", error)
-    }
-  }
-
-  private static async _callBackendAuth(authInfo: PrivyAuthInfo) {
+  private static async _callBackendAuth(authInfo: AuthInfo) {
     if (!Auth._config || !Auth._instance || !Auth._client)
       throw new Error("Auth has not been configured")
 
@@ -564,7 +426,6 @@ export class Auth implements AuthInternalEvents {
 
       Auth._isAuthenticated = true
       Auth._authInfo = {
-        isConnected: true,
         ...authInfo,
       }
       Auth.account = new Account({
@@ -599,228 +460,56 @@ export class Auth implements AuthInternalEvents {
     }
   }
 
-  private static async _callBackendLinkAfterOAuthRedirect(
-    authInfo: PrivyAuthInfo
-  ) {
-    if (!Auth._config || !Auth._instance || !Auth._client)
-      throw new Error("Auth has not been configured")
-
-    Auth.authToken = authInfo.authToken
-
-    try {
-      const { response } = await Auth._client.fetch<
-        ApiResponse<{
-          link: {
-            status: boolean
-          }
-        }>
-      >(Auth._client.backendUrl("/user/link/account"), {
-        method: "POST",
-        body: {
-          ...Auth._formatAuthParams(authInfo),
-        },
-      })
-
-      if (!response || !response.data) throw new Error("Invalid response.")
-
-      const { link } = response.data[0]
-      const { status } = link
-
-      if (!link || !status)
-        throw new Error("An error occured while updating the account.")
-
-      //clear all the internal callbacks connected to the authentication...
-      Auth._clearEventsCallbacks([
-        "__onOAuthLinkAuthenticatedDesktop",
-        "__onLinkAccountError",
-      ])
-      Auth._emit("link", authInfo)
-    } catch (error: any) {
-      console.error(error)
-      if ("statusCode" in error && error.statusCode === 401) {
-        Auth._clearEventsCallbacks([
-          "__onOAuthLinkAuthenticatedDesktop",
-          "__onLinkAccountError",
-          "__onLoginComplete",
-          "__onLoginError",
-        ])
-
-        Auth._emit("onLinkError", error)
-        await Auth._instance.logout()
-        Auth._emit("onAuthError", error)
-      } else {
-        Auth._clearEventsCallbacks([
-          "__onOAuthLinkAuthenticatedDesktop",
-          "__onLinkAccountError",
-        ])
-        Auth._emit("onLinkError", error)
-      }
-    }
-  }
-
-  private static async _callBackendLink(authInfo: PrivyAuthInfo) {
-    if (!Auth._config || !Auth._instance || !Auth._client)
-      throw new Error("Auth has not been configured")
-
-    Auth.authToken = authInfo.authToken
-
-    try {
-      const { response } = await Auth._client.fetch<
-        ApiResponse<{
-          link: {
-            status: boolean
-          }
-        }>
-      >(Auth._client.backendUrl("/user/link/account"), {
-        method: "POST",
-        body: {
-          ...Auth._formatAuthParams(authInfo),
-        },
-      })
-
-      if (!response || !response.data) throw new Error("Invalid response.")
-
-      const { link } = response.data[0]
-      const { status } = link
-
-      if (!link || !status)
-        throw new Error("An error occured while updating the account.")
-
-      //clear all the internal callbacks connected to the link...
-      Auth._clearEventsCallbacks([
-        "__onLinkAccountComplete",
-        "__onLinkAccountError",
-      ])
-
-      return authInfo
-    } catch (error: any) {
-      if ("statusCode" in error && error.statusCode === 401) {
-        Auth._clearEventsCallbacks([
-          "__onLinkAccountComplete",
-          "__onLinkAccountError",
-          "__onLoginComplete",
-          "__onLoginError",
-        ])
-
-        await Auth._instance.logout()
-        Auth._emit("onAuthError", error)
-      } else {
-        Auth._clearEventsCallbacks([
-          "__onLinkAccountComplete",
-          "__onLinkAccountError",
-        ])
-      }
-
-      throw error
-    }
-  }
-
-  private static _formatAuthParams(authInfo: PrivyAuthInfo): AuthParams {
+  private static _formatAuthParams(authInfo: AuthInfo): AuthParams {
     return {
       did: authInfo.user.id,
-      walletAddress: authInfo.user.wallet!.address,
-      walletConnectorType: authInfo.user.wallet!.connectorType!,
-      walletImported: authInfo.user.wallet!.imported
-        ? authInfo.user.wallet!.imported
-        : false,
-      walletRecoveryMethod: authInfo.user.wallet!.recoveryMethod
-        ? authInfo.user.wallet!.recoveryMethod
-        : "",
-      walletClientType: authInfo.user.wallet!.walletClientType
-        ? authInfo.user.wallet!.walletClientType
-        : "",
-      appleSubject: authInfo.user.apple ? authInfo.user.apple.subject : null,
-      appleEmail: authInfo.user.apple ? authInfo.user.apple.email : null,
-      discordSubject: authInfo.user.discord
-        ? authInfo.user.discord.subject
-        : null,
-      discordEmail: authInfo.user.discord ? authInfo.user.discord.email : null,
-      discordUsername: authInfo.user.discord
-        ? authInfo.user.discord.username
-        : null,
-      farcasterFid: authInfo.user.farcaster
-        ? authInfo.user.farcaster.fid
-        : null,
-      farcasterDisplayName: authInfo.user.farcaster
-        ? authInfo.user.farcaster.displayName
-        : null,
-      farcasterOwnerAddress: authInfo.user.farcaster
-        ? authInfo.user.farcaster.ownerAddress
-        : null,
-      farcasterPfp: authInfo.user.farcaster
-        ? authInfo.user.farcaster.pfp
-        : null,
-      farcasterSignerPublicKey: authInfo.user.farcaster
-        ? authInfo.user.farcaster.signerPublicKey
-        : null,
-      farcasterUrl: authInfo.user.farcaster
-        ? authInfo.user.farcaster.url
-        : null,
-      farcasterUsername: authInfo.user.farcaster
-        ? authInfo.user.farcaster.username
-        : null,
-      githubSubject: authInfo.user.github ? authInfo.user.github.subject : null,
-      githubEmail: authInfo.user.github ? authInfo.user.github.email : null,
-      githubName: authInfo.user.github ? authInfo.user.github.name : null,
-      githubUsername: authInfo.user.github
-        ? authInfo.user.github.username
-        : null,
-      googleEmail: authInfo.user.google ? authInfo.user.google.email : null,
-      googleName: authInfo.user.google ? authInfo.user.google.name : null,
-      googleSubject: authInfo.user.google ? authInfo.user.google.subject : null,
-      instagramSubject: authInfo.user.instagram
-        ? authInfo.user.instagram.subject
-        : null,
-      instagramUsername: authInfo.user.instagram
-        ? authInfo.user.instagram.username
-        : null,
-      linkedinEmail: authInfo.user.linkedin
-        ? authInfo.user.linkedin.email
-        : null,
-      linkedinName: authInfo.user.linkedin ? authInfo.user.linkedin.name : null,
-      linkedinSubject: authInfo.user.linkedin
-        ? authInfo.user.linkedin.subject
-        : null,
-      linkedinVanityName: authInfo.user.linkedin
-        ? authInfo.user.linkedin.vanityName
-        : null,
-      spotifyEmail: authInfo.user.spotify ? authInfo.user.spotify.email : null,
-      spotifyName: authInfo.user.spotify ? authInfo.user.spotify.name : null,
-      spotifySubject: authInfo.user.spotify
-        ? authInfo.user.spotify.subject
-        : null,
-      telegramFirstName: authInfo.user.telegram
-        ? authInfo.user.telegram.firstName
-        : null,
-      telegramLastName: authInfo.user.telegram
-        ? authInfo.user.telegram.lastName
-        : null,
-      telegramPhotoUrl: authInfo.user.telegram
-        ? authInfo.user.telegram.photoUrl
-        : null,
-      telegramUserId: authInfo.user.telegram
-        ? authInfo.user.telegram.telegramUserId
-        : null,
-      telegramUsername: authInfo.user.telegram
-        ? authInfo.user.telegram.username
-        : null,
-      tiktokName: authInfo.user.tiktok ? authInfo.user.tiktok.name : null,
-      tiktokSubject: authInfo.user.tiktok ? authInfo.user.tiktok.subject : null,
-      tiktokUsername: authInfo.user.tiktok
-        ? authInfo.user.tiktok.username
-        : null,
-      twitterName: authInfo.user.twitter ? authInfo.user.twitter.name : null,
-      twitterSubject: authInfo.user.twitter
-        ? authInfo.user.twitter.subject
-        : null,
-      twitterProfilePictureUrl: authInfo.user.twitter
-        ? authInfo.user.twitter.profilePictureUrl
-        : null,
-      twitterUsername: authInfo.user.twitter
-        ? authInfo.user.twitter.username
-        : null,
-      phone: authInfo.user.phone ? authInfo.user.phone.number : null,
-      email: authInfo.user.email ? authInfo.user.email.address : null,
+      walletAddress: "",
+      walletConnectorType: "",
+      walletImported: false,
+      walletRecoveryMethod: "",
+      walletClientType: "",
+      appleSubject: null,
+      appleEmail: null,
+      discordSubject: null,
+      discordEmail: null,
+      discordUsername: null,
+      farcasterFid: null,
+      farcasterDisplayName: null,
+      farcasterOwnerAddress: null,
+      farcasterPfp: null,
+      farcasterSignerPublicKey: null,
+      farcasterUrl: null,
+      farcasterUsername: null,
+      githubSubject: null,
+      githubEmail: null,
+      githubName: null,
+      githubUsername: null,
+      googleEmail: null,
+      googleName: null,
+      googleSubject: null,
+      instagramSubject: null,
+      instagramUsername: null,
+      linkedinEmail: null,
+      linkedinName: null,
+      linkedinSubject: null,
+      linkedinVanityName: null,
+      spotifyEmail: null,
+      spotifyName: null,
+      spotifySubject: null,
+      telegramFirstName: null,
+      telegramLastName: null,
+      telegramPhotoUrl: null,
+      telegramUserId: null,
+      telegramUsername: null,
+      tiktokName: null,
+      tiktokSubject: null,
+      tiktokUsername: null,
+      twitterName: null,
+      twitterSubject: null,
+      twitterProfilePictureUrl: null,
+      twitterUsername: null,
+      phone: null,
+      email: authInfo.user.email,
     }
   }
 
@@ -843,31 +532,13 @@ export class Auth implements AuthInternalEvents {
       if (!Auth._config || !Auth._instance)
         throw new Error("Auth has not been configured")
 
-      Auth._instance.on("__onLoginComplete", (authInfo: PrivyAuthInfo) => {
+      Auth._instance.on("__onLoginComplete", (authInfo: AuthInfo) => {
         Auth._callBackendAuth(authInfo).then(resolve).catch(reject)
       })
 
       Auth._instance.on("__onLoginError", reject)
 
       Auth._emit("__authenticate")
-    })
-  }
-
-  private static async _handleDesktopLink(method: AuthLinkMethod) {
-    return new Promise<PrivyAuthInfo>((resolve, reject) => {
-      if (!Auth._config || !Auth._instance)
-        throw new Error("Auth has not been configured")
-
-      Auth._instance.on(
-        "__onLinkAccountComplete",
-        (authInfo: PrivyAuthInfo) => {
-          Auth._callBackendLink(authInfo).then(resolve).catch(reject)
-        }
-      )
-
-      Auth._instance.on("__onLinkAccountError", reject)
-
-      Auth._emit("__link", method)
     })
   }
 
@@ -939,61 +610,6 @@ export class Auth implements AuthInternalEvents {
     return Auth._handleDesktopAuthentication()
   }
 
-  sendEmailOTPCode(email: string): Promise<{ email: string }> {
-    return new Promise((resolve, reject) => {
-      this.on("__onEmailOTPCodeSent", (email: string) => resolve({ email }))
-
-      this.on("__onEmailOTPCodeSentError", reject)
-
-      Auth._emit("__sendEmailOTPCode", email)
-    })
-  }
-
-  sendPhoneOTPCode(phone: string): Promise<{ phone: string }> {
-    return new Promise((resolve, reject) => {
-      this.on("__onSMSOTPCodeSent", (phone: string) => resolve({ phone }))
-
-      this.on("__onSMSOTPCodeSentError", reject)
-
-      Auth._emit("__sendSMSOTPCode", phone)
-    })
-  }
-
-  sendEmailOTPCodeAfterAuth(email: string): Promise<{ email: string }> {
-    return new Promise((resolve, reject) => {
-      this.on("__onEmailOTPCodeAfterAuthSent", (email: string) =>
-        resolve({ email })
-      )
-
-      this.on("__onEmailOTPCodeAfterAuthSentError", reject)
-
-      Auth._emit("__sendEmailOTPCodeAfterAuth", email)
-    })
-  }
-
-  sendPhoneOTPCodeAfterAuth(phone: string): Promise<{ phone: string }> {
-    return new Promise((resolve, reject) => {
-      this.on("__onSMSOTPCodeAfterAuthSent", (phone: string) =>
-        resolve({ phone })
-      )
-
-      this.on("__onSMSOTPCodeSentAfterAuthError", reject)
-
-      Auth._emit("__sendSMSOTPCodeAfterAuth", phone)
-    })
-  }
-
-  /**
-   * call this if you want to auth the user automatically without the need of a button to authenticate.
-   *
-   * e.g. auth.ready().then(() => auth.authenticate())
-   */
-  ready() {
-    return new Promise((resolve) =>
-      this.on("__onPrivyReady", () => resolve(true))
-    )
-  }
-
   logout() {
     Auth._isAuthenticated = false
     Auth._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
@@ -1002,7 +618,6 @@ export class Auth implements AuthInternalEvents {
     Auth._account = null
     Auth.authToken = null
     Chat.getInstance().disconnect()
-    Auth._emit("__logout") //tells to Privy to logout
     Auth._emit("logout") //tells to Loopz listeners to logout
   }
 
@@ -1016,25 +631,6 @@ export class Auth implements AuthInternalEvents {
 
   getCurrentAccount() {
     return Auth.account
-  }
-
-  async link(method: AuthLinkMethod) {
-    return new Promise<LinkAccountInfo>((resolve, reject) => {
-      Auth._handleDesktopLink(method).then(resolve).catch(reject)
-    })
-  }
-
-  async unlink(method: AuthLinkMethod) {
-    return new Promise<boolean>((resolve, reject) => {
-      this.on("__onUnlinkAccountComplete", (status: boolean) => {
-        // TODO aggiungere await per chiamata lato server per aggiornare backend
-        resolve(status)
-      })
-
-      this.on("__onUnlinkAccountError", reject)
-
-      Auth._emit("__unlink", method)
-    })
   }
 
   public static async recoverAccountFromLocalDB() {
@@ -1092,6 +688,7 @@ export class Auth implements AuthInternalEvents {
         storage: Auth._config.storage,
         did: user.did,
         organizationId: user.organizationId,
+        didPrivy: user.didPrivy,
         token: Auth.authToken!, //we use Auth.authToken and not token because in case we have a 401 error, variable 'token' has the value of the previous token. Instead Auth.authToken has the updated value.
         walletAddress: user.wallet.address,
         walletConnectorType: user.wallet.connectorType,

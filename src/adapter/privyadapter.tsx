@@ -7,7 +7,7 @@ import { PrivyClientConfig } from "@privy-io/react-auth"
 import { Auth, Order } from ".."
 import { PrivyContext } from "../react/components/privycontext"
 
-export class PrivyAdapter {
+export default class PrivyAdapter {
   private _container: Maybe<HTMLElement> = null
 
   private _root: Maybe<Root> = null

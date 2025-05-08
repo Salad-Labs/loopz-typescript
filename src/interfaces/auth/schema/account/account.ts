@@ -3,6 +3,7 @@ import { Maybe, Network } from "../../../../types"
 export interface AccountSchema {
   did: string
   organizationId: string
+  didPrivy: string
   token: string
   walletAddress: string
   walletConnectorType: string

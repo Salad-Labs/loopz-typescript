@@ -1,12 +1,7 @@
-import { User as PrivyUser } from "@privy-io/react-auth"
-import { LinkedAccountWithMetadata, LoginMethod } from "../../types/adapter"
-
 export type AuthInfo = {
-  user: PrivyUser
-  isNewUser: boolean
-  wasAlreadyAuthenticated: boolean
-  loginMethod: LoginMethod
-  linkedAccount: LinkedAccountWithMetadata
+  user: {
+    email: string
+    id: string
+  }
   authToken: string
-  isConnected: boolean
 }

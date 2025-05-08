@@ -3,6 +3,7 @@ import { Maybe, Network } from "../../base"
 export type AccountInitConfig = {
   did: string
   organizationId: string
+  didPrivy: string
   walletAddress: string
   walletConnectorType: string
   walletImported: boolean

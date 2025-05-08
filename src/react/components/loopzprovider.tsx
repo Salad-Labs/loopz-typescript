@@ -9,10 +9,10 @@ import { LoopzContext } from "../context/loopzcontext"
 import { ILoopzContext } from "../../interfaces/react/iloopzcontext"
 import { LoopzAuthProvider } from "./loopzauthprovider"
 import { LoopzChatProvider } from "./loopzchatprovider"
+import { LoopzAuth } from "./loopzauth"
 
 export const LoopzProvider: FC<LoopzProviderProps> = ({
   config,
-  authConfig,
   chatConfig,
   devMode = false,
   enableStorage,
@@ -60,17 +60,22 @@ export const LoopzProvider: FC<LoopzProviderProps> = ({
   if (!loopz.initialized) return null
   return (
     <LoopzContext.Provider value={loopz}>
-      <PrivyProvider appId={config.privyAppId} config={privyConfig}>
-        <PrivyWrapper>
-          <LoopzAuthProvider {...authConfig}>
-            {chatConfig ? (
-              <LoopzChatProvider {...chatConfig}>{children}</LoopzChatProvider>
-            ) : (
-              <>{children}</>
-            )}
-          </LoopzAuthProvider>
-        </PrivyWrapper>
-      </PrivyProvider>
+      <LoopzAuth
+        devMode={devMode}
+        intl={config.intl}
+        apiKey={config.apiKey}
+        logoURL={config.logoURL}
+        tosURL={config.tosURL}
+        privacyURL={config.privacyURL}
+      >
+        <LoopzAuthProvider>
+          {chatConfig ? (
+            <LoopzChatProvider {...chatConfig}>{children}</LoopzChatProvider>
+          ) : (
+            <>{children}</>
+          )}
+        </LoopzAuthProvider>
+      </LoopzAuth>
     </LoopzContext.Provider>
   )
 }
