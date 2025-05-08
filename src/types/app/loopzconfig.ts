@@ -8,4 +8,7 @@ export type LoopzConfig = {
   privyClientConfig: PrivyClientConfig
   storage: DexieStorage
   intl: Intl
+  logoURL: string
+  tosURL: string
+  privacyURL: string
 }

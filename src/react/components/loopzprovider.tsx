@@ -60,7 +60,14 @@ export const LoopzProvider: FC<LoopzProviderProps> = ({
   if (!loopz.initialized) return null
   return (
     <LoopzContext.Provider value={loopz}>
-      <LoopzAuth devMode={devMode} intl={config.intl} apiKey={config.apiKey}>
+      <LoopzAuth
+        devMode={devMode}
+        intl={config.intl}
+        apiKey={config.apiKey}
+        logoURL={config.logoURL}
+        tosURL={config.tosURL}
+        privacyURL={config.privacyURL}
+      >
         <LoopzAuthProvider>
           {chatConfig ? (
             <LoopzChatProvider {...chatConfig}>{children}</LoopzChatProvider>

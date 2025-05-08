@@ -65,6 +65,9 @@ export class Loopz {
         devMode: Loopz._devMode,
         intl: config.intl,
         apiKey: config.apiKey,
+        logoURL: config.logoURL,
+        tosURL: config.tosURL,
+        privacyURL: config.privacyURL,
       })
     }
 

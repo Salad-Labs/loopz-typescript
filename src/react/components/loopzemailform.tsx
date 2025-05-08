@@ -16,6 +16,9 @@ const LoopzEmailForm: FC<{
   loading: boolean
   error: Maybe<string>
   success: string
+  logoURL: string
+  tosURL: string
+  privacyURL: string
   onClose?: () => void
   translations: {
     titleApp: string
@@ -40,6 +43,9 @@ const LoopzEmailForm: FC<{
   email,
   code,
   step,
+  logoURL,
+  tosURL,
+  privacyURL,
   translations,
   loading,
   error,
@@ -48,9 +54,10 @@ const LoopzEmailForm: FC<{
 }) => {
   return (
     <div
-      className="w-full p-6 rounded-xl shadow-2xl relative overflow-hidden"
+      className="w-full p-6 shadow-2xl relative overflow-hidden"
       style={{
         backgroundColor: "rgb(31,31,30)",
+        borderRadius: "24px",
       }}
     >
       {/* Pulsante di chiusura */}
@@ -67,12 +74,30 @@ const LoopzEmailForm: FC<{
         </button>
       )}
 
-      <span>{translations.titleApp}</span>
+      <div className="flex flex-col w-full">
+        <div className="text-center w-full text-white font-normal">
+          {translations.titleApp}
+        </div>
+
+        <div
+          className="flex items-center justify-center w-full"
+          style={{
+            marginTop: "35px",
+            marginBottom: "35px",
+          }}
+        >
+          <img
+            src={logoURL}
+            style={{
+              maxHeight: "90px",
+              maxWidth: "180px",
+            }}
+          />
+        </div>
+      </div>
 
       <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
-        {step === "email"
-          ? `${translations.stepEmailAuthLabel}`
-          : `${translations.stepVerificationCodeLabel}`}
+        {step === "code" && `${translations.stepVerificationCodeLabel}`}
       </h2>
 
       {error && (
@@ -90,23 +115,52 @@ const LoopzEmailForm: FC<{
       {step === "email" ? (
         <form onSubmit={handleRequestCode} className="space-y-4">
           <div className="space-y-2">
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700"
-            >
-              {translations.emailAddressFieldLabel}
-            </label>
             <input
               type="email"
               id="email"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
+              className="w-full px-4 py-3 text-sm border border-solid text-white placeholder:text-gray-200 focus:outline-none transition-shadow"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
               placeholder="your@email.com"
               autoFocus
+              style={{
+                backgroundColor: "transparent",
+                borderColor: "#b0b0b0",
+                borderRadius: "16px",
+              }}
+              onFocus={(event) => {
+                const target = event.target
+                target.style.borderColor = "#fff"
+              }}
+              onBlur={(event) => {
+                const target = event.target
+                target.style.borderColor = "#909090"
+              }}
             />
+            <div
+              className="w-full text-center text-white text-xs"
+              style={{ marginTop: "15px" }}
+            >
+              By logging in, you agree to the{" "}
+              <a
+                className="font-semibold text-white"
+                href={tosURL}
+                target="_blank"
+              >
+                Terms
+              </a>{" "}
+              and{" "}
+              <a
+                className="font-semibold text-white"
+                href={privacyURL}
+                target="_blank"
+              >
+                Privacy Policy
+              </a>
+              .
+            </div>
           </div>
           <button
             type="submit"
@@ -184,6 +238,18 @@ const LoopzEmailForm: FC<{
           </button>
         </form>
       )}
+      <div
+        className="flex items-center justify-center gap-x-2 w-full text-center text-white text-xs"
+        style={{
+          marginTop: "20px",
+        }}
+      >
+        Powered by{" "}
+        <img
+          src="https://s3.eu-west-1.amazonaws.com/media.loopz.xyz/static/logo-loopz.svg"
+          style={{ height: "15px" }}
+        />
+      </div>
     </div>
   )
 }

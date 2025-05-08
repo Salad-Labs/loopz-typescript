@@ -21,7 +21,7 @@ interface JwtPayload {
 
 export const LoopzAuth: FC<
   { devMode: boolean; children: ReactNode } & LoopzAuthConfig
-> = ({ devMode, children, intl, apiKey }) => {
+> = ({ devMode, children, intl, apiKey, logoURL, tosURL, privacyURL }) => {
   const ENDPOINT = devMode ? BACKEND_URLS.development : BACKEND_URLS.production
 
   const { instance, initialized } = useLoopz()
@@ -318,6 +318,9 @@ export const LoopzAuth: FC<
               email={email}
               code={code}
               step={step}
+              logoURL={logoURL}
+              tosURL={tosURL}
+              privacyURL={privacyURL}
               translations={{
                 titleApp: intl?.titleApp ? intl?.titleApp : "App",
                 stepEmailAuthLabel: intl?.stepEmailAuthLabel
