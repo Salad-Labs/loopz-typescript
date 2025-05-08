@@ -286,7 +286,7 @@ export const LoopzAuth: FC<
         >
           {/* Overlay con blur */}
           <div
-            className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${
+            className={`absolute inset-0 bg-black/40 backdrop-blur-2xl transition-opacity duration-300 ${
               isFormVisible ? "opacity-100" : "opacity-0"
             }`}
             onClick={closeEmailForm}
@@ -323,12 +323,13 @@ export const LoopzAuth: FC<
               privacyURL={privacyURL}
               translations={{
                 titleApp: intl?.titleApp ? intl?.titleApp : "App",
-                stepEmailAuthLabel: intl?.stepEmailAuthLabel
-                  ? intl.stepEmailAuthLabel
-                  : "Email Authentication",
                 stepVerificationCodeLabel: intl?.stepVerificationCodeLabel
                   ? intl.stepVerificationCodeLabel
                   : "Enter Verification Code",
+                stepVerificationCodeDescriptionLabel:
+                  intl?.stepVerificationCodeDescriptionLabel
+                    ? intl.stepVerificationCodeDescriptionLabel
+                    : "We've sent you an email with an OTP code. Please check and enter your code below.",
                 emailAddressFieldLabel: intl?.emailAddressFieldLabel
                   ? intl.emailAddressFieldLabel
                   : "Email Address",
@@ -339,9 +340,6 @@ export const LoopzAuth: FC<
                 buttonSendVerificationLabel: intl?.buttonSendVerificationLabel
                   ? intl.buttonSendVerificationLabel
                   : "Send Verification Code",
-                sixDigitLabel: intl?.sixDigitLabel
-                  ? intl.sixDigitLabel
-                  : "6-Digit Verification Code",
                 sixDigitDescriptionLabel: intl?.sixDigitDescriptionLabel
                   ? intl?.sixDigitDescriptionLabel
                   : "Please enter the 6-digit code sent to",

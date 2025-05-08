@@ -22,12 +22,11 @@ const LoopzEmailForm: FC<{
   onClose?: () => void
   translations: {
     titleApp: string
-    stepEmailAuthLabel: string
     stepVerificationCodeLabel: string
+    stepVerificationCodeDescriptionLabel: string
     emailAddressFieldLabel: string
     buttonSendingVerificationLabel: string
     buttonSendVerificationLabel: string
-    sixDigitLabel: string
     sixDigitDescriptionLabel: string
     backLabel: string
     buttonVerifyingCodeLabel: string
@@ -60,17 +59,13 @@ const LoopzEmailForm: FC<{
         borderRadius: "24px",
       }}
     >
-      {/* Pulsante di chiusura */}
       {onClose && (
         <button
           onClick={onClose}
           className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
           aria-label="Close"
         >
-          {/* Se stai usando heroicons */}
           <XMarkIcon className="h-5 w-5" />
-          {/* In alternativa puoi usare un semplice simbolo × */}
-          {/* <span className="text-xl">&times;</span> */}
         </button>
       )}
 
@@ -96,9 +91,21 @@ const LoopzEmailForm: FC<{
         </div>
       </div>
 
-      <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
-        {step === "code" && `${translations.stepVerificationCodeLabel}`}
-      </h2>
+      {step === "code" && (
+        <div
+          className="flex flex-col items-center justify-center gap-y-2"
+          style={{
+            marginBottom: "50px",
+          }}
+        >
+          <h2 className="text-lg font-normal text-center text-white">
+            {`${translations.stepVerificationCodeLabel}`}
+          </h2>
+          <p className="text-white font-normal text-xs text-center">
+            {`${translations.stepVerificationCodeDescriptionLabel}`}
+          </p>
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-md animate-fadeIn">
@@ -177,17 +184,11 @@ const LoopzEmailForm: FC<{
       ) : (
         <form onSubmit={handleVerifyCode} className="space-y-4">
           <div className="space-y-2">
-            <label
-              htmlFor="code"
-              className="block text-sm font-medium text-gray-700"
-            >
-              {translations.sixDigitLabel}
-            </label>
             <div className="relative">
               <input
                 type="text"
                 id="code"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-lg tracking-widest text-center"
+                className="w-full px-4 py-3 text-white border border-solid focus:outline-none text-lg tracking-widest text-center otp-code"
                 value={code}
                 onChange={(e) =>
                   setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
@@ -198,8 +199,33 @@ const LoopzEmailForm: FC<{
                 maxLength={6}
                 pattern="\d{6}"
                 autoFocus
+                style={{
+                  backgroundColor: "transparent",
+                  borderColor: "#b0b0b0",
+                  borderRadius: "16px",
+                }}
+                onFocus={(event) => {
+                  const target = event.target
+                  target.style.borderColor = "#fff"
+                }}
+                onBlur={(event) => {
+                  const target = event.target
+                  target.style.borderColor = "#909090"
+                }}
               />
-              <div className="absolute bottom-full left-0 mb-1 text-sm text-gray-600 whitespace-nowrap">
+              <style type="text/css">
+                {`
+                  .otp-code::placeholder {
+                    color: gray;
+                  }
+                `}
+              </style>
+              <div
+                className="absolute bottom-full left-0 mb-1 text-sm whitespace-nowrap"
+                style={{
+                  color: "#909090",
+                }}
+              >
                 {translations.sixDigitDescriptionLabel}{" "}
                 <span className="font-medium">{email}</span>
               </div>
@@ -210,14 +236,14 @@ const LoopzEmailForm: FC<{
             <button
               type="button"
               onClick={() => setStep("email")}
-              className="py-3 px-4 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+              className="py-3 px-4 rounded-lg text-black font-medium bg-white hover:bg-white transition-colors"
             >
               {translations.backLabel}
             </button>
             <button
               type="submit"
               disabled={loading || code.length !== 6}
-              className={`flex-1 py-3 px-4 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 transform hover:-translate-y-0.5 ${
+              className={`flex-1 py-3 px-4 rounded-lg text-white bg-primary-blue hover:bg-primary-dark-blue ${
                 loading || code.length !== 6
                   ? "opacity-70 cursor-not-allowed"
                   : ""
@@ -232,7 +258,7 @@ const LoopzEmailForm: FC<{
           <button
             type="button"
             onClick={handleRequestCode}
-            className="w-full py-2 px-4 rounded-md text-blue-600 font-medium hover:text-blue-800 focus:outline-none focus:underline transition-colors"
+            className="w-full py-2 px-4 rounded-md text-blue-600 font-medium hover:text-blue-800 focus:outline-none focus:underline transition-all duration-200"
           >
             {`${translations.resendVerificationCodeLabel}`}
           </button>
@@ -245,10 +271,12 @@ const LoopzEmailForm: FC<{
         }}
       >
         Powered by{" "}
-        <img
-          src="https://s3.eu-west-1.amazonaws.com/media.loopz.xyz/static/logo-loopz.svg"
-          style={{ height: "15px" }}
-        />
+        <a href="https://www.saladlabs.xyz/portfolio/sdk/" target="_blank">
+          <img
+            src="https://s3.eu-west-1.amazonaws.com/media.loopz.xyz/static/logo-loopz.svg"
+            style={{ height: "15px" }}
+          />
+        </a>
       </div>
     </div>
   )

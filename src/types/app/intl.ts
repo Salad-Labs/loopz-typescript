@@ -1,12 +1,11 @@
 export type Intl = {
   titleApp?: string
   byLoggingIn?: string
-  stepEmailAuthLabel?: string
   stepVerificationCodeLabel?: string
+  stepVerificationCodeDescriptionLabel?: string
   emailAddressFieldLabel?: string
   buttonSendingVerificationLabel?: string
   buttonSendVerificationLabel?: string
-  sixDigitLabel?: string
   sixDigitDescriptionLabel?: string
   backLabel?: string
   buttonVerifyingCodeLabel?: string
