@@ -117,3 +117,5 @@ src/constants/chat
 docs/
 .code-narrator/
 code-narrator.config.js
+
+install-package.sh

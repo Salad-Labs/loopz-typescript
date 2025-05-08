@@ -1,4 +1,5 @@
 export type Intl = {
+  titleApp?: string
   stepEmailAuthLabel?: string
   stepVerificationCodeLabel?: string
   emailAddressFieldLabel?: string

@@ -12,7 +12,6 @@ import {
 } from "../../constants/app"
 import { jwtDecode } from "jwt-decode"
 import fetchApi from "../../core/utilities/fetchapi"
-import { useScrollLock } from "../hooks"
 
 interface JwtPayload {
   email: string
@@ -26,7 +25,6 @@ export const LoopzAuth: FC<
   const ENDPOINT = devMode ? BACKEND_URLS.development : BACKEND_URLS.production
 
   const { instance, initialized } = useLoopz()
-  const { lockScroll, unlockScroll } = useScrollLock()
 
   const [authToken, setAuthToken] = useState<Maybe<string>>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -95,11 +93,13 @@ export const LoopzAuth: FC<
           : "Network error. Please try again."
       )
 
-      Auth._emit("__onLoginError", err)
+      if (Auth && typeof Auth._emit === "function") {
+        Auth._emit("__onLoginError", err)
+      }
     } finally {
       setLoading(false)
     }
-  }, [email])
+  }, [email, ENDPOINT, intl])
 
   const verifyOtpCode = useCallback(async () => {
     setLoading(true)
@@ -126,13 +126,15 @@ export const LoopzAuth: FC<
           intl?.authSuccess ? intl.authSuccess : "Authentication successful"
         )
 
-        Auth._emit("__onLoginComplete", {
-          user: {
-            email: data.email,
-          },
-          authToken: data.token,
-          id: data.did,
-        })
+        if (Auth && typeof Auth._emit === "function") {
+          Auth._emit("__onLoginComplete", {
+            user: {
+              email: data.email,
+            },
+            authToken: data.token,
+            id: data.did,
+          })
+        }
 
         // Chiudi il form dopo il successo
         setTimeout(() => {
@@ -152,15 +154,18 @@ export const LoopzAuth: FC<
           : "Network error. Please try again."
       )
 
-      Auth._emit("__onLoginError", err)
+      if (Auth && typeof Auth._emit === "function") {
+        Auth._emit("__onLoginError", err)
+      }
     } finally {
       setLoading(false)
     }
-  }, [email, code])
+  }, [email, code, ENDPOINT, apiKey, intl])
 
-  const closeEmailForm = () => {
+  const closeEmailForm = useCallback(() => {
     setIsFormVisible(false)
-    unlockScroll() // Sblocchiamo lo scroll quando il form si chiude
+    if (typeof document === "undefined") return
+    document.body.style.overflow = "auto"
 
     // Attendi che l'animazione di uscita sia completata prima di nascondere completamente il form
     setTimeout(() => {
@@ -171,7 +176,11 @@ export const LoopzAuth: FC<
       setSuccess("")
       setError(null)
     }, 300) // Durata dell'animazione di fade-out
-  }
+
+    Auth._emit("__onLoginError", {
+      error: "user_exit_auth_flow",
+    })
+  }, [])
 
   const logout = useCallback(() => {
     setAuthToken(null)
@@ -179,55 +188,87 @@ export const LoopzAuth: FC<
     closeEmailForm()
     setLoading(false)
 
-    Auth._emit("__onLogoutComplete", true)
+    if (Auth && typeof Auth._emit === "function") {
+      Auth._emit("__onLogoutComplete", true)
+    }
+  }, [closeEmailForm])
+
+  // Handler per l'autenticazione
+  const handleAuthenticate = useCallback(() => {
+    try {
+      if (typeof document === "undefined") return
+      document.body.style.overflow = "hidden"
+      setShowEmailForm(true)
+      // Iniziamo l'animazione dopo un piccolo delay per garantire che il DOM sia pronto
+      setTimeout(() => {
+        setIsFormVisible(true)
+      }, 50)
+    } catch (error) {
+      console.error("Error handling authentication:", error)
+      // Assicuriamoci di sbloccare lo scroll in caso di errore
+    }
   }, [])
 
   useEffect(() => {
-    if (initialized) {
-      instance.auth.on("__authenticate", () => {
-        lockScroll() // Blocchiamo lo scroll quando il form appare
-        setShowEmailForm(true)
-        // Iniziamo l'animazione dopo un piccolo delay per garantire che il DOM sia pronto
-        setTimeout(() => {
-          setIsFormVisible(true)
-        }, 50)
-      })
+    if (initialized && instance) {
+      // Controlliamo che instance.auth e i metodi esistano
+      if (instance.auth && typeof instance.auth.on === "function") {
+        instance.auth.on("__authenticate", handleAuthenticate)
 
-      instance.auth.on(
-        "__onAccountReady",
-        () => {
-          console.log("emitting auth...")
-          Auth._emit("auth")
-        },
-        true
-      )
+        instance.auth.on(
+          "__onAccountReady",
+          () => {
+            console.log("emitting auth...")
+            if (Auth && typeof Auth._emit === "function") {
+              Auth._emit("auth")
+            }
+          },
+          true
+        )
 
-      const token = localStorage.getItem(CLIENT_DB_KEY_TOKEN)
-
-      if (token) {
-        const isValidToken = verifyToken(token)
-
-        if (isValidToken) {
-          setAuthToken(token)
-          setIsAuthenticated(true)
-        } else {
-          // Se il token non è valido, cancellalo
-          if (token) localStorage.removeItem("authToken")
-          setAuthToken(null)
-          setIsAuthenticated(false)
-        }
+        instance.auth.on("logout", logout)
       }
 
-      instance.auth.on("logout", () => {
-        logout()
-      })
+      // Controlla il token
+      try {
+        const token = localStorage.getItem(CLIENT_DB_KEY_TOKEN)
+
+        if (token) {
+          const isValidToken = verifyToken(token)
+
+          if (isValidToken) {
+            setAuthToken(token)
+            setIsAuthenticated(true)
+          } else {
+            // Se il token non è valido, cancellalo
+            localStorage.removeItem(CLIENT_DB_KEY_TOKEN)
+            setAuthToken(null)
+            setIsAuthenticated(false)
+          }
+        }
+      } catch (error) {
+        console.error("Error checking token:", error)
+      }
     }
-  }, [initialized])
+
+    // Pulizia
+    return () => {
+      if (
+        initialized &&
+        instance &&
+        instance.auth &&
+        typeof instance.auth.off === "function"
+      ) {
+        instance.auth.off("__authenticate", handleAuthenticate)
+        instance.auth.off("logout", logout)
+      }
+    }
+  }, [initialized, instance, handleAuthenticate, logout])
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && Auth && typeof Auth._emit === "function") {
       Auth._emit("__tryRebuildAccountOnRefresh")
-    } else {
+    } else if (Auth && typeof Auth._emit === "function") {
       Auth._emit("__onLoginError")
     }
   }, [authToken, isAuthenticated])
@@ -237,7 +278,12 @@ export const LoopzAuth: FC<
   return (
     <LoopzAuthContext.Provider value={null}>
       {showEmailForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div
+          className="fixed inset-0 flex items-center justify-center"
+          style={{
+            zIndex: 9999999,
+          }}
+        >
           {/* Overlay con blur */}
           <div
             className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${
@@ -253,6 +299,9 @@ export const LoopzAuth: FC<
                 ? "opacity-100 scale-100 translate-y-0"
                 : "opacity-0 scale-95 translate-y-4"
             }`}
+            style={{
+              width: 360,
+            }}
           >
             <LoopzEmailForm
               handleRequestCode={async (e: React.FormEvent) => {
@@ -270,6 +319,7 @@ export const LoopzAuth: FC<
               code={code}
               step={step}
               translations={{
+                titleApp: intl?.titleApp ? intl?.titleApp : "App",
                 stepEmailAuthLabel: intl?.stepEmailAuthLabel
                   ? intl.stepEmailAuthLabel
                   : "Email Authentication",

@@ -18,6 +18,7 @@ const LoopzEmailForm: FC<{
   success: string
   onClose?: () => void
   translations: {
+    titleApp: string
     stepEmailAuthLabel: string
     stepVerificationCodeLabel: string
     emailAddressFieldLabel: string
@@ -46,10 +47,12 @@ const LoopzEmailForm: FC<{
   onClose,
 }) => {
   return (
-    <div className="w-full max-w-md p-6 bg-white rounded-xl shadow-2xl relative overflow-hidden">
-      {/* Barra decorativa in alto */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-purple-600"></div>
-
+    <div
+      className="w-full p-6 rounded-xl shadow-2xl relative overflow-hidden"
+      style={{
+        backgroundColor: "rgb(31,31,30)",
+      }}
+    >
       {/* Pulsante di chiusura */}
       {onClose && (
         <button
@@ -63,6 +66,8 @@ const LoopzEmailForm: FC<{
           {/* <span className="text-xl">&times;</span> */}
         </button>
       )}
+
+      <span>{translations.titleApp}</span>
 
       <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
         {step === "email"
@@ -106,7 +111,7 @@ const LoopzEmailForm: FC<{
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-3 px-4 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 transform hover:-translate-y-0.5 ${
+            className={`w-full py-3 px-4 rounded-lg bg-primary-blue hover:bg-primary-dark-blue text-white font-medium hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 transform hover:-translate-y-0.5 ${
               loading ? "opacity-70 cursor-not-allowed" : ""
             }`}
           >
