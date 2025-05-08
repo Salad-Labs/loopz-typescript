@@ -2,8 +2,8 @@ import React from "react"
 import { Maybe } from "../types"
 import { createRoot, Root } from "react-dom/client"
 import { v4 as uuid } from "uuid"
-import { AuthAdapterOptions } from "src/types/adapter/authadapteroptions"
-import { LoopzAuth } from "src/react/components/loopzauth"
+import { AuthAdapterOptions } from "../types/adapter/authadapteroptions"
+import { LoopzAuth } from "../react/components/loopzauth"
 
 export default class AuthAdapter {
   private _container: Maybe<HTMLElement> = null
