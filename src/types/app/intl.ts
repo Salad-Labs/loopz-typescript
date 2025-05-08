@@ -10,9 +10,9 @@ export type Intl = {
   buttonVerifyingCodeLabel?: string
   buttonVerifyCodeLabel?: string
   resendVerificationCodeLabel?: string
-  successRequestOtpCode?: string //Verification code sent to your email
-  failedSendRequestOtpCode?: string //Failed to send verification code
-  networkError?: string //Network error. Please try again.
+  successRequestOtpCode?: string
+  failedSendRequestOtpCode?: string
+  networkError?: string
   authSuccess?: string
   invalidOtpCode?: string
 }
