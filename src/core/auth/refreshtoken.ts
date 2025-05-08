@@ -2,7 +2,7 @@ import {
   BACKEND_URLS,
   CLIENT_DB_KEY_REFRESH_TOKEN,
   CLIENT_DB_KEY_TOKEN,
-} from "src/constants/app"
+} from "../../constants/app"
 import fetchApi from "../utilities/fetchapi"
 
 const refreshToken = async (devMode: boolean = false) => {

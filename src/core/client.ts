@@ -5,7 +5,7 @@ import {
   BACKEND_URLS,
   WEBSOCKET_CHAT_ENDPOINTS,
   WEBSOCKET_ENDPOINTS,
-} from "src/constants/app"
+} from "../constants/app"
 
 /**
  * Class representing an HTTP client for making HTTP requests.

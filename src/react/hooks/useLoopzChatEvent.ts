@@ -1,7 +1,7 @@
 "use client"
 
 import { useContext, useEffect } from "react"
-import { ChatEvents } from "src/types"
+import { ChatEvents } from "../../types"
 import { LoopzContext } from "../context/loopzcontext"
 
 export const useLoopzChatEvent = (

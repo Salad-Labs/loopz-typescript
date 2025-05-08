@@ -1,7 +1,7 @@
 "use client"
 
 import React, { FC } from "react"
-import { Maybe } from "src/types"
+import { Maybe } from "../../types"
 
 const LoopzEmailForm: FC<{
   handleRequestCode: (e: React.FormEvent) => void

@@ -4,14 +4,14 @@ import React, { FC, ReactNode, useCallback, useEffect, useState } from "react"
 import { Auth, Maybe, useLoopz } from "../../"
 import { LoopzAuthContext } from "../context"
 import LoopzEmailForm from "./loopzemailform"
-import { LoopzAuthConfig } from "src/types/react/loopzauthconfig"
+import { LoopzAuthConfig } from "../../types/react/loopzauthconfig"
 import {
   BACKEND_URLS,
   CLIENT_DB_KEY_REFRESH_TOKEN,
   CLIENT_DB_KEY_TOKEN,
-} from "src/constants/app"
-import { jwtDecode } from "jwt-decode" // Aggiungiamo questa libreria
-import fetchApi from "src/core/utilities/fetchapi"
+} from "../../constants/app"
+import { jwtDecode } from "jwt-decode"
+import fetchApi from "../../core/utilities/fetchapi"
 
 interface JwtPayload {
   email: string
