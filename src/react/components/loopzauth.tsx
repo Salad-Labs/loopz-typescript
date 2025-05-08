@@ -35,24 +35,20 @@ export const LoopzAuth: FC<
   const [success, setSuccess] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<Maybe<string>>("")
-  // Stato per gestire l'animazione
+
   const [isFormVisible, setIsFormVisible] = useState<boolean>(false)
 
   const verifyToken = (token: string): boolean => {
     try {
-      // Decodifica il token senza verificare la firma (che può essere fatta solo lato server)
       const decoded = jwtDecode<JwtPayload>(token)
 
-      // Verifica che il token contenga una email e non sia scaduto
       if (!decoded.email) return false
 
-      // Verifica la data di scadenza del token
       const currentTime = Date.now() / 1000
       if (decoded.exp && decoded.exp < currentTime) return false
 
       return true
     } catch (error) {
-      // Se il token non è un JWT valido, jwt_decode lancerà un'eccezione
       console.error("Invalid token:", error)
       return false
     }
@@ -106,7 +102,7 @@ export const LoopzAuth: FC<
     setError(null)
 
     try {
-      const { data, response } = await fetchApi(
+      const { data: r, response } = await fetchApi(
         `${ENDPOINT}/auth/verify-code`,
         {
           method: "POST",
@@ -118,6 +114,7 @@ export const LoopzAuth: FC<
       )
 
       if (response.ok) {
+        const { data } = r
         // Save JWT token to localStorage
         localStorage.setItem(CLIENT_DB_KEY_TOKEN, data.token)
         localStorage.setItem(CLIENT_DB_KEY_REFRESH_TOKEN, data.refreshToken)
@@ -130,19 +127,18 @@ export const LoopzAuth: FC<
           Auth._emit("__onLoginComplete", {
             user: {
               email: data.email,
+              id: data.did,
             },
             authToken: data.token,
-            id: data.did,
           })
         }
 
-        // Chiudi il form dopo il successo
         setTimeout(() => {
           closeEmailForm()
         }, 1500)
       } else {
         setError(
-          data.message ??
+          r.data.message ??
             intl?.invalidOtpCode ??
             "Failed to send verification code"
         )
@@ -167,7 +163,6 @@ export const LoopzAuth: FC<
     if (typeof document === "undefined") return
     document.body.style.overflow = "auto"
 
-    // Attendi che l'animazione di uscita sia completata prima di nascondere completamente il form
     setTimeout(() => {
       setShowEmailForm(false)
       setEmail("")
@@ -175,7 +170,7 @@ export const LoopzAuth: FC<
       setStep("email")
       setSuccess("")
       setError(null)
-    }, 300) // Durata dell'animazione di fade-out
+    }, 300)
 
     Auth._emit("__onLoginError", {
       error: "user_exit_auth_flow",
@@ -193,25 +188,22 @@ export const LoopzAuth: FC<
     }
   }, [closeEmailForm])
 
-  // Handler per l'autenticazione
   const handleAuthenticate = useCallback(() => {
     try {
       if (typeof document === "undefined") return
       document.body.style.overflow = "hidden"
       setShowEmailForm(true)
-      // Iniziamo l'animazione dopo un piccolo delay per garantire che il DOM sia pronto
+
       setTimeout(() => {
         setIsFormVisible(true)
       }, 50)
     } catch (error) {
       console.error("Error handling authentication:", error)
-      // Assicuriamoci di sbloccare lo scroll in caso di errore
     }
   }, [])
 
   useEffect(() => {
     if (initialized && instance) {
-      // Controlliamo che instance.auth e i metodi esistano
       if (instance.auth && typeof instance.auth.on === "function") {
         instance.auth.on("__authenticate", handleAuthenticate)
 
@@ -229,7 +221,6 @@ export const LoopzAuth: FC<
         instance.auth.on("logout", logout)
       }
 
-      // Controlla il token
       try {
         const token = localStorage.getItem(CLIENT_DB_KEY_TOKEN)
 
@@ -240,7 +231,6 @@ export const LoopzAuth: FC<
             setAuthToken(token)
             setIsAuthenticated(true)
           } else {
-            // Se il token non è valido, cancellalo
             localStorage.removeItem(CLIENT_DB_KEY_TOKEN)
             setAuthToken(null)
             setIsAuthenticated(false)
@@ -251,7 +241,6 @@ export const LoopzAuth: FC<
       }
     }
 
-    // Pulizia
     return () => {
       if (
         initialized &&
@@ -284,7 +273,6 @@ export const LoopzAuth: FC<
             zIndex: 9999999,
           }}
         >
-          {/* Overlay con blur */}
           <div
             className={`absolute inset-0 bg-black/40 backdrop-blur-2xl transition-opacity duration-300 ${
               isFormVisible ? "opacity-100" : "opacity-0"
@@ -292,7 +280,6 @@ export const LoopzAuth: FC<
             onClick={closeEmailForm}
           ></div>
 
-          {/* Il form con l'animazione */}
           <div
             className={`relative transform transition-all duration-300 ease-out ${
               isFormVisible

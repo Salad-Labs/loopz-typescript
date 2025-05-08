@@ -19,16 +19,15 @@ const refreshToken = async (devMode: boolean = false) => {
   })
 
   if (!response.ok) {
-    // Se il refresh token è scaduto, bisogna riautenticarsi
     localStorage.removeItem(CLIENT_DB_KEY_TOKEN)
     localStorage.removeItem(CLIENT_DB_KEY_REFRESH_TOKEN)
 
     throw "Refresh Token Failed"
   }
 
-  localStorage.setItem(CLIENT_DB_KEY_TOKEN, data.token)
+  localStorage.setItem(CLIENT_DB_KEY_TOKEN, data.data.token)
 
-  return data.token
+  return data.data.token
 }
 
 export default refreshToken
