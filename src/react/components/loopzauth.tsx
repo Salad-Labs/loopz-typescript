@@ -358,6 +358,11 @@ export const LoopzAuth: FC<
               error={error}
               success={success}
               onClose={closeEmailForm}
+              onBack={() => {
+                setSuccess("")
+                setError(null)
+                setCode("")
+              }}
             />
           </div>
         </div>

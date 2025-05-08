@@ -2,7 +2,7 @@
 
 import React, { FC } from "react"
 import { Maybe } from "../../types"
-import { XMarkIcon } from "@heroicons/react/24/outline" // Assicurati di avere heroicons installato o usa un'icona alternativa
+import { XMarkIcon } from "@heroicons/react/24/outline"
 
 const LoopzEmailForm: FC<{
   handleRequestCode: (e: React.FormEvent) => void
@@ -20,6 +20,7 @@ const LoopzEmailForm: FC<{
   tosURL: string
   privacyURL: string
   onClose?: () => void
+  onBack?: () => void
   translations: {
     titleApp: string
     stepVerificationCodeLabel: string
@@ -50,6 +51,7 @@ const LoopzEmailForm: FC<{
   error,
   success,
   onClose,
+  onBack,
 }) => {
   return (
     <div
@@ -108,14 +110,13 @@ const LoopzEmailForm: FC<{
       )}
 
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-md animate-fadeIn">
+        <div
+          className="mb-4 p-3 bg-red-50 text-xs border-l-4 border-red-500 text-red-700 rounded-md animate-fadeIn"
+          style={{
+            marginBottom: "35px",
+          }}
+        >
           {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-500 text-green-700 rounded-md animate-fadeIn">
-          {success}
         </div>
       )}
 
@@ -227,7 +228,6 @@ const LoopzEmailForm: FC<{
                 }}
               >
                 {translations.sixDigitDescriptionLabel}{" "}
-                <span className="font-medium">{email}</span>
               </div>
             </div>
           </div>
@@ -235,7 +235,10 @@ const LoopzEmailForm: FC<{
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => setStep("email")}
+              onClick={() => {
+                setStep("email")
+                if (onBack) onBack()
+              }}
               className="py-3 px-4 rounded-lg text-black font-medium bg-white hover:bg-white transition-colors"
             >
               {translations.backLabel}
