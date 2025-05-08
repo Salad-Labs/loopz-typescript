@@ -1,27 +1,11 @@
 import { PrivyClientConfig } from "@privy-io/react-auth"
 import { DexieStorage } from "../../core/app"
+import { Intl } from "./intl"
 
 export type LoopzConfig = {
   apiKey: string
   privyAppId: string
   privyClientConfig: PrivyClientConfig
   storage: DexieStorage
-  intl: {
-    stepEmailAuthLabel?: string
-    stepVerificationCodeLabel?: string
-    emailAddressFieldLabel?: string
-    buttonSendingVerificationLabel?: string
-    buttonSendVerificationLabel?: string
-    sixDigitLabel?: string
-    sixDigitDescriptionLabel?: string
-    backLabel?: string
-    buttonVerifyingCodeLabel?: string
-    buttonVerifyCodeLabel?: string
-    resendVerificationCodeLabel?: string
-    successRequestOtpCode?: string //Verification code sent to your email
-    failedSendRequestOtpCode?: string //Failed to send verification code
-    networkError?: string //Network error. Please try again.
-    authSuccess?: string
-    invalidOtpCode?: string
-  }
+  intl: Intl
 }

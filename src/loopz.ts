@@ -12,7 +12,7 @@ import { Order } from "./order"
 import { Notification } from "./notification"
 import { LoopzConfig } from "./types/app/loopzconfig"
 import { PrivyClientConfig } from "@privy-io/react-auth"
-import { PrivyAdapter } from "./adapter/privyadapter"
+import { PrivyAdapter, AuthAdapter } from "./adapter"
 import { Maybe } from "./types"
 
 export class Loopz {
@@ -29,6 +29,8 @@ export class Loopz {
   private static _storage: DexieStorage
 
   private static _privyAdapter: Maybe<PrivyAdapter> = null
+
+  private static _authAdapter: Maybe<AuthAdapter> = null
 
   private static _devMode: boolean = false
 
@@ -47,6 +49,9 @@ export class Loopz {
     Loopz._storage = config.storage
     Loopz._randomLsname = `loopz_${uuid()}`
 
+    if (typeof devMode !== "undefined" && devMode === true)
+      Loopz._devMode = true
+
     if (runAdapter === true || typeof runAdapter === "undefined") {
       if (typeof window !== "undefined")
         Loopz._privyAdapter = new PrivyAdapter({
@@ -56,10 +61,12 @@ export class Loopz {
               ? undefined
               : config.privyClientConfig,
         })
+      Loopz._authAdapter = new AuthAdapter({
+        devMode: Loopz._devMode,
+        intl: config.intl,
+        apiKey: config.apiKey,
+      })
     }
-
-    if (typeof devMode !== "undefined" && devMode === true)
-      Loopz._devMode = true
 
     Auth.config({
       apiKey: config.apiKey,
@@ -85,6 +92,7 @@ export class Loopz {
       devMode: Loopz._devMode,
     })
 
+    if (Loopz._authAdapter) Loopz._authAdapter.render()
     if (Loopz._privyAdapter) Loopz._privyAdapter.render()
   }
 
