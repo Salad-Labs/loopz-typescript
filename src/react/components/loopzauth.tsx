@@ -12,6 +12,7 @@ import {
 } from "../../constants/app"
 import { jwtDecode } from "jwt-decode"
 import fetchApi from "../../core/utilities/fetchapi"
+import { useScrollLock } from "../hooks"
 
 interface JwtPayload {
   email: string
@@ -25,6 +26,7 @@ export const LoopzAuth: FC<
   const ENDPOINT = devMode ? BACKEND_URLS.development : BACKEND_URLS.production
 
   const { instance, initialized } = useLoopz()
+  const { lockScroll, unlockScroll } = useScrollLock()
 
   const [authToken, setAuthToken] = useState<Maybe<string>>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -35,6 +37,8 @@ export const LoopzAuth: FC<
   const [success, setSuccess] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<Maybe<string>>("")
+  // Stato per gestire l'animazione
+  const [isFormVisible, setIsFormVisible] = useState<boolean>(false)
 
   const verifyToken = (token: string): boolean => {
     try {
@@ -119,7 +123,7 @@ export const LoopzAuth: FC<
         localStorage.setItem(CLIENT_DB_KEY_REFRESH_TOKEN, data.refreshToken)
 
         setSuccess(
-          intl?.authSuccess ? intl.authSuccess : "Authentication successfull"
+          intl?.authSuccess ? intl.authSuccess : "Authentication successful"
         )
 
         Auth._emit("__onLoginComplete", {
@@ -129,6 +133,11 @@ export const LoopzAuth: FC<
           authToken: data.token,
           id: data.did,
         })
+
+        // Chiudi il form dopo il successo
+        setTimeout(() => {
+          closeEmailForm()
+        }, 1500)
       } else {
         setError(
           data.message ??
@@ -149,16 +158,26 @@ export const LoopzAuth: FC<
     }
   }, [email, code])
 
+  const closeEmailForm = () => {
+    setIsFormVisible(false)
+    unlockScroll() // Sblocchiamo lo scroll quando il form si chiude
+
+    // Attendi che l'animazione di uscita sia completata prima di nascondere completamente il form
+    setTimeout(() => {
+      setShowEmailForm(false)
+      setEmail("")
+      setCode("")
+      setStep("email")
+      setSuccess("")
+      setError(null)
+    }, 300) // Durata dell'animazione di fade-out
+  }
+
   const logout = useCallback(() => {
     setAuthToken(null)
     setIsAuthenticated(false)
-    setShowEmailForm(false)
-    setEmail("")
-    setCode("")
-    setStep("email")
-    setSuccess("")
+    closeEmailForm()
     setLoading(false)
-    setError(null)
 
     Auth._emit("__onLogoutComplete", true)
   }, [])
@@ -166,7 +185,12 @@ export const LoopzAuth: FC<
   useEffect(() => {
     if (initialized) {
       instance.auth.on("__authenticate", () => {
+        lockScroll() // Blocchiamo lo scroll quando il form appare
         setShowEmailForm(true)
+        // Iniziamo l'animazione dopo un piccolo delay per garantire che il DOM sia pronto
+        setTimeout(() => {
+          setIsFormVisible(true)
+        }, 50)
       })
 
       instance.auth.on(
@@ -203,6 +227,8 @@ export const LoopzAuth: FC<
   useEffect(() => {
     if (isAuthenticated) {
       Auth._emit("__tryRebuildAccountOnRefresh")
+    } else {
+      Auth._emit("__onLoginError")
     }
   }, [authToken, isAuthenticated])
 
@@ -210,9 +236,24 @@ export const LoopzAuth: FC<
 
   return (
     <LoopzAuthContext.Provider value={null}>
-      <>
-        {showEmailForm && (
-          <>
+      {showEmailForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Overlay con blur */}
+          <div
+            className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${
+              isFormVisible ? "opacity-100" : "opacity-0"
+            }`}
+            onClick={closeEmailForm}
+          ></div>
+
+          {/* Il form con l'animazione */}
+          <div
+            className={`relative transform transition-all duration-300 ease-out ${
+              isFormVisible
+                ? "opacity-100 scale-100 translate-y-0"
+                : "opacity-0 scale-95 translate-y-4"
+            }`}
+          >
             <LoopzEmailForm
               handleRequestCode={async (e: React.FormEvent) => {
                 e.preventDefault()
@@ -228,50 +269,49 @@ export const LoopzAuth: FC<
               email={email}
               code={code}
               step={step}
-              translations={
-                {
-                  stepEmailAuthLabel: intl?.stepEmailAuthLabel
-                    ? intl.stepEmailAuthLabel
-                    : "Email Authentication",
-                  stepVerificationCodeLabel: intl?.stepVerificationCodeLabel
-                    ? intl.stepVerificationCodeLabel
-                    : "Enter Verification Code",
-                  emailAddressFieldLabel: intl?.emailAddressFieldLabel
-                    ? intl.emailAddressFieldLabel
-                    : "Email Address",
-                  buttonSendingVerificationLabel:
-                    intl?.buttonSendingVerificationLabel
-                      ? intl.buttonSendingVerificationLabel
-                      : "Sending...",
-                  buttonSendVerificationLabel: intl?.buttonSendVerificationLabel
-                    ? intl.buttonSendVerificationLabel
-                    : "Send Verification Code",
-                  sixDigitLabel: intl?.sixDigitLabel
-                    ? intl.sixDigitLabel
-                    : "6-Digit Verification Code",
-                  sixDigitDescriptionLabel: intl?.sixDigitDescriptionLabel
-                    ? intl?.sixDigitDescriptionLabel
-                    : "Please enter the 6-digit code sent to",
-                  backLabel: intl?.backLabel ? intl.backLabel : "Back",
-                  buttonVerifyingCodeLabel: intl?.buttonSendingVerificationLabel
+              translations={{
+                stepEmailAuthLabel: intl?.stepEmailAuthLabel
+                  ? intl.stepEmailAuthLabel
+                  : "Email Authentication",
+                stepVerificationCodeLabel: intl?.stepVerificationCodeLabel
+                  ? intl.stepVerificationCodeLabel
+                  : "Enter Verification Code",
+                emailAddressFieldLabel: intl?.emailAddressFieldLabel
+                  ? intl.emailAddressFieldLabel
+                  : "Email Address",
+                buttonSendingVerificationLabel:
+                  intl?.buttonSendingVerificationLabel
                     ? intl.buttonSendingVerificationLabel
-                    : "Verifying...",
-                  buttonVerifyCodeLabel: intl?.buttonVerifyCodeLabel
-                    ? intl.buttonVerifyCodeLabel
-                    : "Verify Code",
-                  resendVerificationCodeLabel: intl?.resendVerificationCodeLabel
-                    ? intl.resendVerificationCodeLabel
-                    : "Resend Verification Code",
-                } as any
-              }
+                    : "Sending...",
+                buttonSendVerificationLabel: intl?.buttonSendVerificationLabel
+                  ? intl.buttonSendVerificationLabel
+                  : "Send Verification Code",
+                sixDigitLabel: intl?.sixDigitLabel
+                  ? intl.sixDigitLabel
+                  : "6-Digit Verification Code",
+                sixDigitDescriptionLabel: intl?.sixDigitDescriptionLabel
+                  ? intl?.sixDigitDescriptionLabel
+                  : "Please enter the 6-digit code sent to",
+                backLabel: intl?.backLabel ? intl.backLabel : "Back",
+                buttonVerifyingCodeLabel: intl?.buttonSendingVerificationLabel
+                  ? intl.buttonSendingVerificationLabel
+                  : "Verifying...",
+                buttonVerifyCodeLabel: intl?.buttonVerifyCodeLabel
+                  ? intl.buttonVerifyCodeLabel
+                  : "Verify Code",
+                resendVerificationCodeLabel: intl?.resendVerificationCodeLabel
+                  ? intl.resendVerificationCodeLabel
+                  : "Resend Verification Code",
+              }}
               loading={loading}
               error={error}
               success={success}
+              onClose={closeEmailForm}
             />
-          </>
-        )}
-      </>
-      <>{children}</>
+          </div>
+        </div>
+      )}
+      {children}
     </LoopzAuthContext.Provider>
   )
 }

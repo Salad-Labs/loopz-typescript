@@ -76,6 +76,10 @@ export class Auth implements AuthInternalEvents {
     Auth._apiKey = Auth._config.apiKey
     Auth._client = new Client(Auth._config.devMode)
 
+    this.on("__onLoginError", (error) => {
+      Auth._emit("onAuthError", error)
+    })
+
     Auth._instance = this
   }
 
