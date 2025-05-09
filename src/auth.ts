@@ -151,8 +151,6 @@ export class Auth implements AuthInternalEvents {
     try {
       if (!Auth._account) throw new Error("Account is not set")
 
-      console.log(Auth._account)
-
       const existingUser = await new Promise<LocalDBUser | undefined>(
         (resolve, reject) => {
           Serpens.addAction(() => {
@@ -168,8 +166,6 @@ export class Auth implements AuthInternalEvents {
           })
         }
       )
-
-      console.log("existingUser", existingUser)
 
       if (existingUser) {
         if (existingUser.firstLogin) {
