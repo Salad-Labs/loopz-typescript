@@ -2,7 +2,11 @@ import { AccountEngine, AccountSchema } from "../../interfaces/auth"
 import { Maybe, Network } from "../../types"
 import { AccountInitConfig } from "../../types/auth/account"
 import { ConnectedWallet, EIP1193Provider } from "@privy-io/react-auth"
-import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "../../constants/app"
+import {
+  CLIENT_DB_KEY_LAST_USER_LOGGED,
+  CLIENT_DB_KEY_REFRESH_TOKEN,
+  CLIENT_DB_KEY_TOKEN,
+} from "../../constants/app"
 import { encodeFunctionData } from "viem"
 import { erc1155Abi, erc20Abi, erc721Abi } from "../../constants"
 import { Client } from "../client"
@@ -336,6 +340,8 @@ export class Account implements AccountSchema, AccountEngine {
 
   destroyLastUserLoggedKey() {
     window.localStorage.removeItem(CLIENT_DB_KEY_LAST_USER_LOGGED)
+    window.localStorage.removeItem(CLIENT_DB_KEY_TOKEN)
+    window.localStorage.removeItem(CLIENT_DB_KEY_REFRESH_TOKEN)
   }
 
   getActiveWallets(): Array<ConnectedWallet> {
