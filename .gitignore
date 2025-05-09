@@ -118,4 +118,5 @@ docs/
 .code-narrator/
 code-narrator.config.js
 
-install-package.sh
+install-*-package.sh
+publish-package-*.sh
