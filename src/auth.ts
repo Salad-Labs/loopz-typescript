@@ -7,9 +7,9 @@ import { DexieStorage } from "./core/app"
 import { AuthInternalEvents } from "./interfaces/auth/authinternalevents"
 import { AccountInitConfig } from "./types/auth/account"
 import { CLIENT_DB_KEY_LAST_USER_LOGGED } from "./constants/app"
-import { getAccessToken } from "@privy-io/react-auth"
 import { Account, Chat, Serpens } from "."
 import { LocalDBUser } from "./core/app/database"
+import refreshToken from "./core/auth/refreshtoken"
 
 /**
  * Represents an authentication client that interacts with a backend server for user authentication.
@@ -151,6 +151,8 @@ export class Auth implements AuthInternalEvents {
     try {
       if (!Auth._account) throw new Error("Account is not set")
 
+      console.log(Auth._account)
+
       const existingUser = await new Promise<LocalDBUser | undefined>(
         (resolve, reject) => {
           Serpens.addAction(() => {
@@ -166,6 +168,8 @@ export class Auth implements AuthInternalEvents {
           })
         }
       )
+
+      console.log("existingUser", existingUser)
 
       if (existingUser) {
         if (existingUser.firstLogin) {
@@ -757,7 +761,7 @@ export class Auth implements AuthInternalEvents {
   public static async fetchAuthToken() {
     try {
       Auth._config && Auth._config.devMode && console.log("fetch new token")
-      const token = await getAccessToken()
+      const token = await refreshToken(Auth._config!.devMode)
 
       Auth._config &&
         Auth._config.devMode &&
