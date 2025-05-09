@@ -43,7 +43,7 @@ export class User
   /**
    * @property address - The address of the user.
    */
-  readonly address: string
+  readonly address: Maybe<string>
   /**
    * @property username - The username of the user, if available.
    */
@@ -223,7 +223,7 @@ export class User
       id: response.id,
       username: response.username ? response.username : null,
       did: response.did,
-      address: response.address,
+      address: response.address ? response.address : null,
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
@@ -307,7 +307,7 @@ export class User
       id: response.id,
       username: response.username ? response.username : null,
       did: response.did,
-      address: response.address,
+      address: response.address ? response.address : null,
       email: response.email ? response.email : null,
       bio: response.bio ? response.bio : null,
       avatarUrl: response.avatarUrl ? new URL(response.avatarUrl) : null,
@@ -394,7 +394,9 @@ export class User
               username: item.blockedUser.username
                 ? item.blockedUser.username
                 : null,
-              address: item.blockedUser.address,
+              address: item.blockedUser.address
+                ? item.blockedUser.address
+                : null,
               email: item.blockedUser.email ? item.blockedUser.email : null,
               bio: item.blockedUser.bio ? item.blockedUser.bio : null,
               avatarUrl: item.blockedUser.avatarUrl
