@@ -12,6 +12,7 @@ import {
 } from "../../constants/app"
 import { jwtDecode } from "jwt-decode"
 import fetchApi from "../../core/utilities/fetchapi"
+import refreshToken from "../../core/auth/refreshtoken"
 
 interface JwtPayload {
   email: string
@@ -231,9 +232,19 @@ export const LoopzAuth: FC<
             setAuthToken(token)
             setIsAuthenticated(true)
           } else {
-            localStorage.removeItem(CLIENT_DB_KEY_TOKEN)
-            setAuthToken(null)
-            setIsAuthenticated(false)
+            refreshToken(devMode)
+              .then((token: string) => {
+                setAuthToken(token)
+                setIsAuthenticated(true)
+              })
+              .catch((error) => {
+                console.log(error)
+
+                localStorage.removeItem(CLIENT_DB_KEY_TOKEN)
+                localStorage.removeItem(CLIENT_DB_KEY_REFRESH_TOKEN)
+                setAuthToken(null)
+                setIsAuthenticated(false)
+              })
           }
         }
       } catch (error) {
@@ -256,7 +267,6 @@ export const LoopzAuth: FC<
 
   useEffect(() => {
     if (isAuthenticated && Auth && typeof Auth._emit === "function") {
-      console.log("eeeeeeee")
       Auth._emit("__tryRebuildAccountOnRefresh")
     } else if (Auth && typeof Auth._emit === "function") {
       Auth._emit("__onLoginError")
