@@ -16,7 +16,7 @@ export interface UserSchema {
   /**
    * @property {string} address - The address of the user.
    */
-  address: string
+  address: Maybe<string>
   /**
    * @property {Maybe<string>} username - The username of the user, if available.
    */

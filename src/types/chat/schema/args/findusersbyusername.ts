@@ -1,8 +1,8 @@
 /**
  * type for the arguments used to find users by username or address.
- * @type FindUsersByUsernameOrAddressArgs
+ * @type FindUsersByUsernameArgs
  */
-export type FindUsersByUsernameOrAddressArgs = {
+export type FindUsersByUsernameArgs = {
   /**
    * @property {string} searchTerm - The search term to look for in usernames or addresses.
    */

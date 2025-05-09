@@ -256,6 +256,7 @@ export const LoopzAuth: FC<
 
   useEffect(() => {
     if (isAuthenticated && Auth && typeof Auth._emit === "function") {
+      console.log("eeeeeeee")
       Auth._emit("__tryRebuildAccountOnRefresh")
     } else if (Auth && typeof Auth._emit === "function") {
       Auth._emit("__onLoginError")

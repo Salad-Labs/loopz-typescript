@@ -76,8 +76,8 @@ import {
   ListConversationsByIdsResult as ListConversationsByIdsResultGraphQL,
   QueryListMessagesByConversationIdArgs,
   ListMessagesByConversationIdResult as ListMessagesByConversationIdResultGraphQL,
-  QueryFindUsersByUsernameOrAddressArgs,
-  FindUsersByUsernameOrAddressResult as FindUsersByUsernameOrAddressResultGraphQL,
+  QueryFindUsersByUsernameArgs,
+  FindUsersByUsernameResult as FindUsersByUsernameResultGraphQL,
   MutationAddImportantToMessageArgs,
   MutationRemoveImportantFromMessageArgs,
   MutationAddPinToConversationArgs,
@@ -141,7 +141,7 @@ import {
   updateUserInfo,
 } from "./constants/chat/mutations"
 import {
-  findUsersByUsernameOrAddress,
+  findUsersByUsername,
   getConversationById,
   getCurrentUser,
   listAllActiveUserConversationIds,
@@ -166,7 +166,6 @@ import {
   CreateConversationOneToOneArgs,
   DeleteBatchConversationMessagesArgs,
   EditMessageArgs,
-  FindUsersByUsernameOrAddressArgs,
   ListAllActiveUserConversationIdsArgs,
   ListMessagesByConversationIdArgs,
   ListMessagesImportantByUserConversationIdArgs,
@@ -181,6 +180,7 @@ import {
   UpdateRequestTradeArgs,
   ListTradesByConversationIdArgs,
   ListMessagesByRangeOrderArgs,
+  FindUsersByUsernameArgs,
 } from "./types/chat/schema/args"
 import { UAMutationEngine, UAQueryEngine } from "./interfaces/chat/core/ua"
 import { Asset, Maybe } from "./types/base"
@@ -3216,8 +3216,8 @@ export class Chat
       ...this._parentConfig!,
       id: user.id,
       username: user.username ? user.username : null,
+      address: user.address ? user.address : null,
       did: user.did,
-      address: user.address,
       email: user.email ? user.email : null,
       bio: user.bio ? user.bio : null,
       avatarUrl: user.avatarUrl ? new URL(user.avatarUrl) : null,
@@ -5395,20 +5395,20 @@ export class Chat
     return listConversationsPinned
   }
 
-  async findUsersByUsernameOrAddress(
-    args: FindUsersByUsernameOrAddressArgs,
+  async findUsersByUsername(
+    args: FindUsersByUsernameArgs,
     overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<QIError | { items: User[]; nextToken?: String | undefined }> {
     const response = await this._query<
-      QueryFindUsersByUsernameOrAddressArgs,
+      QueryFindUsersByUsernameArgs,
       {
-        findUsersByUsernameOrAddress: FindUsersByUsernameOrAddressResultGraphQL
+        findUsersByUsername: FindUsersByUsernameResultGraphQL
       },
-      FindUsersByUsernameOrAddressResultGraphQL
+      FindUsersByUsernameResultGraphQL
     >(
-      "findUsersByUsernameOrAddress",
-      findUsersByUsernameOrAddress,
-      "_query() -> findUsersByUsernameOrAddress()",
+      "findUsersByUsername",
+      findUsersByUsername,
+      "_query() -> findUsersByUsername()",
       {
         input: {
           searchTerm: args.searchTerm,

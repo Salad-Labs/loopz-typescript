@@ -232,7 +232,7 @@ export class Conversation
       id: user.id,
       username: user.username ? user.username : null,
       did: user.did,
-      address: user.address,
+      address: user.address ? user.address : null,
       email: user.email ? user.email : null,
       bio: user.bio ? user.bio : null,
       avatarUrl: user.avatarUrl ? new URL(user.avatarUrl) : null,

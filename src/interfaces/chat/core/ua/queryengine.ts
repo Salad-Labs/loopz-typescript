@@ -9,7 +9,7 @@ import {
 } from "../../../../core/chat"
 import {
   Maybe,
-  FindUsersByUsernameOrAddressArgs,
+  FindUsersByUsernameArgs,
   ListAllActiveUserConversationIdsArgs,
   ListMessagesByConversationIdArgs,
   ListMessagesByRangeOrderArgs,
@@ -71,8 +71,8 @@ export interface UAQueryEngine {
     id: string,
     overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<Conversation | QIError>
-  findUsersByUsernameOrAddress(
-    args: FindUsersByUsernameOrAddressArgs,
+  findUsersByUsername(
+    args: FindUsersByUsernameArgs,
     overrideHandlingUnauthorizedQIError?: boolean
   ): Promise<{ items: Array<User>; nextToken?: String } | QIError>
   getCurrentUser(
