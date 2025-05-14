@@ -16,6 +16,7 @@ import refreshToken from "../../core/auth/refreshtoken"
 
 interface JwtPayload {
   email: string
+  did: string
   exp: number
   iat: number
 }
@@ -43,10 +44,16 @@ export const LoopzAuth: FC<
     try {
       const decoded = jwtDecode<JwtPayload>(token)
 
-      if (!decoded.email) return false
+      if (!decoded.email || !decoded.did) return false
 
       const currentTime = Date.now() / 1000
+
       if (decoded.exp && decoded.exp < currentTime) return false
+
+      if (!decoded.iat) return false
+
+      const maxAgeSeconds = 18 * 60 * 60 // 64800
+      if (currentTime - decoded.iat > maxAgeSeconds) return false
 
       return true
     } catch (error) {
