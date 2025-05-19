@@ -84,6 +84,8 @@ export const LoopzChatProvider: FC<
       return
     hasStartedConnection.current = true
 
+    console.log("hasStartedConnection", hasStartedConnection.current)
+
     setChatStatus({
       canChat: true,
       isConnecting: true,
@@ -132,6 +134,8 @@ export const LoopzChatProvider: FC<
     )
       return
     hasStartedSynchronization.current = true
+
+    console.log("hasStartedSynchronization", hasStartedSynchronization.current)
 
     if (!autoSync)
       return setChatStatus({
@@ -223,6 +227,10 @@ export const LoopzChatProvider: FC<
       "[LoopzProvider]: chatConfig.autoSync has no effect because chatConfig.autoConnect is false"
     )
   }, [autoConnect, autoSync])
+
+  useEffect(() => {
+    console.log(chatStatus)
+  }, [chatStatus])
 
   return (
     <LoopzChatContext.Provider
