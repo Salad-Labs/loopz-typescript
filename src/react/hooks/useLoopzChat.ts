@@ -128,9 +128,10 @@ export const useLoopzChat: UseLoopzChat = ({
     if (!initialized) throw new NotInitializedError()
     if (!isAuthenticated) throw new UnauthenticatedError()
     if (!canChat) throw new ClientCantChatError()
-    if (isConnecting) throw new LoadingError("sync()", "Chat")
+    if (isConnecting)
+      throw new LoadingError("sync() - still connecting", "Chat")
     if (!isConnected) throw new NotConnectedError()
-    if (isSyncing) throw new LoadingError("sync()", "Chat")
+    if (isSyncing) throw new LoadingError("sync() - still syncing", "Chat")
 
     setIsSyncing(true)
 
@@ -153,12 +154,22 @@ export const useLoopzChat: UseLoopzChat = ({
   ])
 
   const unsync = useCallback(() => {
+    console.log(
+      initialized,
+      isAuthenticated,
+      canChat,
+      isConnecting,
+      isConnected,
+      isSyncing,
+      isSynced
+    )
     if (!initialized) throw new NotInitializedError()
     if (!isAuthenticated) throw new UnauthenticatedError()
     if (!canChat) throw new ClientCantChatError()
-    if (isConnecting) throw new LoadingError("unsync()", "Chat")
+    if (isConnecting)
+      throw new LoadingError("unsync() - still connecting", "Chat")
     if (!isConnected) throw new NotConnectedError()
-    if (isSyncing) throw new LoadingError("unsync()", "Chat")
+    if (isSyncing) throw new LoadingError("unsync() - still syncing", "Chat")
 
     return isSynced
       ? instance.chat
