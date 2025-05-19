@@ -7309,10 +7309,10 @@ export class Chat
     return super.connect(force)
   }
 
-  disconnect(emit: boolean = true) {
+  disconnect(emitEvent: boolean = true) {
     this._userKeyPair = null //user private/public key
     super.disconnect()
-    if (emit) this._emit("disconnect")
+    if (emitEvent) this._emit("disconnect")
   }
 
   /** Syncing methods */
