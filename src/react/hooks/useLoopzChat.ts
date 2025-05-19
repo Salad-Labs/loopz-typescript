@@ -66,6 +66,7 @@ export const useLoopzChat: UseLoopzChat = ({
     isSynced,
     setIsConnected,
     setIsSynced,
+    setIsSyncing,
     setCanChat,
   } = chatContext
 
@@ -131,11 +132,14 @@ export const useLoopzChat: UseLoopzChat = ({
     if (!isConnected) throw new NotConnectedError()
     if (isSyncing) throw new LoadingError("sync()", "Chat")
 
+    setIsSyncing(true)
+
     return !isSynced
       ? instance.chat
           .sync()
           .then(() => setIsSynced(true))
           .catch(() => setIsSynced(false))
+          .finally(() => setIsSyncing(false))
       : Promise.resolve()
   }, [
     initialized,
@@ -237,6 +241,7 @@ export const useLoopzChat: UseLoopzChat = ({
     unsync,
     setIsConnected,
     setIsSynced,
+    setIsSyncing,
     setCanChat,
   }
 }

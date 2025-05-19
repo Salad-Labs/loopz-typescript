@@ -1235,14 +1235,14 @@ export class Chat
             })
 
             //let's collect these messages for our detective message instance (only if this sync is not the first)
-            if (this._syncingCounter > 0)
+            /*if (this._syncingCounter > 0)
               messages.forEach((message) => {
-                /*Chat._detectiveMessage.collectClue(
+                Chat._detectiveMessage.collectClue(
                   message,
                   Auth.account!.did,
                   Auth.account!.organizationId
-                )*/
-              })
+                )
+              })*/
           }
         }
 
@@ -7310,6 +7310,7 @@ export class Chat
   }
 
   disconnect() {
+    this._userKeyPair = null //user private/public key
     super.disconnect()
     this._emit("disconnect")
   }
@@ -7469,7 +7470,6 @@ export class Chat
         this._unsubscribeSyncSet = [] //subscription mapping array
         this._conversationsMap = [] //conversations array
         this._keyPairsMap = [] //conversations public/private keys
-        this._userKeyPair = null //user private/public key
         this._syncRunning = false
         //Chat._detectiveMessage.clear()
         resolve()

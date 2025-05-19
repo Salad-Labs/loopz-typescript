@@ -39,7 +39,12 @@ export const LoopzChatProvider: FC<
   )
 
   const setIsSynced = useCallback(
-    (isSynched: boolean) => setChatStatus((cs) => ({ ...cs, isSynched })),
+    (isSynced: boolean) => setChatStatus((cs) => ({ ...cs, isSynced })),
+    []
+  )
+
+  const setIsSyncing = useCallback(
+    (isSyncing: boolean) => setChatStatus((cs) => ({ ...cs, isSyncing })),
     []
   )
 
@@ -227,6 +232,7 @@ export const LoopzChatProvider: FC<
           setCanChat,
           setIsConnected,
           setIsSynced,
+          setIsSyncing,
         } as LoopzChatContextValue
       }
     >

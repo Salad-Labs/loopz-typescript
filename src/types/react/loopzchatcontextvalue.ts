@@ -6,5 +6,6 @@ export type LoopzChatContextValue = {
   isSynced: boolean
   setCanChat: (canChat: boolean) => void
   setIsConnected: (isConnected: boolean) => void
-  setIsSynced: (isSynched: boolean) => void
+  setIsSynced: (isSynced: boolean) => void
+  setIsSyncing: (isSyncing: boolean) => void
 }
