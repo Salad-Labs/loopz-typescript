@@ -135,6 +135,8 @@ export const useLoopzChat: UseLoopzChat = ({
 
     setIsSyncing(true)
 
+    console.log(isSynced)
+
     return !isSynced
       ? instance.chat
           .sync()
