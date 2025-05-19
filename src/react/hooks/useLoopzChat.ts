@@ -64,6 +64,7 @@ export const useLoopzChat: UseLoopzChat = ({
     isConnected,
     isSyncing,
     isSynced,
+    chatStatusRef,
     setIsConnected,
     setIsSynced,
     setIsSyncing,
@@ -71,12 +72,14 @@ export const useLoopzChat: UseLoopzChat = ({
   } = chatContext
 
   const connect = useCallback(() => {
+    if (!chatStatusRef.current) throw "no chat status reference is defined"
     if (!initialized) throw new NotInitializedError()
     if (!isAuthenticated) throw new UnauthenticatedError()
-    if (!canChat) throw new ClientCantChatError()
-    if (isConnecting) throw new LoadingError("connect()", "Chat")
+    if (!chatStatusRef.current.canChat) throw new ClientCantChatError()
+    if (chatStatusRef.current.isConnecting)
+      throw new LoadingError("connect()", "Chat")
 
-    return !isConnected
+    return !chatStatusRef.current.isConnected
       ? instance.chat
           .connect()
           .finally(() => setIsConnected(instance.chat.isConnected()))
@@ -91,117 +94,78 @@ export const useLoopzChat: UseLoopzChat = ({
   ])
 
   const reconnect = useCallback(() => {
+    if (!chatStatusRef.current) throw "no chat status reference is defined"
     if (!initialized) throw new NotInitializedError()
     if (!isAuthenticated) throw new UnauthenticatedError()
-    if (!canChat) throw new ClientCantChatError()
-    if (isConnecting) throw new LoadingError("reconnect()", "Chat")
-    if (!isConnected) throw new NotConnectedError()
+    if (!chatStatusRef.current.canChat) throw new ClientCantChatError()
+    if (chatStatusRef.current.isConnecting)
+      throw new LoadingError("reconnect()", "Chat")
+    if (!chatStatusRef.current.isConnected) throw new NotConnectedError()
 
     return instance.chat.reconnect()
-  }, [
-    initialized,
-    isAuthenticated,
-    canChat,
-    isConnecting,
-    isConnected,
-    instance,
-  ])
+  }, [initialized, instance])
 
   const disconnect = useCallback(() => {
+    if (!chatStatusRef.current) throw "no chat status reference is defined"
     if (!initialized) throw new NotInitializedError()
     if (!isAuthenticated) throw new UnauthenticatedError()
-    if (!canChat) throw new ClientCantChatError()
-    if (isConnecting) throw new LoadingError("disconnect()", "Chat")
-    if (!isConnected) throw new NotConnectedError()
+    if (!chatStatusRef.current.canChat) throw new ClientCantChatError()
+    if (chatStatusRef.current.isConnecting)
+      throw new LoadingError("disconnect()", "Chat")
+    if (!chatStatusRef.current.isConnected) throw new NotConnectedError()
 
     return instance.chat.disconnect()
-  }, [
-    initialized,
-    isAuthenticated,
-    canChat,
-    isConnecting,
-    isConnected,
-    instance,
-  ])
+  }, [initialized, instance])
 
   const sync = useCallback(() => {
+    if (!chatStatusRef.current) throw "no chat status reference is defined"
     if (!initialized) throw new NotInitializedError()
-    if (!isAuthenticated) throw new UnauthenticatedError()
-    if (!canChat) throw new ClientCantChatError()
-    if (isConnecting)
+    if (!chatStatusRef.current.isAuthenticated) throw new UnauthenticatedError()
+    if (!chatStatusRef.current.canChat) throw new ClientCantChatError()
+    if (chatStatusRef.current.isConnecting)
       throw new LoadingError("sync() - still connecting", "Chat")
-    if (!isConnected) throw new NotConnectedError()
-    if (isSyncing) throw new LoadingError("sync() - still syncing", "Chat")
+    if (!chatStatusRef.current.isConnected) throw new NotConnectedError()
+    if (chatStatusRef.current.isSyncing)
+      throw new LoadingError("sync() - still syncing", "Chat")
 
     setIsSyncing(true)
 
-    console.log(isSynced, chatContext)
-
-    return !isSynced
+    return !chatStatusRef.current.isSynced
       ? instance.chat
           .sync()
           .then(() => {
-            console.log("sync done")
             setIsSynced(true)
           })
           .catch((error) => {
-            console.log("sync error", error)
             setIsSynced(false)
           })
           .finally(() => setIsSyncing(false))
       : Promise.resolve()
-  }, [
-    initialized,
-    isAuthenticated,
-    canChat,
-    isConnecting,
-    isConnected,
-    isSyncing,
-    isSynced,
-    instance,
-    chatContext,
-  ])
+  }, [initialized, instance])
 
   const unsync = useCallback(() => {
-    console.log(
-      initialized,
-      isAuthenticated,
-      canChat,
-      isConnecting,
-      isConnected,
-      isSyncing,
-      isSynced
-    )
-    if (!initialized) throw new NotInitializedError()
-    if (!isAuthenticated) throw new UnauthenticatedError()
-    if (!canChat) throw new ClientCantChatError()
-    if (isConnecting)
-      throw new LoadingError("unsync() - still connecting", "Chat")
-    if (!isConnected) throw new NotConnectedError()
-    if (isSyncing) throw new LoadingError("unsync() - still syncing", "Chat")
+    if (!chatStatusRef.current) throw "no chat status reference is defined"
 
-    return isSynced
+    if (!initialized) throw new NotInitializedError()
+    if (!chatStatusRef.current.isAuthenticated) throw new UnauthenticatedError()
+    if (!chatStatusRef.current.canChat) throw new ClientCantChatError()
+    if (chatStatusRef.current.isConnecting)
+      throw new LoadingError("unsync() - still connecting", "Chat")
+    if (!chatStatusRef.current.isConnected) throw new NotConnectedError()
+    if (chatStatusRef.current.isSyncing)
+      throw new LoadingError("unsync() - still syncing", "Chat")
+
+    return chatStatusRef.current.isSynced
       ? instance.chat
           .unsync()
           .then(() => {
-            console.log("unsync done")
             setIsSynced(false)
           })
           .catch((error) => {
-            console.log("unsync error", error)
             setIsSynced(true)
           })
       : Promise.resolve()
-  }, [
-    initialized,
-    isAuthenticated,
-    canChat,
-    isConnecting,
-    isConnected,
-    isSyncing,
-    isSynced,
-    instance,
-  ])
+  }, [initialized, instance])
 
   useLoopzChatEvent("syncing", onSyncing)
   useLoopzChatEvent("sync", onSync)
@@ -260,6 +224,7 @@ export const useLoopzChat: UseLoopzChat = ({
     isConnected,
     isSyncing,
     isSynced,
+    chatStatusRef,
     connect,
     reconnect,
     disconnect,

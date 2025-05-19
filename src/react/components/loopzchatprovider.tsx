@@ -5,22 +5,30 @@ import React, {
   ReactNode,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react"
 import { useLoopz, useLoopzAuth } from "../hooks"
 import { LoopzChatContext } from "../context/loopzchatcontext"
 import { LoopzProviderChatConfig } from "../../types/react/loopzproviderchatconfig"
-import { LoopzChatContextValue } from "../../types/react/loopzchatcontextvalue"
 
 export const LoopzChatProvider: FC<
   LoopzProviderChatConfig & { children?: ReactNode }
 > = ({ autoConnect, autoSync, syncingTime, children }) => {
   const { instance, initialized } = useLoopz()
   const { isAuthenticated, account } = useLoopzAuth()
+
   const hasStartedConnection = useRef(false)
   const hasStartedSynchronization = useRef(false)
+  const chatStatusRef = useRef<{
+    canChat: boolean
+    isConnecting: boolean
+    isConnected: boolean
+    isSyncing: boolean
+    isSynced: boolean
+    isAuthenticated: boolean
+  }>()
+
   const [chatStatus, setChatStatus] = useState({
     canChat: false,
     isConnecting: false,
@@ -85,8 +93,6 @@ export const LoopzChatProvider: FC<
       return
     hasStartedConnection.current = true
 
-    console.log("hasStartedConnection", hasStartedConnection.current)
-
     setChatStatus({
       canChat: true,
       isConnecting: true,
@@ -135,8 +141,6 @@ export const LoopzChatProvider: FC<
     )
       return
     hasStartedSynchronization.current = true
-
-    console.log("hasStartedSynchronization", hasStartedSynchronization.current)
 
     if (!autoSync)
       return setChatStatus({
@@ -230,22 +234,23 @@ export const LoopzChatProvider: FC<
   }, [autoConnect, autoSync])
 
   useEffect(() => {
-    console.log(chatStatus)
-  }, [chatStatus])
-
-  const contextValue = useMemo(
-    () => ({
+    chatStatusRef.current = {
       ...chatStatus,
-      setCanChat,
-      setIsConnected,
-      setIsSynced,
-      setIsSyncing,
-    }),
-    [chatStatus, setCanChat, setIsConnected, setIsSynced, setIsSyncing]
-  )
+      isAuthenticated,
+    }
+  }, [chatStatus, isAuthenticated])
 
   return (
-    <LoopzChatContext.Provider value={contextValue}>
+    <LoopzChatContext.Provider
+      value={{
+        ...chatStatus,
+        chatStatusRef,
+        setCanChat,
+        setIsConnected,
+        setIsSynced,
+        setIsSyncing,
+      }}
+    >
       {children}
     </LoopzChatContext.Provider>
   )
