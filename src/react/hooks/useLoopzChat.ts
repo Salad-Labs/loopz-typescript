@@ -117,7 +117,7 @@ export const useLoopzChat: UseLoopzChat = ({
     return instance.chat.disconnect()
   }, [initialized, instance])
 
-  const sync = useCallback(() => {
+  const sync = useCallback(async () => {
     if (!chatStatusRef.current) throw "no chat status reference is defined"
     if (!initialized) throw new NotInitializedError()
     if (!chatStatusRef.current.isAuthenticated) throw new UnauthenticatedError()
@@ -130,17 +130,16 @@ export const useLoopzChat: UseLoopzChat = ({
 
     setIsSyncing(true)
 
-    return !chatStatusRef.current.isSynced
-      ? instance.chat
-          .sync()
-          .then(() => {
-            setIsSynced(true)
-          })
-          .catch((error) => {
-            setIsSynced(false)
-          })
-          .finally(() => setIsSyncing(false))
-      : Promise.resolve()
+    return
+    instance
+      .chat!.sync()
+      .then(() => {
+        setIsSynced(true)
+      })
+      .catch((error) => {
+        setIsSynced(false)
+      })
+      .finally(() => setIsSyncing(false))
   }, [initialized, instance])
 
   const unsync = useCallback(() => {
@@ -155,16 +154,14 @@ export const useLoopzChat: UseLoopzChat = ({
     if (chatStatusRef.current.isSyncing)
       throw new LoadingError("unsync() - still syncing", "Chat")
 
-    return chatStatusRef.current.isSynced
-      ? instance.chat
-          .unsync()
-          .then(() => {
-            setIsSynced(false)
-          })
-          .catch((error) => {
-            setIsSynced(true)
-          })
-      : Promise.resolve()
+    return instance
+      .chat!.unsync()
+      .then(() => {
+        setIsSynced(false)
+      })
+      .catch((error) => {
+        setIsSynced(true)
+      })
   }, [initialized, instance])
 
   useLoopzChatEvent("syncing", onSyncing)
