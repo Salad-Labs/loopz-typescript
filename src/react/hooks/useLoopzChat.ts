@@ -135,7 +135,7 @@ export const useLoopzChat: UseLoopzChat = ({
 
     setIsSyncing(true)
 
-    console.log(isSynced)
+    console.log(isSynced, chatContext)
 
     return !isSynced
       ? instance.chat
@@ -159,6 +159,7 @@ export const useLoopzChat: UseLoopzChat = ({
     isSyncing,
     isSynced,
     instance,
+    chatContext,
   ])
 
   const unsync = useCallback(() => {
