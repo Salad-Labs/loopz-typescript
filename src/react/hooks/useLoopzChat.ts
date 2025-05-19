@@ -140,8 +140,14 @@ export const useLoopzChat: UseLoopzChat = ({
     return !isSynced
       ? instance.chat
           .sync()
-          .then(() => setIsSynced(true))
-          .catch(() => setIsSynced(false))
+          .then(() => {
+            console.log("sync done")
+            setIsSynced(true)
+          })
+          .catch((error) => {
+            console.log("sync error", error)
+            setIsSynced(false)
+          })
           .finally(() => setIsSyncing(false))
       : Promise.resolve()
   }, [
@@ -176,8 +182,14 @@ export const useLoopzChat: UseLoopzChat = ({
     return isSynced
       ? instance.chat
           .unsync()
-          .then(() => setIsSynced(false))
-          .catch(() => setIsSynced(true))
+          .then(() => {
+            console.log("unsync done")
+            setIsSynced(false)
+          })
+          .catch((error) => {
+            console.log("unsync error", error)
+            setIsSynced(true)
+          })
       : Promise.resolve()
   }, [
     initialized,
