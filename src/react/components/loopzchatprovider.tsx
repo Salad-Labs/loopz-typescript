@@ -57,6 +57,11 @@ export const LoopzChatProvider: FC<
     []
   )
 
+  const setIsConnecting = useCallback(
+    (isConnecting: boolean) => setChatStatus((cs) => ({ ...cs, isConnecting })),
+    []
+  )
+
   useEffect(() => {
     if (!initialized) return
 
@@ -249,6 +254,7 @@ export const LoopzChatProvider: FC<
         setIsConnected,
         setIsSynced,
         setIsSyncing,
+        setIsConnecting,
       }}
     >
       {children}

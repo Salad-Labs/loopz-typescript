@@ -66,6 +66,7 @@ export const useLoopzChat: UseLoopzChat = ({
     isSynced,
     chatStatusRef,
     setIsConnected,
+    setIsConnecting,
     setIsSynced,
     setIsSyncing,
     setCanChat,
@@ -230,6 +231,7 @@ export const useLoopzChat: UseLoopzChat = ({
     setIsConnected,
     setIsSynced,
     setIsSyncing,
+    setIsConnecting,
     setCanChat,
   }
 }
