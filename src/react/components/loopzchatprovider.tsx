@@ -5,6 +5,7 @@ import React, {
   ReactNode,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react"
@@ -232,18 +233,19 @@ export const LoopzChatProvider: FC<
     console.log(chatStatus)
   }, [chatStatus])
 
+  const contextValue = useMemo(
+    () => ({
+      ...chatStatus,
+      setCanChat,
+      setIsConnected,
+      setIsSynced,
+      setIsSyncing,
+    }),
+    [chatStatus, setCanChat, setIsConnected, setIsSynced, setIsSyncing]
+  )
+
   return (
-    <LoopzChatContext.Provider
-      value={
-        {
-          ...chatStatus,
-          setCanChat,
-          setIsConnected,
-          setIsSynced,
-          setIsSyncing,
-        } as LoopzChatContextValue
-      }
-    >
+    <LoopzChatContext.Provider value={contextValue}>
       {children}
     </LoopzChatContext.Provider>
   )
