@@ -564,6 +564,10 @@ export class Auth implements AuthInternalEvents {
     return Auth._handleDesktopAuthentication()
   }
 
+  dismiss() {
+    Auth._emit("__dismiss")
+  }
+
   logout() {
     Auth._isAuthenticated = false
     Auth._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])

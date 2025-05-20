@@ -6,6 +6,7 @@ export type AuthEvents =
   | "__logout"
   | "__onAccountReady"
   | "__tryRebuildAccountOnRefresh"
+  | "__dismiss"
   | "auth"
   | "onAuthError"
   | "logout"
