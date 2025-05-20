@@ -214,6 +214,7 @@ export const LoopzAuth: FC<
     if (initialized && instance) {
       if (instance.auth && typeof instance.auth.on === "function") {
         instance.auth.on("__authenticate", handleAuthenticate)
+        instance.auth.on("__dismiss", closeEmailForm)
 
         instance.auth.on(
           "__onAccountReady",
