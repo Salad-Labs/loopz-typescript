@@ -7285,19 +7285,14 @@ export class Chat
         Auth.account!.organizationId,
       ])) as LocalDBUser
 
-      const { e2eEncryptedPrivateKey, e2ePublicKey: e2ePublicKeyPem } = user!
-      const { e2eSecret } = Auth.account!
-      const { e2eSecretIV } = Auth.account!
-
-      const e2ePrivateKeyPem = Crypto.decryptAES_CBC(
-        e2eEncryptedPrivateKey,
-        Buffer.from(e2eSecret, "hex").toString("base64"),
-        Buffer.from(e2eSecretIV, "hex").toString("base64")
-      )
-
+      const {
+        e2eEncryptedPrivateKey: privateKeyPem,
+        e2ePublicKey: publicKeyPem,
+      } = user!
+      console.log(publicKeyPem, privateKeyPem)
       const userKeyPair = await Crypto.generateKeyPairFromPem(
-        e2ePublicKeyPem,
-        e2ePrivateKeyPem
+        publicKeyPem,
+        privateKeyPem
       )
 
       if (!userKeyPair)
@@ -8000,133 +7995,6 @@ export class Chat
       })
     } catch (error) {
       throw error
-    }
-  }
-
-  /** transfer keys logic */
-  async storePIN(pin: string): Promise<boolean> {
-    if (pin.length !== 5) throw new Error("PIN length must be of five digits.")
-    if (isNaN(Number(pin))) throw new Error("PIN must be numerical.")
-
-    const existingUser = await new Promise<LocalDBUser | undefined>(
-      (resolve, reject) => {
-        Serpens.addAction(() => {
-          if (!Auth.account) throw new Error("Account is not setup correctly.")
-
-          this._storage.user
-            .where("[did+organizationId]")
-            .equals([Auth.account!.did, Auth.account!.organizationId])
-            .first()
-            .then(resolve)
-            .catch(reject)
-        })
-      }
-    )
-
-    if (!existingUser) throw new Error("User is not setup correctly.")
-    if (
-      existingUser.e2eEncryptedPrivateKey === "" ||
-      !existingUser.e2eEncryptedPrivateKey
-    )
-      throw new Error(
-        "The private key of this user must be setup before to call this method."
-      )
-
-    try {
-      const { response } = await this._clientEngine.fetch<ApiResponse<{}>>(
-        this._clientEngine.backendUrl("/user/pin/keys/store"),
-        {
-          method: "POST",
-          body: {
-            pin,
-            encryptedKey: existingUser.e2eEncryptedPrivateKey,
-          },
-        }
-      )
-      if (!response || !response.data) throw new Error("Response is invalid.")
-
-      return true
-    } catch (error: any) {
-      console.error(error)
-
-      if ("statusCode" in error && error.statusCode === 401)
-        Auth.getInstance().logout()
-
-      return false
-    }
-  }
-
-  async checkPIN(pin: string): Promise<boolean> {
-    if (pin.length !== 5) throw new Error("PIN length must be of five digits.")
-    if (isNaN(Number(pin))) throw new Error("PIN must be numerical.")
-
-    const existingUser = await new Promise<LocalDBUser | undefined>(
-      (resolve, reject) => {
-        Serpens.addAction(() => {
-          if (!Auth.account) throw new Error("Account is not setup correctly.")
-
-          this._storage.user
-            .where("[did+organizationId]")
-            .equals([Auth.account!.did, Auth.account!.organizationId])
-            .first()
-            .then(resolve)
-            .catch(reject)
-        })
-      }
-    )
-
-    if (!existingUser) throw new Error("User is not setup correctly.")
-
-    try {
-      const { response } = await this._clientEngine.fetch<
-        ApiResponse<{ encryptedKey: string }>
-      >(this._clientEngine.backendUrl("/user/pin/keys/check"), {
-        method: "POST",
-        body: {
-          pin,
-        },
-      })
-      if (!response || !response.data) throw new Error("Response is invalid.")
-
-      await new Promise((resolve, reject) => {
-        Serpens.addAction(() => {
-          this._storage.user
-            .update(existingUser, {
-              e2eEncryptedPrivateKey: response.data[0].encryptedKey,
-            })
-            .then(resolve)
-            .catch(reject)
-        })
-      })
-
-      return true
-    } catch (error: any) {
-      console.error(error)
-
-      if ("statusCode" in error && error.statusCode === 401)
-        Auth.getInstance().logout()
-
-      return false
-    }
-  }
-
-  async isPINStored() {
-    try {
-      const { response } = await this._clientEngine.fetch<
-        ApiResponse<{ stored: boolean }>
-      >(this._clientEngine.backendUrl("/user/is/pin/keys/stored"), {
-        method: "GET",
-      })
-      if (!response || !response.data) throw new Error("Response is invalid.")
-
-      return true
-    } catch (error: any) {
-      console.error(error)
-
-      if ("statusCode" in error && error.statusCode === 401)
-        Auth.getInstance().logout()
-
-      return false
     }
   }
 
