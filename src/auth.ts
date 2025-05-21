@@ -97,18 +97,36 @@ export class Auth implements AuthInternalEvents {
     }
   }
 
+  private static async _getKeys() {
+    if (!Auth._config || !Auth._instance || !Auth._client)
+      throw new Error("Auth has not been configured")
+
+    const { response } = await Auth._client.fetch<
+      ApiResponse<{
+        publicKeyPem: string
+        privateKeyPem: string
+      }>
+    >(Auth._client.backendUrl("/auth/keys"), {
+      method: "GET",
+    })
+
+    if (!response || !response.data) throw new Error("Invalid response.")
+
+    const { publicKeyPem, privateKeyPem } = response.data[0]
+
+    return { publicKeyPem, privateKeyPem }
+  }
+
   private static async _getOrCreateUserKeys(
     did: string,
     organizationId: string
   ): Promise<{
     e2ePublicKeyPem: string
-    e2ePrivateKeyPem: Maybe<string>
-    e2eEncryptedPrivateKey: Maybe<string>
+    e2ePrivateKeyPem: string
   }> {
     return new Promise<{
       e2ePublicKeyPem: string
-      e2ePrivateKeyPem: Maybe<string>
-      e2eEncryptedPrivateKey: Maybe<string>
+      e2ePrivateKeyPem: string
     }>((resolve, reject) => {
       Serpens.addAction(() => {
         Auth._storage.user
@@ -117,24 +135,20 @@ export class Auth implements AuthInternalEvents {
           .first()
           .then(async (existingUser) => {
             if (existingUser) {
+              console.log("_getOrCreateUserKeys, user exists", existingUser)
               resolve({
                 e2ePublicKeyPem: existingUser.e2ePublicKey,
-                e2eEncryptedPrivateKey: existingUser.e2eEncryptedPrivateKey,
-                e2ePrivateKeyPem: null,
+                e2ePrivateKeyPem: existingUser.e2eEncryptedPrivateKey,
               })
             } else {
-              const keys = await Auth._generateKeys()
-              const publicKeyPem = Crypto.convertRSAPublicKeyToPem(
-                keys.publicKey
-              )
-              const privateKeyPem = Crypto.convertRSAPrivateKeyToPem(
-                keys.privateKey
-              )
+              console.log("_getOrCreateUserKeys, user doesn't exists")
+              const keys = await Auth._getKeys()
+              const { publicKeyPem, privateKeyPem } = keys
+              console.log("two pems", publicKeyPem, privateKeyPem)
 
               resolve({
                 e2ePublicKeyPem: publicKeyPem,
                 e2ePrivateKeyPem: privateKeyPem,
-                e2eEncryptedPrivateKey: null,
               })
             }
           })
@@ -145,8 +159,7 @@ export class Auth implements AuthInternalEvents {
 
   private static async _storeUserOnLocalDB(keys: {
     e2ePublicKeyPem: string
-    e2ePrivateKeyPem: Maybe<string>
-    e2eEncryptedPrivateKey: Maybe<string>
+    e2ePrivateKeyPem: string
   }): Promise<void> {
     try {
       if (!Auth._account) throw new Error("Account is not set")
@@ -334,9 +347,7 @@ export class Auth implements AuthInternalEvents {
               allowAddToGroupsFrom: Auth._account.allowAddToGroupsFrom,
               allowGroupsSuggestion: Auth._account.allowGroupsSuggestion,
               e2ePublicKey: keys.e2ePublicKeyPem,
-              e2eEncryptedPrivateKey: keys.e2eEncryptedPrivateKey
-                ? keys.e2eEncryptedPrivateKey
-                : "",
+              e2eEncryptedPrivateKey: keys.e2ePrivateKeyPem,
               createdAt: Auth._account.createdAt,
               updatedAt: Auth._account.updatedAt,
               lastSyncAt: null,
@@ -373,7 +384,6 @@ export class Auth implements AuthInternalEvents {
         method: "POST",
         body: {
           ...Auth._formatAuthParams(authInfo),
-          e2ePublicKey: keys.e2ePublicKeyPem,
         },
       })
 
@@ -382,47 +392,6 @@ export class Auth implements AuthInternalEvents {
       const { user } = response.data[0]
 
       if (!user) throw new Error("Access not granted.")
-
-      //this is needed to understand if the user is doing the login on a different device
-      if (
-        user.e2ePublicKey.toLowerCase() === keys.e2ePublicKeyPem.toLowerCase()
-      ) {
-        //this means the user is accessing from the same device/the devices it owns share the same keys OR he's/she's doing the signup
-        if (keys.e2eEncryptedPrivateKey) {
-          //it means i've recovered the private key from the local database. So the user has the possibility to chat
-          Chat.getInstance().setCanChat(true)
-
-          //so now we have the following situation:
-          //keys.e2eEncryptedPrivateKey = string
-          //keys.e2ePrivateKeyPem = string
-          //keys.e2ePublicKeyPem = string
-        } else {
-          //in the case of a signup, i generate now the private key so the user can chat
-          Chat.getInstance().setCanChat(true)
-          const encryptedPrivateKey = Crypto.encryptAES_CBC(
-            keys.e2ePrivateKeyPem!,
-            Buffer.from(user.e2eSecret, "hex").toString("base64"),
-            Buffer.from(user.e2eSecretIV, "hex").toString("base64")
-          )
-
-          keys.e2eEncryptedPrivateKey = encryptedPrivateKey
-
-          //so now we have the following situation:
-          //keys.e2eEncryptedPrivateKey = string
-          //keys.e2ePrivateKeyPem = string
-          //keys.e2ePublicKeyPem = string
-        }
-      } else {
-        //this means the user is accessing from another device, so the keys need to be overwritten
-        Chat.getInstance().setCanChat(false)
-        keys.e2ePublicKeyPem = user.e2ePublicKey
-        keys.e2ePrivateKeyPem = null
-
-        //so now we have the following situation:
-        //keys.e2eEncryptedPrivateKey = null
-        //keys.e2ePrivateKeyPem = null
-        //keys.e2ePublicKeyPem = string
-      }
 
       Auth._isAuthenticated = true
       Auth._authInfo = {
@@ -441,6 +410,8 @@ export class Auth implements AuthInternalEvents {
       //generation of the record in user table and local keys for e2e encryption
       await Auth._storeUserOnLocalDB(keys)
 
+      Chat.getInstance().setCanChat(true)
+
       //clear all the internal callbacks connected to the authentication...
       Auth._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
 
@@ -453,7 +424,7 @@ export class Auth implements AuthInternalEvents {
 
       //clear all the internal callbacks connected to the authentication...
       Auth._clearEventsCallbacks(["__onLoginComplete", "__onLoginError"])
-      await Auth._instance.logout()
+      Auth._instance.logout()
       Auth._emit("onAuthError", error)
 
       throw error
@@ -618,28 +589,6 @@ export class Auth implements AuthInternalEvents {
 
       Auth.authToken = token
 
-      const { response } = await Auth._client.fetch<
-        ApiResponse<{
-          secrets: {
-            e2eSecret: string
-            e2eSecretIV: string
-          }
-        }>
-      >(Auth._client.backendUrl("/user/secrets"))
-
-      if (
-        !response ||
-        !response.data ||
-        typeof response.data[0] === "undefined"
-      )
-        return
-
-      const { secrets } = response.data[0]
-
-      if (!secrets) return
-
-      const { e2eSecret, e2eSecretIV } = secrets
-
       Auth._isAuthenticated = true
       Auth.account = new Account({
         enableDevMode: Auth._config.devMode,
@@ -736,8 +685,8 @@ export class Auth implements AuthInternalEvents {
         generalNotificationSystem: user.generalNotificationSystem,
         accountSuspended: user.accountSuspended,
         e2ePublicKey: user.e2ePublicKey,
-        e2eSecret, //this info comes from the backend. This data is never stored in the local DB, it exists only in memory to make harder the access to it
-        e2eSecretIV, //this info comes from the backend. This data is never stored in the local DB, it exists only in memory to make harder the access to it
+        e2eSecret: "", //deprecated
+        e2eSecretIV: "", //deprecated
         createdAt: user.createdAt,
         updatedAt: user.updatedAt ? user.updatedAt : null,
         deletedAt: user.deletedAt ? user.deletedAt : null,

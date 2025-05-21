@@ -75,6 +75,7 @@ export class Crypto {
             console.error(err)
             reject(null)
           } else {
+            console.log("keypair generated", keyPair)
             resolve(keyPair)
           }
         }
@@ -298,12 +299,14 @@ export class Crypto {
   }
 
   static convertRSAPublicKeyToPem(publicKey: forge.pki.rsa.PublicKey): string {
+    console.log("convertRSAPublicKeyToPem", publicKey)
     return forge.pki.publicKeyToPem(publicKey)
   }
 
   static convertRSAPrivateKeyToPem(
     privateKey: forge.pki.rsa.PrivateKey
   ): string {
+    console.log("convertRSAPrivateKeyToPem", privateKey)
     return forge.pki.privateKeyToPem(privateKey)
   }
 
