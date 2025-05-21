@@ -117,7 +117,8 @@ export const LoopzChatProvider: FC<
           isSynced: false,
         })
       )
-      .catch(() => {
+      .catch((error) => {
+        console.log(error)
         hasStartedConnection.current = false
         setChatStatus({
           canChat: false,
