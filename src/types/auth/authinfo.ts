@@ -4,4 +4,5 @@ export type AuthInfo = {
     id: string
   }
   authToken: string
+  referralCode?: string
 }
