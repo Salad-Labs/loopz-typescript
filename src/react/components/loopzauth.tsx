@@ -137,8 +137,6 @@ export const LoopzAuth: FC<
         localStorage.setItem(CLIENT_DB_KEY_TOKEN, data.token)
         localStorage.setItem(CLIENT_DB_KEY_REFRESH_TOKEN, data.refreshToken)
 
-        //
-
         setSuccess(
           intl?.authSuccess ? intl.authSuccess : "Authentication successful"
         )
