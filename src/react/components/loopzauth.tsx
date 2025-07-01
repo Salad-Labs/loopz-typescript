@@ -40,13 +40,13 @@ export const LoopzAuth: FC<
 
   const [isFormVisible, setIsFormVisible] = useState<boolean>(false)
 
-  const [urlReferral, setUrlReferral] = useState<string | null>(null)
+  const [referralCode, setReferralCode] = useState<string | null>(null)
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search)
-      const referral = params.get("urlReferral")
-      if (referral) setUrlReferral(referral)
+      const referralCode = params.get("code")
+      if (referralCode) setReferralCode(referralCode)
     }
   }, [])
 
@@ -148,7 +148,7 @@ export const LoopzAuth: FC<
               id: data.did,
             },
             authToken: data.token,
-            urlReferral,
+            referralCode,
           })
         }
 
@@ -175,7 +175,7 @@ export const LoopzAuth: FC<
     } finally {
       setLoading(false)
     }
-  }, [email, code, ENDPOINT, apiKey, intl, urlReferral])
+  }, [email, code, ENDPOINT, apiKey, intl, referralCode])
 
   const closeEmailForm = useCallback(() => {
     setIsFormVisible(false)
