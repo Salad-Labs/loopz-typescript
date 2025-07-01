@@ -435,6 +435,7 @@ export class Auth implements AuthInternalEvents {
     return {
       did: authInfo.user.id,
       email: authInfo.user.email,
+      referralCode: authInfo.referralCode,
     }
   }
 
