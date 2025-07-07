@@ -7289,7 +7289,7 @@ export class Chat
         e2eEncryptedPrivateKey: privateKeyPem,
         e2ePublicKey: publicKeyPem,
       } = user!
-      console.log(publicKeyPem, privateKeyPem)
+
       const userKeyPair = await Crypto.generateKeyPairFromPem(
         publicKeyPem,
         privateKeyPem
